@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const bcrypt = require('bcryptjs');
 
 /**
  * Register a new user profile
@@ -17,10 +18,9 @@ const registerUser = async (req, res) => {
     const newUser = {
       name,
       email,
-      password, // Note: In production, hash passwords using bcrypt
+      password_hash: await bcrypt.hash(password, 10),
       district,
-      ds_division,
-      created_at: new Date().toISOString()
+      ds_division
     };
 
     if (!process.env.SUPABASE_URL || process.env.SUPABASE_URL.includes('placeholder')) {
@@ -94,19 +94,23 @@ const loginUser = async (req, res) => {
 
     const { data, error } = await supabase
       .from('users')
-      .select('id, name, email, district, ds_division, password')
+      .select('id, name, email, district, ds_division, password_hash')
       .eq('email', email)
       .single();
 
-    if (error || !data || data.password !== password) {
+    const passwordMatches = data
+      ? await bcrypt.compare(password, data.password_hash)
+      : false;
+
+    if (error || !passwordMatches) {
       return res.status(401).json({
         success: false,
         message: 'Invalid email or password.'
       });
     }
 
-    // Omit password from output
-    const { password: _, ...userProfile } = data;
+    // Omit password hash from output
+    const { password_hash: _, ...userProfile } = data;
 
     return res.status(200).json({
       success: true,
