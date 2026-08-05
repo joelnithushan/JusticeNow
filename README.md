@@ -34,7 +34,11 @@
 
 - **Database:**
   - **Provider:** PostgreSQL (Supabase)
-  - **Schema Tables:** `users`, `hazard_reports`, `sos`
+  - **Schema Tables:** `users`, `hazard_reports`, `alerts`, `sos`
+
+- **Testing:**
+  - **Framework:** Jest + Supertest (API integration tests against the real database)
+  - **Docs:** See [`TEST_CASES.md`](TEST_CASES.md) for the full test case tables
 
 ---
 
@@ -58,11 +62,15 @@ Community-Hazard-Alert-Response-System/
 │   ├── config/                 # Config files (supabase.js client)
 │   ├── controllers/            # Request handlers (health, auth, hazard, sos)
 │   ├── routes/                 # API Express routers (health, auth, hazard, sos)
+│   ├── tests/                  # Jest + Supertest API integration tests
 │   ├── schema.sql              # Supabase PostgreSQL DDL migration script
-│   ├── index.js                # Main Express server entry point
+│   ├── app.js                  # Express app definition (used by server & tests)
+│   ├── index.js                # Server entry point (starts the listener)
 │   ├── .env.example            # Server env template
 │   └── package.json
 ├── .gitignore                  # Git exclusions (node_modules, .env, build output)
+├── CLAUDE.md                   # Standing rules for AI coding agents
+├── TEST_CASES.md               # Test case documentation (kept in sync with tests)
 ├── package.json                # Root monorepo workspace scripts
 └── README.md                   # Project documentation
 ```
@@ -89,20 +97,26 @@ Community-Hazard-Alert-Response-System/
    ```bash
    cp .env.example .env
    ```
-3. Open `.env` and fill in your Supabase credentials:
+3. Open `.env` and fill in your Supabase credentials
+   (Supabase Dashboard → Project Settings → API):
    ```env
    PORT=5000
-   SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_KEY=your-supabase-anon-key
+   SUPABASE_URL=https://your-project-ref.supabase.co
+   SUPABASE_KEY=sb_secret_...
    CLIENT_URL=http://localhost:3000
    ```
+   > ⚠️ `SUPABASE_URL` is the **Project URL** (not an API key), and `SUPABASE_KEY`
+   > is the **Secret key** (`sb_secret_...`) — the backend is the only thing that
+   > talks to the database. Ask Joel for the team's shared credentials privately;
+   > never commit them.
 
 #### B. Database Initialization (Supabase SQL Editor)
 1. Log in to your [Supabase Dashboard](https://app.supabase.com).
 2. Go to your project's **SQL Editor**.
 3. Open the file `server/schema.sql` from this codebase.
 4. Copy and paste all the contents into the Supabase SQL Editor and click **Run**.
-   *This creates the `users`, `hazard_reports`, and `sos` tables along with sample data.*
+   *This creates the `users`, `hazard_reports`, `alerts`, and `sos` tables along with
+   sample data. All seeded demo accounts use the password `Password123!`.*
 
 #### C. Frontend Environment Setup (`/client`)
 1. Navigate to the `/client` directory:
@@ -169,8 +183,47 @@ npm run dev
 
 ---
 
-## 🤝 Code Guidelines for Team Members
+## 🧪 Running the Tests
 
-1. **Comments & Readability:** All controllers and components contain explanatory comments to help team members get up to speed quickly.
-2. **Never commit `.env` files:** Always add private keys to `.env` locally. `.env` is ignored by `.gitignore`.
-3. **Map Coordinates:** Sri Lanka map center is set to `[7.8731, 80.7718]` (lat/lng) with zoom level `8`.
+The backend has a full API integration test suite (25 tests) that runs against the
+real Supabase database. It requires a valid `server/.env`.
+
+```bash
+cd server
+npm test
+```
+
+Test data uses unique per-run emails and cleans itself up automatically. The full
+test case tables (IDs, steps, expected results) are documented in
+[`TEST_CASES.md`](TEST_CASES.md).
+
+---
+
+## 🤝 Contribution Workflow (Required)
+
+The `main` branch is protected — direct pushes are blocked by GitHub. All changes
+go through Pull Requests:
+
+1. **Branch from the latest `main`:**
+   ```bash
+   git checkout main && git pull origin main
+   git checkout -b feat/your-feature-name
+   ```
+2. **Branch naming:** use a type prefix — `feat/`, `fix/`, `refactor/`, `test/`,
+   `docs/`, or `chore/` — followed by a short hyphenated description.
+3. **Before pushing:** refactor your code (no dead code / stray `console.log`s) and
+   run `npm test` in `/server` — all tests must pass. New features and bug fixes
+   must include their own test cases (see `CLAUDE.md` for the full rules).
+4. **Open a Pull Request to `main`** with a clear description of what changed and
+   how it was tested.
+5. **Review & merge:** Joel (repo owner) reviews and merges all PRs. PRs require
+   1 approval; self-merging is disabled.
+
+> 🤖 Using an AI coding agent (Claude Code, Cursor, Copilot)? It will pick up these
+> rules automatically from [`CLAUDE.md`](CLAUDE.md).
+
+### Other Guidelines
+
+1. **Never commit `.env` files:** keep credentials local; `.env` is gitignored.
+2. **Comments & readability:** controllers and components contain explanatory comments — keep them up to date when you change behavior.
+3. **Map coordinates:** Sri Lanka map center is `[7.8731, 80.7718]` (lat/lng), zoom level `8`.
