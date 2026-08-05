@@ -1,5 +1,9 @@
 const supabase = require('../config/supabase');
 
+// Allowed values - must match the CHECK constraints in schema.sql
+const HAZARD_TYPES = ['dengue', 'flood', 'heat', 'landslide'];
+const SEVERITY_LEVELS = ['low', 'medium', 'high'];
+
 // Mock in-memory data store fallback when Supabase keys are placeholders
 let mockHazards = [
   {
@@ -78,20 +82,55 @@ const createHazard = async (req, res) => {
   try {
     const { type, latitude, longitude, severity, description, reporter_id } = req.body;
 
-    if (!type || !latitude || !longitude || !severity) {
+    if (!type || latitude === undefined || longitude === undefined || !severity) {
       return res.status(400).json({
         success: false,
         message: 'Type, latitude, longitude, and severity are required fields.'
       });
     }
 
+    // Schema requires a known reporter (hazard_reports.reporter_id NOT NULL)
+    if (!reporter_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'reporter_id is required - reports must belong to a registered user.'
+      });
+    }
+
+    // Normalize to lowercase so values pass the DB CHECK constraints
+    const normalizedType = String(type).toLowerCase();
+    const normalizedSeverity = String(severity).toLowerCase();
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+
+    if (!HAZARD_TYPES.includes(normalizedType)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid hazard type '${type}'. Allowed: ${HAZARD_TYPES.join(', ')}.`
+      });
+    }
+
+    if (!SEVERITY_LEVELS.includes(normalizedSeverity)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid severity '${severity}'. Allowed: ${SEVERITY_LEVELS.join(', ')}.`
+      });
+    }
+
+    if (Number.isNaN(lat) || Number.isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude must be between -90 and 90, longitude between -180 and 180.'
+      });
+    }
+
     const newHazard = {
-      type,
-      latitude: parseFloat(latitude),
-      longitude: parseFloat(longitude),
-      severity,
+      type: normalizedType,
+      latitude: lat,
+      longitude: lng,
+      severity: normalizedSeverity,
       description: description || '',
-      reporter_id: reporter_id || null,
+      reporter_id,
       created_at: new Date().toISOString()
     };
 

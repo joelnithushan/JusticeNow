@@ -6,7 +6,7 @@ let mockSOSList = [
     user_id: 'u1',
     latitude: 6.6850,
     longitude: 80.4010,
-    status: 'ACTIVE',
+    status: 'active',
     created_at: new Date().toISOString()
   }
 ];
@@ -27,7 +27,7 @@ const getActiveSOS = async (req, res) => {
     const { data, error } = await supabase
       .from('sos')
       .select('*')
-      .eq('status', 'ACTIVE')
+      .eq('status', 'active')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -53,18 +53,36 @@ const createSOS = async (req, res) => {
   try {
     const { user_id, latitude, longitude } = req.body;
 
-    if (!latitude || !longitude) {
+    if (latitude === undefined || longitude === undefined) {
       return res.status(400).json({
         success: false,
         message: 'Current location coordinates (latitude and longitude) are required for an SOS call.'
       });
     }
 
+    // Schema requires a known user for every SOS (sos.user_id NOT NULL)
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'user_id is required - an SOS must belong to a registered user.'
+      });
+    }
+
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+
+    if (Number.isNaN(lat) || Number.isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude must be between -90 and 90, longitude between -180 and 180.'
+      });
+    }
+
     const newSOS = {
-      user_id: user_id || null,
-      latitude: parseFloat(latitude),
-      longitude: parseFloat(longitude),
-      status: 'ACTIVE',
+      user_id,
+      latitude: lat,
+      longitude: lng,
+      status: 'active',
       created_at: new Date().toISOString()
     };
 
