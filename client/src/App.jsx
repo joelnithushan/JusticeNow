@@ -1,39 +1,36 @@
+/**
+ * JusticeNow — Root component: routes + the always-visible Quick Exit button.
+ */
+
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
-import Navbar from './components/Navbar';
+import QuickExitButton from './components/QuickExitButton';
 import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import ReportHazard from './pages/ReportHazard';
-import ReportsFeed from './pages/ReportsFeed';
+import ReportCase from './pages/ReportCase';
+import ReportSuccess from './pages/ReportSuccess';
+import CheckStatus from './pages/CheckStatus';
+import Directory from './pages/Directory';
+import StaffLogin from './pages/StaffLogin';
+import StaffReports from './pages/StaffReports';
 
 function App() {
   return (
     <div className="app-container">
-      {/* Navigation Header */}
-      <Navbar />
+      {/* Safety feature: visible on every page, always in the same place */}
+      <QuickExitButton />
 
-      {/* Main View Router */}
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/report" element={<ReportHazard />} />
-          <Route path="/feed" element={<ReportsFeed />} />
+          <Route path="/report" element={<ReportCase />} />
+          <Route path="/report/success" element={<ReportSuccess />} />
+          <Route path="/status" element={<CheckStatus />} />
+          <Route path="/directory" element={<Directory />} />
+          <Route path="/staff/login" element={<StaffLogin />} />
+          <Route path="/staff/reports" element={<StaffReports />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </main>
-
-      {/* Footer */}
-      <footer className="footer">
-        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-          <p><strong>Community Hazard Alert & Response System</strong> — Sri Lanka</p>
-          <p style={{ marginTop: '0.4rem', fontSize: '0.8rem' }}>
-            Academic Project SPM_NU_WE_01 | Team: Joel Nithushan A.T, Vaishnavi L, Thushalini U, Kanistan T
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }
