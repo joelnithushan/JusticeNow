@@ -1,79 +1,62 @@
-# Test Cases — Community Hazard Alert & Response System
+# JusticeNow — Test Cases
 
-**Group:** SPM_NU_WE_01
-**Module scope:** Backend API (Express + Supabase PostgreSQL)
-**Test type:** Automated integration tests (Jest + Supertest) hitting the real database
-**Last executed:** 2026-08-05 — **25 / 25 passed**
-
-## How to run
+Automated tests live in `server/tests/` (Jest). Run them with:
 
 ```bash
-cd server
-npm test
+cd server && npm test
 ```
 
-Test data uses unique per-run emails (`test_<timestamp>@example.lk`) and is cleaned up
-automatically after the run (deleting the test user cascades to their reports and SOS rows).
+API cases marked *manual* require a configured `server/.env` and the schema
+from `docs/schema.sql` applied in Supabase. They will be automated with
+Supertest once the team's shared Supabase project is provisioned.
 
----
+## Reference code generator (automated — `referenceCode.test.js`)
 
-## TC-01 — General API
+| ID | Description | Expected result |
+|---|---|---|
+| TC-RC-01 | Generate a code | Length is exactly 10 characters |
+| TC-RC-02 | Column fit | Code length is between 8 and 12 (fits `VARCHAR(12)`) |
+| TC-RC-03 | Character set (500 codes) | Only uppercase A–Z / 2–9, never O, 0, I or 1 |
+| TC-RC-04 | Uniqueness (1000 codes) | All 1000 codes distinct |
 
-| ID | Test Case | Steps / Input | Expected Result | Status |
-|----|-----------|---------------|-----------------|--------|
-| TC-01-01 | Root welcome endpoint | `GET /` | 200; welcome message with group ID | ✅ Pass |
-| TC-01-02 | Unknown route handling | `GET /api/does-not-exist` | 404; `success: false` | ✅ Pass |
-| TC-01-03 | Health check verifies DB connection | `GET /api/health` | 200; `status: ok`, `database: connected`, numeric `userCount` | ✅ Pass |
+## POST /api/reports (manual until Supabase test project exists)
 
-## TC-02 — User Registration
+| ID | Description | Input | Expected result |
+|---|---|---|---|
+| TC-RP-01 | Valid report | valid case_type, district, description | `201`, body contains `reference_code` |
+| TC-RP-02 | Missing case_type | no case_type | `400` with helpful message |
+| TC-RP-03 | Invalid case_type | `case_type=theft` | `400` listing valid types |
+| TC-RP-04 | Missing district | no district | `400` with helpful message |
+| TC-RP-05 | Invalid district | `district=Chennai` | `400` "valid Sri Lankan district" |
+| TC-RP-06 | Empty description | `description="   "` | `400` with helpful message |
+| TC-RP-07 | Invalid incident_date | `incident_date=not-a-date` | `400` with helpful message |
+| TC-RP-08 | With evidence file | multipart upload ≤ 10 MB | `201`; stored filename is random, original discarded |
+| TC-RP-09 | No identity stored | valid report | Row in `case_reports` has no name/email/phone/user id |
 
-| ID | Test Case | Steps / Input | Expected Result | Status |
-|----|-----------|---------------|-----------------|--------|
-| TC-02-01 | Missing required fields | `POST /api/auth/register` with only email + password | 400; `success: false` | ✅ Pass |
-| TC-02-02 | Successful registration | Valid name, email, password, district, DS division | 201; user object with generated UUID | ✅ Pass |
-| TC-02-03 | Password never exposed | Register a valid user | Response contains no `password` / `password_hash` field | ✅ Pass |
-| TC-02-04 | Duplicate email rejected | Register again with an existing email | 409 Conflict | ✅ Pass |
+## GET /api/reports (manual until Supabase test project exists)
 
-## TC-03 — User Login
+| ID | Description | Input | Expected result |
+|---|---|---|---|
+| TC-RL-01 | List all | no filters | `200`, newest first |
+| TC-RL-02 | Filter by type | `?case_type=land_dispute` | `200`, only matching rows |
+| TC-RL-03 | Filter by status | `?status=received` | `200`, only matching rows |
+| TC-RL-04 | Invalid type filter | `?case_type=bogus` | `400` listing valid types |
+| TC-RL-05 | Invalid status filter | `?status=bogus` | `400` listing valid statuses |
 
-| ID | Test Case | Steps / Input | Expected Result | Status |
-|----|-----------|---------------|-----------------|--------|
-| TC-03-01 | Missing credentials | `POST /api/auth/login` with email only | 400 | ✅ Pass |
-| TC-03-02 | Wrong password | Valid email, incorrect password | 401; generic "Invalid email or password" | ✅ Pass |
-| TC-03-03 | Unknown email | Non-existent email | 401 (same generic message — no user enumeration) | ✅ Pass |
-| TC-03-04 | Successful login | Correct email + password (bcrypt comparison) | 200; token + user profile, no hash in response | ✅ Pass |
-| TC-03-05 | Seeded demo account | `joel@example.lk` / `Password123!` | 200; district = Colombo | ✅ Pass |
+## GET /api/health (manual)
 
-## TC-04 — Hazard Reports
+| ID | Description | Expected result |
+|---|---|---|
+| TC-HL-01 | DB reachable | `200` `{ status: 'ok', database: 'connected' }` |
+| TC-HL-02 | DB unreachable / bad key | `503` with clear error message |
 
-| ID | Test Case | Steps / Input | Expected Result | Status |
-|----|-----------|---------------|-----------------|--------|
-| TC-04-01 | List reports | `GET /api/hazards` | 200; array ordered newest-first | ✅ Pass |
-| TC-04-02 | Missing required fields | Report without longitude/severity | 400 | ✅ Pass |
-| TC-04-03 | Missing reporter | Report without `reporter_id` | 400; message names the missing field | ✅ Pass |
-| TC-04-04 | Invalid hazard type | `type: "tsunami"` | 400; lists allowed types (dengue, flood, heat, landslide) | ✅ Pass |
-| TC-04-05 | Invalid severity | `severity: "catastrophic"` | 400; lists allowed levels (low, medium, high) | ✅ Pass |
-| TC-04-06 | Out-of-range coordinates | `latitude: 99` | 400 | ✅ Pass |
-| TC-04-07 | Successful report creation | Valid flood report | 201; `status` defaults to `pending` | ✅ Pass |
-| TC-04-08 | Case-insensitive input | `type: "Flood"`, `severity: "HIGH"` | 201; stored lowercase (`flood` / `high`) | ✅ Pass |
+## Frontend (manual)
 
-## TC-05 — SOS Emergency Signals
-
-| ID | Test Case | Steps / Input | Expected Result | Status |
-|----|-----------|---------------|-----------------|--------|
-| TC-05-01 | Missing coordinates | `POST /api/sos` without lat/lng | 400 | ✅ Pass |
-| TC-05-02 | Missing user | SOS without `user_id` | 400; message names the missing field | ✅ Pass |
-| TC-05-03 | Out-of-range coordinates | `longitude: 200` | 400 | ✅ Pass |
-| TC-05-04 | Successful SOS | Valid user + GPS coordinates | 201; `status` defaults to `active` | ✅ Pass |
-| TC-05-05 | Active SOS listing | `GET /api/sos` | 200; includes new SOS; only `active` rows returned | ✅ Pass |
-
----
-
-## Not yet covered (future work)
-
-- **Alerts API** — no endpoints exist yet for the `alerts` table; add tests when the
-  threshold/weather alert feature is implemented.
-- **Frontend (React) tests** — component and end-to-end tests (e.g. Vitest + React
-  Testing Library, Playwright).
-- **Auth hardening** — once real JWTs are added, test token expiry and protected routes.
-- **Report status transitions** — admin confirm/reject endpoints and their tests.
+| ID | Description | Expected result |
+|---|---|---|
+| TC-FE-01 | Submit valid report | Redirected to success page showing the reference code |
+| TC-FE-02 | Submit empty form | Inline errors for case type, district, description; no request sent |
+| TC-FE-03 | Language switching | en/ta/si buttons switch all visible text |
+| TC-FE-04 | Quick Exit mid-form | Instantly navigates away; back button does not return to the form; nothing in localStorage/sessionStorage |
+| TC-FE-05 | Reload success page | Redirects home (code is never persisted on the device) |
+| TC-FE-06 | Staff list filter | Selecting a case type reloads the table filtered |

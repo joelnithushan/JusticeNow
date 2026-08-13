@@ -1,0 +1,87 @@
+{
+  "app": {
+    "title": "JusticeNow",
+    "tagline": "Report a human rights concern safely and anonymously."
+  },
+  "common": {
+    "loading": "Loading…",
+    "back": "Back",
+    "comingSoon": "This page is coming in the next sprint.",
+    "optional": "optional"
+  },
+  "quickExit": {
+    "label": "Quick exit"
+  },
+  "home": {
+    "reportCase": "Report a case",
+    "checkStatus": "Check case status",
+    "directory": "Legal resource directory",
+    "staffLogin": "Staff login",
+    "privacyNote": "You do not need an account. We never ask who you are."
+  },
+  "caseTypes": {
+    "harassment": "Harassment",
+    "unlawful_detention": "Unlawful detention",
+    "land_dispute": "Land dispute",
+    "discrimination": "Discrimination",
+    "official_misconduct": "Official misconduct",
+    "other": "Other"
+  },
+  "statuses": {
+    "received": "Received",
+    "under_review": "Under review",
+    "referred": "Referred",
+    "closed": "Closed"
+  },
+  "report": {
+    "title": "Report a case",
+    "privacyReassurance": "We never ask for your name. Nothing on this form identifies you.",
+    "caseType": "What kind of incident is this?",
+    "caseTypePlaceholder": "Select a case type",
+    "incidentDate": "When did it happen?",
+    "district": "Which district?",
+    "districtPlaceholder": "Select a district",
+    "description": "What happened?",
+    "descriptionPlaceholder": "Describe what happened. Do not include your own name or contact details.",
+    "descriptionPrivacyHint": "Tip: leave out anything that could identify you.",
+    "evidence": "Evidence file",
+    "evidenceHint": "A photo or document, if you have one. The filename is discarded on upload.",
+    "submit": "Submit report",
+    "submitting": "Submitting…",
+    "errors": {
+      "caseTypeRequired": "Please select a case type.",
+      "districtRequired": "Please select a district.",
+      "descriptionRequired": "Please describe what happened.",
+      "submitFailed": "Could not submit the report. Please check your connection and try again."
+    }
+  },
+  "success": {
+    "title": "Your report has been received",
+    "yourCode": "Your reference code",
+    "writeItDown": "Write this code down or take a screenshot now.",
+    "explanation": "This code is the ONLY way to check on your case later. We cannot recover it for you, because we do not know who you are.",
+    "checkStatusButton": "Check case status",
+    "backHome": "Back to home"
+  },
+  "status": {
+    "title": "Check case status"
+  },
+  "directory": {
+    "title": "Legal resource directory"
+  },
+  "staffLogin": {
+    "title": "Staff login"
+  },
+  "staffReports": {
+    "title": "Incoming reports",
+    "filterByType": "Filter by case type",
+    "allTypes": "All case types",
+    "referenceCode": "Reference",
+    "caseType": "Case type",
+    "district": "District",
+    "date": "Submitted",
+    "status": "Status",
+    "empty": "No reports found.",
+    "loadFailed": "Could not load reports. Is the server running?"
+  }
+}
