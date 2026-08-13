@@ -1,40 +1,37 @@
+/**
+ * JusticeNow — Health check controller.
+ * Confirms the API is up AND that it can actually reach the database.
+ */
+
 const supabase = require('../config/supabase');
 
-/**
- * Health Check Controller
- * Verifies backend API server operational status and tests the Supabase
- * connection with a lightweight head-only count query on the users table.
- */
-const getHealthStatus = async (req, res) => {
+// GET /api/health
+// Runs a lightweight query (count of case_reports, no rows fetched)
+// so "ok" really means the database connection works.
+const checkHealth = async (req, res) => {
   try {
-    const { count, error } = await supabase
-      .from('users')
-      .select('id', { count: 'exact' })
-      .limit(1);
+    const { error } = await supabase
+      .from('case_reports')
+      .select('id', { count: 'exact', head: true });
 
-    if (error) throw error;
+    if (error) {
+      return res.status(503).json({
+        success: false,
+        status: 'error',
+        database: 'disconnected',
+        message: `Database check failed: ${error.message}`,
+      });
+    }
 
-    return res.status(200).json({
-      status: 'ok',
-      database: 'connected',
-      userCount: count,
-      message: 'Community Hazard Alert & Response System API is running smoothly.',
-      timestamp: new Date().toISOString(),
-      group: 'SPM_NU_WE_01',
-      environment: process.env.NODE_ENV || 'development'
-    });
-  } catch (error) {
-    console.error('Health Check Error:', error);
+    return res.json({ success: true, status: 'ok', database: 'connected' });
+  } catch (err) {
     return res.status(503).json({
+      success: false,
       status: 'error',
       database: 'disconnected',
-      message: 'API server is running but the database connection failed. ' +
-        'Check SUPABASE_URL / SUPABASE_KEY in server/.env and confirm the schema has been run.',
-      error: error.message
+      message: `Database check failed: ${err.message}`,
     });
   }
 };
 
-module.exports = {
-  getHealthStatus
-};
+module.exports = { checkHealth };
