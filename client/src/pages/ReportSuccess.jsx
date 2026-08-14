@@ -10,6 +10,7 @@
 import React from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import ReferenceCodeDisplay from '../components/ReferenceCodeDisplay';
 
 function ReportSuccess() {
   const { t } = useTranslation();
@@ -25,9 +26,8 @@ function ReportSuccess() {
       <h1>{t('success.title')}</h1>
 
       <p className="label">{t('success.yourCode')}</p>
-      <p className="reference-code">{referenceCode}</p>
+      <ReferenceCodeDisplay referenceCode={referenceCode} />
 
-      <p className="warning"><strong>{t('success.writeItDown')}</strong></p>
       <p>{t('success.explanation')}</p>
 
       <nav className="home-actions">
