@@ -79,10 +79,15 @@
     "referenceCode": "Reference",
     "caseType": "Case type",
     "district": "District",
-    "date": "Submitted",
+    "incidentDate": "Incident date",
+    "submittedDate": "Submitted",
     "status": "Status",
-    "empty": "No reports found.",
-    "loadFailed": "Could not load reports. Is the server running?"
+    "description": "Description",
+    "fullDescription": "Full description",
+    "expandHint": "Tap to read more",
+    "empty": "No reports yet",
+    "loadFailed": "Could not load reports. Please try again.",
+    "retry": "Try again"
   },
   "referenceCode": {
     "copy": "Copy to clipboard",
