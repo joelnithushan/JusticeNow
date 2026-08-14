@@ -18,10 +18,11 @@ function Home() {
 
       <h1>{t('app.title')}</h1>
       <p className="tagline">{t('app.tagline')}</p>
-      <p className="privacy-note">{t('home.privacyNote')}</p>
-
       <nav className="home-actions">
-        <Link to="/report" className="btn btn-primary">{t('home.reportCase')}</Link>
+        <div className="primary-action-group">
+          <p className="privacy-note">{t('home.privacyNote')}</p>
+          <Link to="/report" className="btn btn-primary">{t('home.reportCase')}</Link>
+        </div>
         <Link to="/status" className="btn btn-secondary">{t('home.checkStatus')}</Link>
         <Link to="/directory" className="btn btn-link">{t('home.directory')}</Link>
         <Link to="/staff/login" className="btn btn-link subtle">{t('home.staffLogin')}</Link>

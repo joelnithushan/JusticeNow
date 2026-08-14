@@ -226,6 +226,17 @@ form .btn {
   color: var(--color-text-muted);
 }
 
+.reference-code-display {
+  margin: 1.5rem 0;
+}
+
+.reference-code-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
 .reference-code {
   font-family: 'SF Mono', 'Courier New', monospace;
   font-size: 1.9rem;
@@ -235,8 +246,14 @@ form .btn {
   border-radius: 8px;
   padding: 0.9rem;
   text-align: center;
-  margin: 0.5rem 0 1rem;
+  margin: 0;
   user-select: all; /* one tap selects the whole code */
+}
+
+.copy-btn {
+  padding: 0.6rem;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .success-page .warning {
