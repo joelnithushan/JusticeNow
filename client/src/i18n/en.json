@@ -17,7 +17,7 @@
     "checkStatus": "Check case status",
     "directory": "Legal resource directory",
     "staffLogin": "Staff login",
-    "privacyNote": "You do not need an account. We never ask who you are."
+    "privacyNote": "No account is needed to use JusticeNow. We never ask for your name, phone number, or email. You will receive a secure reference code to check your case status later."
   },
   "caseTypes": {
     "harassment": "Harassment",
@@ -83,5 +83,10 @@
     "status": "Status",
     "empty": "No reports found.",
     "loadFailed": "Could not load reports. Is the server running?"
+  },
+  "referenceCode": {
+    "copy": "Copy to clipboard",
+    "copied": "Copied!",
+    "warning": "This code cannot be recovered if lost. Please write it down or save it somewhere safe."
   }
 }
