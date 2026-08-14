@@ -5,6 +5,18 @@
    Calm, neutral palette — this app should feel safe, not alarming.
    ========================================================================== */
 
+/*
+  Google Fonts — Noto Sans family.
+  A single Noto Sans import covers the Latin, Tamil (ta), and Sinhala (si)
+  scripts used by this app, ensuring all three languages render correctly
+  even on devices that do not have local Noto fonts installed.
+
+  FONT NOTE: Noto Sans Tamil and Noto Sans Sinhala are included via the
+  unicode-range subsetting built into Google Fonts; only the glyphs actually
+  used on the page are downloaded, keeping load times small.
+*/
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Sinhala:wght@400;600;700&display=swap');
+
 :root {
   --color-bg: #f7f6f3;
   --color-surface: #ffffff;
@@ -17,8 +29,12 @@
   --color-error: #b3402e;
   --color-success: #2e6b46;
 
-  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Noto Sans Sinhala', 'Noto Sans Tamil', sans-serif;
+  /*
+    Font stack: Noto Sans covers all three scripts (Latin/English, Tamil, Sinhala).
+    System fonts are kept as fallbacks in case the Google Fonts CDN is unavailable.
+  */
+  --font-body: 'Noto Sans', 'Noto Sans Tamil', 'Noto Sans Sinhala',
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 * {
@@ -40,6 +56,29 @@ body {
   flex-direction: column;
 }
 
+/*
+  App header: a slim bar at the top that holds the LanguageSwitcher.
+  Sits above the main content; the QuickExitButton is fixed-position so
+  it floats over the top-right corner independently of this bar.
+  Padding-right leaves space so the switcher buttons don't run under
+  the fixed Quick Exit button (~120px covers it on mobile).
+*/
+.app-header {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  padding-right: 8rem; /* room for fixed Quick Exit button */
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.app-header .language-switcher {
+  margin-bottom: 0; /* override the default bottom margin inside the header */
+}
+
 .main-content {
   flex: 1;
   padding: 1rem;
@@ -48,7 +87,7 @@ body {
 .page {
   max-width: 480px;
   margin: 0 auto;
-  padding-top: 2.5rem; /* leaves room for the fixed Quick Exit button */
+  padding-top: 1.5rem; /* reduced — header bar now handles top spacing */
 }
 
 h1 {
