@@ -1,7 +1,19 @@
 {
   "name": "justicenow",
   "version": "1.0.0",
-  "description": "JusticeNow — anonymous human rights case reporting and tracking for Sri Lanka (UN SDG 16)",
+  "description": "JusticeNow — anonymous human rights case reporting and tracking platform for Sri Lanka, aligned to UN SDG 16",
+  "keywords": [
+    "human-rights",
+    "sdg16",
+    "anonymous-reporting",
+    "sri-lanka",
+    "pwa",
+    "react",
+    "express",
+    "supabase"
+  ],
+  "author": "Group SPM_NU_WE_01 — SLIIT",
+  "license": "UNLICENSED",
   "private": true,
   "scripts": {
     "install:all": "npm install && npm install --prefix server && npm install --prefix client",
