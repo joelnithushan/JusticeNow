@@ -20,9 +20,24 @@
     "dev:server": "npm run dev --prefix server",
     "dev:client": "npm run dev --prefix client",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "start": "npm run dev:server"
+    "start": "npm run dev:server",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run test --prefix server && npm run test --prefix client",
+    "test:watch": "npm run test:watch --prefix client",
+    "test:e2e": "playwright test",
+    "test:a11y": "playwright test e2e/accessibility.spec.js",
+    "test:all": "npm run lint && npm run test && npm run test:e2e"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "@axe-core/playwright": "^4.10.1",
+    "@playwright/test": "^1.49.1",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.37.3",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "prettier": "^3.4.2"
   }
 }
