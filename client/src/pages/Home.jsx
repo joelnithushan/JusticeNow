@@ -1,23 +1,24 @@
 /**
  * JusticeNow — Landing page.
- * Language switcher + the two main actions (report / check status),
+ * The two main actions (report / check status),
  * plus links to the directory and staff login.
+ *
+ * Note: LanguageSwitcher is rendered in App.jsx (the app-level header)
+ * so it is visible on every page — it is NOT duplicated here.
  */
 
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import LanguageSwitcher from '../components/LanguageSwitcher';
 
 function Home() {
   const { t } = useTranslation();
 
   return (
     <div className="page home-page">
-      <LanguageSwitcher />
-
       <h1>{t('app.title')}</h1>
       <p className="tagline">{t('app.tagline')}</p>
+
       <nav className="home-actions">
         <div className="primary-action-group">
           <p className="privacy-note">{t('home.privacyNote')}</p>
