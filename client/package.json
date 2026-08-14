@@ -2,6 +2,15 @@
   "name": "justicenow-client",
   "private": true,
   "version": "1.0.0",
+  "description": "JusticeNow PWA frontend — React + Vite, react-i18next (en/ta/si)",
+  "keywords": [
+    "justicenow",
+    "pwa",
+    "react",
+    "vite",
+    "react-i18next"
+  ],
+  "author": "Group SPM_NU_WE_01 — SLIIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
