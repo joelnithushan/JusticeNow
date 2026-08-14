@@ -12,6 +12,20 @@ This project is aligned to **UN Sustainable Development Goal 16 — Peace, Justi
 Strong Institutions**, which calls for access to justice for all and accountable
 institutions.
 
+## Project rules
+
+The whole product depends on one property — reporters are anonymous by construction —
+and these rules protect it. Full detail is in [`CLAUDE.md`](CLAUDE.md).
+
+1. **No reporter identity on a case.** `case_reports` has no `user_id`, `email`,
+   `phone`, `name`, IP or session id, and none may be added.
+2. **Reporters never authenticate.** Only staff (attorneys, NGO officers, admins) log in.
+3. **No case data on the device.** Nothing in `localStorage`/`sessionStorage` except a
+   single "onboarding seen" flag.
+4. **Internal notes and evidence are staff-only.** Filter server-side; serve evidence
+   via short-lived signed URLs; the anonymous status lookup is rate limited.
+5. **Never commit `.env`, and never merge your own PR.**
+
 ## Team
 
 **Group ID:** `SPM_NU_WE_01`
@@ -188,7 +202,35 @@ http://localhost:5000/api/health
 
 A healthy response is `{ "success": true, "status": "ok", "database": "connected" }`.
 
-## Contributing / team workflow
+## Running tests
+
+Tests run from the repo root. See [`TESTING.md`](TESTING.md) for the full guide.
+
+```bash
+npm test           # unit + integration + component tests (Vitest + Supertest + Testing Library)
+npm run test:watch # watch mode (client)
+npm run test:e2e   # Playwright end-to-end (builds and serves the client first)
+npm run test:a11y  # accessibility checks (axe-core)
+npm run test:all   # lint + unit/integration + e2e — the full gate
+```
+
+- **Unit** — pure logic: reference-code generation, the status state machine.
+- **Integration** — HTTP endpoints via Supertest, with the Supabase client mocked (no
+  real database, no credentials needed).
+- **Component** — React form behaviour via Testing Library.
+- **End-to-end / accessibility** — Playwright drives the built app; axe-core checks every
+  public page.
+
+First-time Playwright setup: `npx playwright install --with-deps`.
+
+## Contributing
+
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md) for the branch, commit and PR workflow, and
+[`CLAUDE.md`](CLAUDE.md) for the rules our AI agents must follow. In short: branch from
+`main` with the Jira key, commit under your own account, keep CI green, and have another
+member review before merge.
+
+## Team workflow
 
 Individual contribution is assessed, so **each member commits under their own GitHub
 account** and references the Jira issue key in commit messages.
