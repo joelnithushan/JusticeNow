@@ -40,7 +40,14 @@ const fetchMock = vi.fn(async (url, options = {}) => {
 
 vi.stubGlobal('fetch', fetchMock);
 
-// Import the app AFTER the stub and env are in place.
+// The Supabase client constructs a realtime client that needs a global
+// WebSocket. Node < 21 has none, and we never use realtime here, so provide a
+// harmless stub. (Runtime uses Node 22 — see .nvmrc — which has WebSocket.)
+if (typeof globalThis.WebSocket === 'undefined') {
+  vi.stubGlobal('WebSocket', class WebSocketStub {});
+}
+
+// Import the app AFTER the stubs and env are in place.
 const { default: app } = await import('../../app.js');
 
 const validReport = {
