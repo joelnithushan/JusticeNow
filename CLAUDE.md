@@ -1,130 +1,133 @@
-# CLAUDE.md — Rules for AI Coding Agents
+# CLAUDE.md — rules for AI agents working in this repo
 
-This file contains standing instructions for any AI coding agent (Claude Code, Copilot,
-Cursor, etc.) working in this repository. **Follow these rules on every task, even when
-the developer's prompt doesn't mention them.**
+Claude Code reads this file automatically. It is how our project rules reach every
+member's agent. Follow it on every task, even when the prompt does not mention it.
+Read it before writing anything.
 
-## Project Overview
+## Project overview
 
-**JusticeNow** — anonymous human rights case reporting and tracking for Sri Lanka,
-aligned to UN SDG 16. Survivors and witnesses report violations (harassment, unlawful
-detention, land disputes, discrimination, official misconduct) without revealing their
-identity; a server-generated reference code is their only handle. Legal aid attorneys
-and NGO advocacy officers handle cases in a staff dashboard.
-University group project. Repo owner and reviewer: **Joel Nithushan**.
+JusticeNow is an installable web app (PWA) for anonymous human rights case reporting and
+tracking in Sri Lanka, aligned to UN SDG 16. Survivors and witnesses report violations
+(harassment, unlawful detention, land disputes, discrimination, official misconduct)
+without revealing their identity. On submission the server issues a unique
+`reference_code`; that code is the reporter's only handle on their case. Legal aid
+attorneys and NGO advocacy officers triage and update cases in a staff dashboard.
 
-**Stack:** React (Vite) PWA client · react-i18next (en/ta/si) · Node.js/Express server ·
-Supabase PostgreSQL + Storage
+Reporters are **anonymous by construction**. They never create accounts. The
+`case_reports` table has **no foreign key to any user record, and none may be added**.
+There is no link, anywhere, between a case and a person — storing one would defeat the
+purpose of the product, so the data model makes it impossible. Only staff (attorneys,
+NGO officers, admins) authenticate. Every rule below exists to protect that property.
+
+## Hard rules — never violate
+
+- **Never add reporter identity to a case.** No `user_id`, `email`, `phone`, `name`,
+  IP address or session id on `case_reports`. If a feature seems to need it, STOP and
+  say so instead of implementing it.
+- **Never add authentication to any reporter-facing page or flow.** Reporters do not
+  log in, ever.
+- **Never return internal case notes to an unauthenticated caller.** Filter on the
+  server, never in the client.
+- **Never write case data to `localStorage` or `sessionStorage`.** The only permitted
+  device storage is a single boolean flag for "onboarding seen".
+- **Never serve evidence files through public URLs.** Short-lived signed URLs only.
+- **Never log case narratives, evidence paths or reference codes.**
+- **Never commit `.env` or any real credential.** Only `.env.example` belongs in the repo.
+- **Never merge your own pull request.**
+
+## Architecture
+
+- **Server:** routes define paths only. Controllers handle request/response. Business
+  logic lives in services. No SQL or Supabase calls inside route files.
+- **Client:** pages compose, components stay presentational, all API calls go through
+  `src/api/`. No `fetch` or `axios` inside a component.
+- **Shared constants** (case types, statuses, districts) live in ONE module, imported
+  everywhere. Never redeclare a list.
+
+## Naming
+
+- `camelCase` for JS variables and functions; `PascalCase` for React components;
+  `snake_case` for database columns and API payload fields (match the schema exactly).
+- Booleans read as assertions: `isActive`, `hasEvidence`, `canTransition`.
+- Functions are verbs: `generateReferenceCode`, `validateReport`, `listCases`.
+
+## Validation
+
+Three layers, deliberately:
+
+1. **Client-side** for fast feedback — UX only, never trusted.
+2. **Server-side** as the authority on every endpoint.
+3. **Database CHECK constraints** as the final backstop.
+
+Client and server read the same shared constants so the lists cannot drift apart.
+
+## Case status state machine
 
 ```
-/client   React PWA (Vite, port 3000)
-/server   Express API (port 5000)
-  /config       supabase.js — Supabase client (reads server/.env)
-  /controllers  request handlers
-  /routes       route definitions
-  /utils        referenceCode.js — reference code generator
-  /tests        Jest tests
-/docs
-  schema.sql    database DDL — source of truth for the schema
-TEST_CASES.md   human-readable test case tables (keep in sync with tests)
+received → under_review → referred → closed
 ```
 
-**Commands** (run from repo root unless noted):
+| From         | May move to            | Guard                                  |
+|--------------|------------------------|----------------------------------------|
+| received     | under_review, closed   | authenticated staff                    |
+| under_review | referred, closed       | authenticated staff                    |
+| referred     | under_review, closed   | staff; backward move requires a reason |
+| closed       | under_review           | admin only (reopen)                    |
 
-| Command | Purpose |
-|---|---|
-| `npm run install:all` | install root + server + client deps |
-| `npm run dev` | start server + client together |
-| `npm test` (in `/server`) | run the test suite — must pass before any push |
+Implement this as a single `canTransition(from, to, role)` guard on the server (see
+`server/services/statusTransition.js`). Do not scatter status logic across controllers.
+Every transition writes an audit entry.
 
-## ANONYMITY — THE ONE RULE THAT OVERRIDES EVERYTHING
+## Authorization matrix
 
-Reporters never create accounts and never log in. `case_reports` has NO foreign key
-to any user record, and no name/email/phone columns — **by design**.
+| Action                           | Anonymous | Officer/Attorney | Admin |
+|----------------------------------|-----------|------------------|-------|
+| Create a report                  | yes       | yes              | yes   |
+| Read ONE case by reference code  | yes       | no               | no    |
+| List cases                       | NEVER     | yes              | yes   |
+| Read narrative and evidence      | no        | yes              | yes   |
+| Read reporter-visible notes      | own case  | yes              | yes   |
+| Read internal notes              | no        | yes              | yes   |
+| Change status, refer a case      | no        | yes              | yes   |
+| Manage organisations and staff   | no        | no               | yes   |
+| Analytics and audit trail        | no        | dashboard only   | yes   |
 
-- **NEVER** add a `reporter_id`, `user_id`, `email`, `phone` or `name` column to
-  `case_reports`, no matter how convenient it would be for a feature.
-- **NEVER** add authentication for reporters. Only staff authenticate.
-- **NEVER** log request bodies, IP addresses, or anything that could identify a
-  reporter — not in server logs, not in error reports.
-- **NEVER** cache case data (form contents, reference codes) in `localStorage`,
-  `sessionStorage`, cookies, or any other client-side persistence.
-- Uploaded evidence files get random storage names; original filenames are discarded.
-- The Quick Exit button must remain reachable on every reporter-facing page.
+Two rules that are easy to get wrong:
 
-If a requested feature seems to require breaking one of these rules, stop and flag it
-to Joel instead of implementing it.
+1. Anonymous status lookup returns exactly **ONE** case, selected by reference code,
+   with internal notes stripped **server-side**.
+2. That endpoint **must be rate limited** — without it the reference code is a guessable
+   password. Cap attempts per IP, and return an **identical generic response** for
+   "not found" and "rate limited" so it cannot be used as an oracle.
 
-## Git Workflow — MANDATORY
+## Errors and messages
 
-1. **Never commit or push directly to `main`.** No exceptions, including "tiny" fixes.
-2. **Before starting work:** update main and branch from it:
-   ```bash
-   git checkout main && git pull origin main
-   git checkout -b <type>/<short-description>
-   ```
-3. **Branch naming** — lowercase, hyphen-separated, with one of these prefixes:
-   - `feat/` — new feature (e.g. `feat/status-lookup`)
-   - `fix/` — bug fix (e.g. `fix/report-validation`)
-   - `refactor/` — code restructuring, no behavior change
-   - `test/` — adding or improving tests only
-   - `docs/` — documentation only
-   - `chore/` — tooling, deps, config
-4. **Push the branch and open a Pull Request to `main`.** Use a clear PR title and a
-   description of what changed and how it was tested.
-5. **Only the repo owner (Joel) reviews and merges PRs.** Never merge your own PR,
-   never self-approve, never force-push to `main`.
+- Validation failures: HTTP `400` with `{ errors: { field: message } }`.
+- Everything else: appropriate `4xx`/`5xx` with `{ message }`.
+- Never leak stack traces or database error text to the client.
+- Error text says what went wrong and what to do next. No apologies, no vagueness.
 
-## Before Every Push — Quality Gate
+## Accessibility and internationalisation
 
-Work is not "done" when it runs. Before pushing, ALWAYS:
+- Every user-facing string goes through `t('key')`. No hardcoded text, ever.
+- Add new keys to `en.json`, `ta.json` and `si.json` together, keeping identical
+  structure. Mark untranslated strings clearly as placeholders rather than leaving
+  English silently in place.
+- Every form control has an associated label. Errors are announced to screen readers.
+- Keyboard reachable, focus always visible, WCAG AA contrast, works from 320px width.
 
-1. **Refactor the code you touched:**
-   - Remove dead code, commented-out blocks, unused imports/variables, and stray
-     `console.log` debugging statements.
-   - Extract duplicated logic; keep functions small and single-purpose.
-   - Match the existing style of the file (naming, error-response shape, comments).
-2. **Run the full test suite** — `cd server && npm test`. All tests must pass.
-   If your change breaks a test, fix the code or the test; never delete or skip
-   tests to make the suite green.
-3. **Check nothing sensitive is staged** — `git status` before committing.
-   `server/.env` (Supabase key) must NEVER be committed; only `.env.example`
-   with placeholders.
+## Comments
 
-## Testing — Required for All New Code
+Comment the WHY, not the what. Anything non-obvious about anonymity or safety must carry
+a comment explaining the reasoning, so a future contributor does not "simplify" it away.
 
-**Every new feature, endpoint, or bug fix must ship with test cases in the same
-branch/PR.** Untested code will not be merged.
+## Definition of Done
 
-- Pure logic (validators, generators, helpers) gets Jest unit tests in `server/tests/`.
-- Endpoint behavior gets integration tests (Jest + Supertest) once the team's shared
-  Supabase test project is provisioned; until then, document the cases as *manual*
-  in `TEST_CASES.md` and verify them by hand before the PR.
-- Cover the happy path AND failure paths: missing fields, invalid enum values,
-  not-found, duplicates.
-- Follow the `TC-XX-YY` numbering scheme and add new cases to `TEST_CASES.md`.
-- For bug fixes: write a test that reproduces the bug first, then fix it.
+A story is Done only when:
 
-## Code Conventions
-
-- **Enums are lowercase snake_case** everywhere:
-  case types `harassment|unlawful_detention|land_dispute|discrimination|official_misconduct|other`,
-  statuses `received|under_review|referred|closed`,
-  staff roles `attorney|officer|admin`.
-  API input is normalized to lowercase before insert. District names keep their
-  proper capitalisation (e.g. `Nuwara Eliya`) and must match `server/constants.js`.
-- **Controller validation must mirror `docs/schema.sql`** CHECK/NOT NULL constraints and
-  return `400` with a helpful message — never let raw DB constraint errors surface
-  as `500`s.
-- **Schema changes** go into `docs/schema.sql` (single source of truth) and must be
-  announced in the PR description so the team re-runs it in Supabase. Keep
-  `server/constants.js` and `client/src/constants.js` in sync with it.
-- **i18n:** all user-facing strings go through react-i18next. Adding a string means
-  adding the key to ALL THREE of `en.json`, `ta.json`, `si.json` (English fallback
-  text is acceptable in ta/si until translated).
-- **API response shape:** `{ success: boolean, message?, data?, error? }` — keep it
-  consistent with existing controllers.
-- **Passwords:** always `bcryptjs`-hashed into `password_hash`; never store, log, or
-  return plaintext passwords or hashes.
-- **Secrets:** read from `server/.env` via `dotenv`; document new variables in
-  `server/.env.example` with placeholder values.
+- acceptance criteria are met,
+- tests are written and passing,
+- the feature has been run and manually verified,
+- code is committed under the author's own account,
+- a pull request is open with the Jira key, and
+- another member has reviewed it.
