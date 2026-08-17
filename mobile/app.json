@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "JusticeNow",
+    "slug": "justicenow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "justicenow",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.justicenow.app"
+    },
+    "android": {
+      "package": "com.justicenow.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0b3d5c",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-localization",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0b3d5c"
+        }
+      ]
+    ]
+  }
+}
