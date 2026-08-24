@@ -33,8 +33,9 @@
     Font stack: Noto Sans covers all three scripts (Latin/English, Tamil, Sinhala).
     System fonts are kept as fallbacks in case the Google Fonts CDN is unavailable.
   */
-  --font-body: 'Noto Sans', 'Noto Sans Tamil', 'Noto Sans Sinhala',
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body:
+    'Noto Sans', 'Noto Sans Tamil', 'Noto Sans Sinhala', -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 * {
@@ -58,16 +59,14 @@ body {
 
 /*
   App header: a slim bar at the top that holds the LanguageSwitcher.
-  Sits above the main content; the QuickExitButton is fixed-position so
-  it floats over the top-right corner independently of this bar.
-  Padding-right leaves space so the switcher buttons don't run under
-  the fixed Quick Exit button (~120px covers it on mobile).
+  The QuickExitButton is a separate fixed-position control anchored to the
+  bottom-right corner (see .quick-exit), so it no longer shares this bar and
+  the header needs no extra right padding to clear it.
 */
 .app-header {
   display: flex;
   align-items: center;
   padding: 0.5rem 1rem;
-  padding-right: 8rem; /* room for fixed Quick Exit button */
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   position: sticky;
@@ -120,21 +119,102 @@ h1 {
 }
 
 /* --------------------------------------------------------------------------
-   Quick Exit — fixed, always visible, thumb-reachable on mobile
+   Quick Exit — the survivor-safety control.
+   Fixed bottom-right so it is thumb-reachable one-handed on a phone.
    -------------------------------------------------------------------------- */
 .quick-exit {
   position: fixed;
-  top: 0.6rem;
-  right: 0.6rem;
-  z-index: 1000;
-  background: var(--color-text);
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 1500;
+  width: 56px; /* min 56×56 target — usable in a hurry, one hand */
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Deliberately charcoal (#111827): NOT red (reads as danger/delete) and NOT
+     the navy primary (would read as just another button). The drop shadow is
+     unique in the app, so this control is always findable at a glance. */
+  background: #111827;
   color: #fff;
   border: none;
-  border-radius: 999px;
-  padding: 0.45rem 0.9rem;
-  font-size: 0.85rem;
-  font-weight: 600;
+  border-radius: 50%;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
   cursor: pointer;
+}
+
+/* Always-visible focus ring (charcoal on the light page reads clearly). */
+.quick-exit:focus-visible {
+  outline: 3px solid #111827;
+  outline-offset: 3px;
+}
+
+/* Motion is opt-in: the press feedback only applies when the user has not
+   asked for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .quick-exit {
+    transition: transform 0.08s ease;
+  }
+
+  .quick-exit:active {
+    transform: scale(0.94);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Quick Exit — neutral cover screen (QuickExitScreen.jsx)
+   A plain clock face. Nothing here names or hints at the app.
+   -------------------------------------------------------------------------- */
+.exit-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000; /* covers the whole app, including the Quick Exit button */
+  background: #ffffff;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.exit-clock {
+  text-align: center;
+}
+
+.exit-time {
+  font-size: 4rem;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.exit-date {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  color: #6b7280;
+}
+
+/* Discreet "way back" — a faint dot, but a full 44×44 touch target. */
+.exit-return {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #d1d5db;
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.exit-return:focus-visible {
+  outline: 2px solid #9ca3af;
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 /* --------------------------------------------------------------------------
@@ -459,10 +539,22 @@ form .btn {
   color: var(--color-text-muted);
 }
 
-.status-badge.status-received     { background: #e3ecf6; color: #33567d; }
-.status-badge.status-under_review { background: #f6efdc; color: #7d6224; }
-.status-badge.status-referred     { background: #e9e3f4; color: #5b4784; }
-.status-badge.status-closed       { background: #e4efe6; color: var(--color-success); }
+.status-badge.status-received {
+  background: #e3ecf6;
+  color: #33567d;
+}
+.status-badge.status-under_review {
+  background: #f6efdc;
+  color: #7d6224;
+}
+.status-badge.status-referred {
+  background: #e9e3f4;
+  color: #5b4784;
+}
+.status-badge.status-closed {
+  background: #e4efe6;
+  color: var(--color-success);
+}
 
 /* --------------------------------------------------------------------------
    Larger screens
