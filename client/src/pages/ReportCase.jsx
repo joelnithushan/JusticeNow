@@ -1,20 +1,23 @@
 /**
  * JusticeNow — Anonymous case submission form.
  *
- * PRIVACY: form data lives ONLY in React state. It is never written to
- * localStorage/sessionStorage, so the Quick Exit button (a full page
- * navigation) discards everything instantly.
+ * PRIVACY: form data lives ONLY in React state — never in
+ * localStorage/sessionStorage. This form registers a reset with the Quick
+ * Exit context (see the useEffect below), so one tap on Quick Exit wipes
+ * every field synchronously and then leaves for a neutral screen.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { submitReport } from '../api/client';
+import { useQuickExit } from '../context/QuickExitContext';
 import { CASE_TYPES, DISTRICTS } from '../constants';
 
 function ReportCase() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { registerClear } = useQuickExit();
 
   const [caseType, setCaseType] = useState('');
   const [incidentDate, setIncidentDate] = useState('');
@@ -25,6 +28,22 @@ function ReportCase() {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+
+  // Wire this form's state into Quick Exit: if the user taps the exit button,
+  // every field is wiped synchronously so nothing typed here survives. The
+  // reset is unregistered on unmount. Nothing is ever written to storage, so
+  // this reset plus a route change is all it takes to leave no trace.
+  useEffect(() => {
+    return registerClear(() => {
+      setCaseType('');
+      setIncidentDate('');
+      setDistrict('');
+      setDescription('');
+      setEvidenceFile(null);
+      setErrors({});
+      setSubmitError('');
+    });
+  }, [registerClear]);
 
   // Client-side validation mirrors the server's rules so users get
   // instant feedback instead of a round trip.
@@ -44,7 +63,13 @@ function ReportCase() {
 
     setSubmitting(true);
     try {
-      const res = await submitReport({ caseType, incidentDate, district, description, evidenceFile });
+      const res = await submitReport({
+        caseType,
+        incidentDate,
+        district,
+        description,
+        evidenceFile,
+      });
       // Pass the code via router state (in memory only — never stored).
       navigate('/report/success', {
         state: { referenceCode: res.data.data.reference_code },
@@ -71,14 +96,19 @@ function ReportCase() {
         >
           <option value="">{t('report.caseTypePlaceholder')}</option>
           {CASE_TYPES.map((type) => (
-            <option key={type} value={type}>{t(`caseTypes.${type}`)}</option>
+            <option key={type} value={type}>
+              {t(`caseTypes.${type}`)}
+            </option>
           ))}
         </select>
+        {/* Privacy reassurance for this step: what we do NOT ask for. */}
+        <p className="privacy-note small">{t('report.privacyNoteCaseType')}</p>
         {errors.caseType && <p className="field-error">{errors.caseType}</p>}
 
         {/* Incident date (optional) */}
         <label htmlFor="incidentDate">
-          {t('report.incidentDate')} <span className="optional">({t('common.optional')})</span>
+          {t('report.incidentDate')}{' '}
+          <span className="optional">({t('common.optional')})</span>
         </label>
         <input
           id="incidentDate"
@@ -97,9 +127,13 @@ function ReportCase() {
         >
           <option value="">{t('report.districtPlaceholder')}</option>
           {DISTRICTS.map((d) => (
-            <option key={d} value={d}>{d}</option>
+            <option key={d} value={d}>
+              {d}
+            </option>
           ))}
         </select>
+        {/* Privacy reassurance for this step: district only, never an address. */}
+        <p className="privacy-note small">{t('report.privacyNoteDistrict')}</p>
         {errors.district && <p className="field-error">{errors.district}</p>}
 
         {/* Description */}
@@ -116,7 +150,8 @@ function ReportCase() {
 
         {/* Evidence (optional) */}
         <label htmlFor="evidence">
-          {t('report.evidence')} <span className="optional">({t('common.optional')})</span>
+          {t('report.evidence')}{' '}
+          <span className="optional">({t('common.optional')})</span>
         </label>
         <input
           id="evidence"
@@ -125,6 +160,8 @@ function ReportCase() {
           onChange={(e) => setEvidenceFile(e.target.files[0] || null)}
         />
         <p className="privacy-note small">{t('report.evidenceHint')}</p>
+        {/* Privacy reassurance for this step: who can open an attachment. */}
+        <p className="privacy-note small">{t('report.privacyNoteEvidence')}</p>
 
         {submitError && <p className="field-error">{submitError}</p>}
 
