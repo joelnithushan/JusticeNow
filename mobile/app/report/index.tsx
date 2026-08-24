@@ -210,6 +210,8 @@ export default function ReportCase() {
             );
           })}
           {errors.caseType ? <Text style={theme.fieldError}>{errors.caseType}</Text> : null}
+          {/* Privacy reassurance for this step: what we do NOT ask for. */}
+          <Text style={theme.privacyNoteSmall}>{t('report.privacyNoteCaseType')}</Text>
 
           {/* Incident date — optional, cannot be in the future */}
           <Text style={theme.label}>
@@ -276,6 +278,8 @@ export default function ReportCase() {
             </Picker>
           </View>
           {errors.district ? <Text style={theme.fieldError}>{errors.district}</Text> : null}
+          {/* Privacy reassurance for this step: district only, never an address. */}
+          <Text style={theme.privacyNoteSmall}>{t('report.privacyNoteDistrict')}</Text>
 
           {/* Description */}
           <Text style={theme.label}>{t('report.description')}</Text>
@@ -300,6 +304,8 @@ export default function ReportCase() {
             <Text style={theme.optional}>({t('common.optional')})</Text>
           </Text>
           <Text style={theme.privacyNoteSmall}>{t('report.evidenceHint')}</Text>
+          {/* Privacy reassurance for this step: who can open an attachment. */}
+          <Text style={theme.privacyNoteSmall}>{t('report.privacyNoteEvidence')}</Text>
           <Pressable style={theme.btnSecondary} onPress={pickEvidence}>
             <Text style={theme.btnSecondaryText}>
               {draft.evidenceFile ? t('report.wizard.changeFile') : t('report.wizard.chooseFile')}
