@@ -10,7 +10,9 @@
     "optional": "optional"
   },
   "quickExit": {
-    "label": "Quick exit"
+    "label": "Quick exit",
+    "ariaLabel": "Leave this app now",
+    "back": "Go back"
   },
   "home": {
     "reportCase": "Report a case",
@@ -36,6 +38,9 @@
   "report": {
     "title": "Report a case",
     "privacyReassurance": "We never ask for your name. Nothing on this form identifies you.",
+    "privacyNoteCaseType": "We never ask for your name, phone or email.",
+    "privacyNoteDistrict": "We only ask for your district, never your address.",
+    "privacyNoteEvidence": "Only legal aid staff can open what you attach.",
     "caseType": "What kind of incident is this?",
     "caseTypePlaceholder": "Select a case type",
     "incidentDate": "When did it happen?",
