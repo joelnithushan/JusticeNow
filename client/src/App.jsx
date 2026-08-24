@@ -20,6 +20,7 @@ import CheckStatus from './pages/CheckStatus';
 import Directory from './pages/Directory';
 import StaffLogin from './pages/StaffLogin';
 import StaffReports from './pages/StaffReports';
+import QuickExitScreen from './pages/QuickExitScreen';
 
 function App() {
   return (
@@ -32,10 +33,12 @@ function App() {
       */}
       <header className="app-header">
         <LanguageSwitcher />
-        {/* QuickExitButton is also rendered here for DOM order,
-            but visually it is fixed to the top-right corner via CSS */}
-        <QuickExitButton />
       </header>
+
+      {/* Safety feature. Fixed bottom-right (thumb-reachable) via CSS and
+          rendered outside the header so it floats over the page. It decides
+          for itself which screens to appear on (reporter pages only). */}
+      <QuickExitButton />
 
       <main className="main-content">
         <Routes>
@@ -46,6 +49,8 @@ function App() {
           <Route path="/directory" element={<Directory />} />
           <Route path="/staff/login" element={<StaffLogin />} />
           <Route path="/staff/reports" element={<StaffReports />} />
+          {/* Neutral cover screen reached only via the Quick Exit button. */}
+          <Route path="/exit" element={<QuickExitScreen />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </main>
