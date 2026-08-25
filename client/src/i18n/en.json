@@ -75,7 +75,25 @@
     "title": "Legal resource directory"
   },
   "staffLogin": {
-    "title": "Staff login"
+    "title": "Staff login",
+    "emailLabel": "Email address",
+    "passwordLabel": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "errorInvalid": "Those details didn\u2019t match. Please try again.",
+    "errorEmailRequired": "Please enter your email address.",
+    "errorEmailFormat": "Please enter a valid email address.",
+    "errorPasswordRequired": "Please enter your password.",
+    "noSelfRegister": "Account access is provisioned by your organisation administrator."
+  },
+  "staff": {
+    "loggedInAs": "Signed in as {{email}}",
+    "logout": "Log out",
+    "loading": "Checking session…"
+  },
+  "staffReportDetail": {
+    "title": "Case report",
+    "reportId": "Report ID"
   },
   "staffReports": {
     "title": "Incoming reports",
