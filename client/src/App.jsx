@@ -15,6 +15,7 @@
  *     /report             Submit a case report (anonymous)
  *     /report/success     Reference code display
  *     /status             Check case status by reference code
+ *     /status/result      Case status result for a looked-up reference code
  *     /directory          Legal resource directory
  *     /exit               Neutral cover screen reached via Quick Exit button
  *
@@ -37,6 +38,7 @@ import Home from './pages/Home';
 import ReportCase from './pages/ReportCase';
 import ReportSuccess from './pages/ReportSuccess';
 import CheckStatus from './pages/CheckStatus';
+import CaseStatus from './pages/CaseStatus';
 import Directory from './pages/Directory';
 import StaffLogin from './pages/StaffLogin';
 import StaffReports from './pages/StaffReports';
@@ -53,7 +55,7 @@ function App() {
       <div className="app-container">
         {/*
           App-level header: present on every page.
-          - QuickExitButton is fixed-position (top-right) via CSS.
+          - QuickExitButton is fixed-position (bottom-right) via CSS.
           - LanguageSwitcher sits in the header bar so the user can always
             switch language regardless of which page they are on.
         */}
@@ -73,6 +75,7 @@ function App() {
             <Route path="/report"         element={<ReportCase />} />
             <Route path="/report/success" element={<ReportSuccess />} />
             <Route path="/status"         element={<CheckStatus />} />
+            <Route path="/status/result"  element={<CaseStatus />} />
             <Route path="/directory"      element={<Directory />} />
             {/* Neutral cover screen reached only via the Quick Exit button. */}
             <Route path="/exit"           element={<QuickExitScreen />} />
