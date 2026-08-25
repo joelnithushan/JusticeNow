@@ -131,7 +131,13 @@
     "noteFailed": "[uncertain] Could not save the note. Please try again.",
     "unknownAuthor": "[uncertain] Staff",
     "markerVisible": "[uncertain] Visible to reporter",
-    "markerInternal": "[uncertain] Internal only"
+    "markerInternal": "[uncertain] Internal only",
+    "evidenceHeading": "[uncertain] Evidence",
+    "openEvidence": "[uncertain] Open evidence",
+    "evidenceOpening": "[uncertain] Opening…",
+    "evidenceHint": "[uncertain] Opens in a new tab via a private link that expires in about a minute.",
+    "noEvidence": "[uncertain] No evidence was attached to this case.",
+    "evidenceFailed": "[uncertain] Could not open the evidence. Please try again."
   },
   "staffReports": {
     "title": "ලැබුණු වාර්තා",

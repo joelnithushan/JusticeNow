@@ -30,6 +30,7 @@ import {
   fetchCaseNotes,
   updateReportStatus,
   addCaseNote,
+  fetchEvidenceUrl,
 } from '../api/client';
 
 function formatDateTime(iso, locale) {
@@ -65,6 +66,10 @@ function StaffReportDetail() {
   const [visible, setVisible] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
   const [noteError, setNoteError] = useState('');
+
+  // Evidence viewer (JNOW-35)
+  const [openingEvidence, setOpeningEvidence] = useState(false);
+  const [evidenceError, setEvidenceError] = useState('');
 
   const loadAll = useCallback(async () => {
     if (!token) return;
@@ -126,6 +131,27 @@ function StaffReportDetail() {
     }
   };
 
+  // Fetch a short-lived signed URL on demand and open the attachment. We only
+  // request the URL when staff click — it expires quickly, so it is never held.
+  const openEvidence = async () => {
+    if (openingEvidence) return;
+    setOpeningEvidence(true);
+    setEvidenceError('');
+    try {
+      const res = await fetchEvidenceUrl(id, token);
+      const url = res.data.data?.url;
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        setEvidenceError(t('staffReportDetail.evidenceFailed'));
+      }
+    } catch {
+      setEvidenceError(t('staffReportDetail.evidenceFailed'));
+    } finally {
+      setOpeningEvidence(false);
+    }
+  };
+
   return (
     <div className="page staff-page">
       <StaffHeader />
@@ -168,6 +194,36 @@ function StaffReportDetail() {
               <p className="report-full-description">{caseData.description}</p>
             </>
           )}
+
+          {/* ---- Evidence (JNOW-35) ---- */}
+          <section className="evidence-block" aria-labelledby="evidence-heading">
+            <h2 id="evidence-heading">{t('staffReportDetail.evidenceHeading')}</h2>
+            {caseData.evidence_path ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={openEvidence}
+                  disabled={openingEvidence}
+                >
+                  {openingEvidence
+                    ? t('staffReportDetail.evidenceOpening')
+                    : t('staffReportDetail.openEvidence')}
+                </button>
+                {/* Reassures the reviewer this is a private, expiring link. */}
+                <p className="privacy-note small">
+                  {t('staffReportDetail.evidenceHint')}
+                </p>
+                {evidenceError && (
+                  <p className="field-error" role="alert">
+                    {evidenceError}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="staff-empty">{t('staffReportDetail.noEvidence')}</p>
+            )}
+          </section>
 
           {/* ---- Status control ---- */}
           <section className="status-control" aria-labelledby="status-heading">
