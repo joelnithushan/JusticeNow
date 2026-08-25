@@ -75,7 +75,25 @@
     "title": "නීති ආධාර නාමාවලිය"
   },
   "staffLogin": {
-    "title": "කාර්ය මණ්ඩල පිවිසුම"
+    "title": "කාර්ය මණ්ඩල පිවිසුම",
+    "emailLabel": "විද්‍යුත් තැපෑල",
+    "passwordLabel": "මුරපදය",
+    "submit": "පිවිසෙන්න",
+    "submitting": "පිවිසෙමින්…",
+    "errorInvalid": "ඒ විස්තර ගැළපුනේ නැත. නැවත උත්සාහ කරන්න.",
+    "errorEmailRequired": "කරුණාකර ඔබේ විද්‍යුත් තැපෑල ඇතුළු කරන්න.",
+    "errorEmailFormat": "කරුණාකර වලංගු විද්‍යුත් තැපෑල් ලිපිනයක් ඇතුළු කරන්න.",
+    "errorPasswordRequired": "කරුණාකර ඔබේ මුරපදය ඇතුළු කරන්න.",
+    "noSelfRegister": "ගිණුම් ප්‍රවේශය ඔබේ සංවිධාන පරිපාලක විසින් සපයනු ලැබේ."
+  },
+  "staff": {
+    "loggedInAs": "{{email}} ලෙස පිවිස ඇත",
+    "logout": "ඉවත් වෙන්න",
+    "loading": "සැසිය පරීක්ෂා කිරීමෙන්…"
+  },
+  "staffReportDetail": {
+    "title": "නඩු වාර්තාව",
+    "reportId": "වාර්තා හැඳුනුම්පත"
   },
   "staffReports": {
     "title": "ලැබුණු වාර්තා",
