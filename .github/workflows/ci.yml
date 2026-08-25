@@ -13,6 +13,12 @@ jobs:
   lint-and-unit:
     name: Lint + unit/integration tests
     runs-on: ubuntu-latest
+    # Placeholder Supabase config so the client builds/tests without real
+    # credentials. The client's supabaseClient throws at import if these are
+    # missing; no real Supabase is contacted in CI, so dummy values are fine.
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_ANON_KEY: sb_publishable_ci_placeholder
     steps:
       - uses: actions/checkout@v4
 
@@ -34,6 +40,12 @@ jobs:
   e2e:
     name: End-to-end (Playwright)
     runs-on: ubuntu-latest
+    # Same placeholder Supabase config: `vite build` (run by the Playwright
+    # webServer) inlines import.meta.env at build time, so these must be present
+    # or the app throws on boot and every page test times out.
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_ANON_KEY: sb_publishable_ci_placeholder
     steps:
       - uses: actions/checkout@v4
 

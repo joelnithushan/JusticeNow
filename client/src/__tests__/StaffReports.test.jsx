@@ -15,6 +15,19 @@ vi.mock('../api/client', () => ({
   fetchReports: vi.fn(),
 }));
 
+// StaffReports renders <StaffHeader>, which calls useAuth(). Mock the auth
+// context so these tests stay isolated to the reports list — they need a
+// signed-in staff user, not a real Supabase session (and no Supabase env).
+vi.mock('../context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { email: 'staff@example.test' },
+    session: {},
+    loading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}));
+
 const sampleReports = [
   {
     id: 1,
