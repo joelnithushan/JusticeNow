@@ -93,7 +93,17 @@
     }
   },
   "directory": {
-    "title": "Legal resource directory"
+    "title": "Legal resource directory",
+    "searchPlaceholder": "Search by organisation name",
+    "districtFilter": "All districts",
+    "caseTypeFilter": "All case types",
+    "emptyState": "No organisations match those filters.",
+    "clearFilters": "Clear filters",
+    "contactTitle": "Contact",
+    "call": "Call",
+    "email": "Email",
+    "handledCaseTypes": "Handles these case types:",
+    "loadFailed": "Could not load the directory. Please try again."
   },
   "staffLogin": {
     "title": "Staff login",

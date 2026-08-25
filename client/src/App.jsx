@@ -40,6 +40,7 @@ import ReportSuccess from './pages/ReportSuccess';
 import CheckStatus from './pages/CheckStatus';
 import CaseStatus from './pages/CaseStatus';
 import Directory from './pages/Directory';
+import OrganisationDetail from './pages/OrganisationDetail';
 import StaffLogin from './pages/StaffLogin';
 import StaffReports from './pages/StaffReports';
 import StaffReportDetail from './pages/StaffReportDetail';
@@ -77,6 +78,7 @@ function App() {
             <Route path="/status"         element={<CheckStatus />} />
             <Route path="/status/result"  element={<CaseStatus />} />
             <Route path="/directory"      element={<Directory />} />
+            <Route path="/directory/:id"  element={<OrganisationDetail />} />
             {/* Neutral cover screen reached only via the Quick Exit button. */}
             <Route path="/exit"           element={<QuickExitScreen />} />
 
