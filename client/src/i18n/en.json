@@ -69,7 +69,28 @@
     "backHome": "Back to home"
   },
   "status": {
-    "title": "Check case status"
+    "title": "Check case status",
+    "inputLabel": "Enter your reference code",
+    "inputPlaceholder": "E.G. AB12-CD34-EF56",
+    "inputHint": "The code on the slip you received when you submitted your report.",
+    "submit": "Check status",
+    "checking": "Checking…",
+    "errorNotFound": "That code didn't match. Check it and try again.",
+    "errorNetwork": "Could not connect to the server. Check your connection and try again.",
+    "caseStatus": "Case status",
+    "submittedOn": "Submitted on",
+    "caseType": "Case type",
+    "district": "District",
+    "whatHappensNext": "What happens next",
+    "updates": "Updates",
+    "noUpdates": "No public updates yet. Check back soon.",
+    "backToCheck": "Check another code",
+    "nextSteps": {
+      "received": "Received — your report is in the queue. A legal aid officer will begin reviewing it shortly.",
+      "under_review": "Under review — a legal aid officer is reading your report. This usually takes a few days.",
+      "referred": "Referred — your case has been passed to a specialist organisation who can assist you. Check updates below.",
+      "closed": "Closed — your case has been resolved or could not be taken further. See the updates below for details."
+    }
   },
   "directory": {
     "title": "Legal resource directory"
