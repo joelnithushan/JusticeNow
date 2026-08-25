@@ -114,7 +114,24 @@
   },
   "staffReportDetail": {
     "title": "வழக்கு முறையீடு",
-    "reportId": "முறையீடு ஐடி"
+    "reportId": "முறையீடு ஐடி",
+    "loadFailed": "[uncertain] Could not load this case. Please try again.",
+    "statusHeading": "[uncertain] Case status",
+    "currentStatus": "[uncertain] Current status",
+    "statusFailed": "[uncertain] Could not update the status. Please try again.",
+    "notesHeading": "[uncertain] Case notes",
+    "addNoteLabel": "[uncertain] Add a note",
+    "addNotePlaceholder": "[uncertain] Record an update, or an internal note about this case.",
+    "visibleToggle": "[uncertain] Show this note to the reporter",
+    "visibleOn": "[uncertain] On — the reporter will see this note in their status timeline.",
+    "visibleOff": "[uncertain] Off — internal only. The reporter will NOT see this note.",
+    "addNote": "[uncertain] Add note",
+    "addingNote": "[uncertain] Adding…",
+    "noNotes": "[uncertain] No notes yet.",
+    "noteFailed": "[uncertain] Could not save the note. Please try again.",
+    "unknownAuthor": "[uncertain] Staff",
+    "markerVisible": "[uncertain] Visible to reporter",
+    "markerInternal": "[uncertain] Internal only"
   },
   "staffReports": {
     "title": "வந்துள்ள புகார்கள்",
@@ -125,6 +142,7 @@
     "district": "மாவட்டம்",
     "date": "சமர்ப்பிக்கப்பட்டது",
     "status": "நிலை",
+    "manageCase": "[uncertain] Manage case",
     "empty": "புகார்கள் எதுவும் இல்லை.",
     "loadFailed": "புகார்களை ஏற்ற முடியவில்லை. சேவையகம் இயங்குகிறதா?"
   },
