@@ -159,7 +159,9 @@ const listReports = async (req, res) => {
 
     let query = supabase
       .from('case_reports')
-      .select('id, reference_code, case_type, incident_date, district, status, assigned_org_id, created_at, updated_at')
+      .select(
+        'id, reference_code, case_type, incident_date, district, status, assigned_org_id, created_at, updated_at',
+      )
       .order('created_at', { ascending: false });
 
     if (case_type) query = query.eq('case_type', case_type.toLowerCase());
@@ -185,4 +187,254 @@ const listReports = async (req, res) => {
   }
 };
 
-module.exports = { createReport, listReports };
+// Rough UUID v4-ish check. Used to turn a malformed :id into a clean 404
+// instead of letting Postgres raise a 22P02 that would surface as a 500.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Resolve the authenticated Supabase user to a staff_users row.
+ *
+ * WHY: case_notes.author_id is a foreign key to staff_users(id), but the
+ * authenticated user comes from Supabase Auth (a different id space). We match
+ * on email — the one field both sides share. If there is no matching staff row
+ * (e.g. an unseeded dev environment), we return null and the note is still
+ * saved with a null author rather than failing the request.
+ *
+ * @returns {Promise<{id: string, name: string} | null>}
+ */
+const resolveStaffUser = async (email) => {
+  if (!email) return null;
+  const { data, error } = await supabase
+    .from('staff_users')
+    .select('id, name')
+    .eq('email', email)
+    .maybeSingle();
+  if (error) {
+    console.error('Failed to resolve staff user:', error.message);
+    return null;
+  }
+  return data || null;
+};
+
+/**
+ * GET /api/reports/:id — fetch a single case for the staff detail view.
+ * STAFF ONLY (requireStaffAuth). Returns the full case; staff are trusted to
+ * read the narrative. There is still no reporter identity to return.
+ */
+const getReport = async (req, res) => {
+  const { id } = req.params;
+  if (!UUID_RE.test(id)) {
+    return res.status(404).json({ success: false, message: 'Case not found.' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('case_reports')
+      .select(
+        'id, reference_code, case_type, incident_date, district, description, status, created_at, updated_at',
+      )
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Failed to fetch case report:', error.message);
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message: 'Could not load the case. Please try again.',
+        });
+    }
+    if (!data) {
+      return res.status(404).json({ success: false, message: 'Case not found.' });
+    }
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('Unexpected error fetching case report:', err);
+    return res
+      .status(500)
+      .json({ success: false, message: 'Could not load the case. Please try again.' });
+  }
+};
+
+/**
+ * PATCH /api/reports/:id/status — change a case's workflow status.
+ * STAFF ONLY (requireStaffAuth).
+ *
+ * Per JNOW-13 we validate the new status against the allowed SET
+ * (CASE_STATUSES) and apply it. NOTE: the canTransition() state-machine in
+ * services/statusTransition.js (received→under_review→referred→closed, admin-
+ * only reopen) is intentionally NOT enforced here — this story specifies a free
+ * 4-option control and simple set-validation. Wiring canTransition + an audit
+ * trail is a follow-up that needs a reliable staff role and an audit table.
+ */
+const updateStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!UUID_RE.test(id)) {
+    return res.status(404).json({ success: false, message: 'Case not found.' });
+  }
+
+  const normalised = (status || '').trim().toLowerCase();
+  if (!normalised || !CASE_STATUSES.includes(normalised)) {
+    return res.status(400).json({
+      success: false,
+      message: `status must be one of: ${CASE_STATUSES.join(', ')}.`,
+    });
+  }
+
+  try {
+    // Update and ask for the row back so we can 404 when nothing matched.
+    const { data, error } = await supabase
+      .from('case_reports')
+      .update({ status: normalised, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('id, status, updated_at')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Failed to update case status:', error.message);
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message: 'Could not update the status. Please try again.',
+        });
+    }
+    if (!data) {
+      return res.status(404).json({ success: false, message: 'Case not found.' });
+    }
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('Unexpected error updating case status:', err);
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Could not update the status. Please try again.',
+      });
+  }
+};
+
+/**
+ * POST /api/reports/:id/notes — add a dated note to a case.
+ * STAFF ONLY (requireStaffAuth).
+ *
+ * Body: { note: string, is_reporter_visible?: boolean }
+ * is_reporter_visible defaults to FALSE (internal). A note is only ever shown
+ * to the anonymous reporter when this is explicitly true — the default must
+ * stay false so an internal aside can never surface by accident.
+ */
+const addNote = async (req, res) => {
+  const { id } = req.params;
+  const { note, is_reporter_visible } = req.body;
+
+  if (!UUID_RE.test(id)) {
+    return res.status(404).json({ success: false, message: 'Case not found.' });
+  }
+  if (!note || !note.trim()) {
+    return res
+      .status(400)
+      .json({ success: false, message: 'note is required and cannot be empty.' });
+  }
+
+  // Coerce to a strict boolean — anything other than an explicit true is
+  // treated as internal. Never trust the client to send a real boolean.
+  const isReporterVisible =
+    is_reporter_visible === true || is_reporter_visible === 'true';
+
+  try {
+    // Attribute the note to the signed-in staff member where we can (see
+    // resolveStaffUser). author_id may be null in an unseeded environment.
+    const staff = await resolveStaffUser(req.staffUser?.email);
+
+    const { data, error } = await supabase
+      .from('case_notes')
+      .insert({
+        case_id: id,
+        author_id: staff?.id ?? null,
+        note: note.trim(),
+        is_reporter_visible: isReporterVisible,
+      })
+      .select('id, note, is_reporter_visible, created_at, author_id')
+      .maybeSingle();
+
+    if (error) {
+      // 23503 = foreign-key violation → the case_id does not exist.
+      if (error.code === '23503') {
+        return res.status(404).json({ success: false, message: 'Case not found.' });
+      }
+      console.error('Failed to add case note:', error.message);
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message: 'Could not save the note. Please try again.',
+        });
+    }
+
+    return res.status(201).json({
+      success: true,
+      data: { ...data, author_name: staff?.name ?? null },
+    });
+  } catch (err) {
+    console.error('Unexpected error adding case note:', err);
+    return res
+      .status(500)
+      .json({ success: false, message: 'Could not save the note. Please try again.' });
+  }
+};
+
+/**
+ * GET /api/reports/:id/notes — list a case's notes, newest first.
+ * STAFF ONLY (requireStaffAuth) — this returns INTERNAL notes too, so it must
+ * never be reachable by an anonymous caller. (The reporter-facing lookup lives
+ * in statusController and returns only reporter-visible notes.)
+ */
+const listNotes = async (req, res) => {
+  const { id } = req.params;
+  if (!UUID_RE.test(id)) {
+    return res.status(404).json({ success: false, message: 'Case not found.' });
+  }
+
+  try {
+    // Embed the author's name via the author_id -> staff_users FK.
+    const { data, error } = await supabase
+      .from('case_notes')
+      .select('id, note, is_reporter_visible, created_at, author:staff_users(name)')
+      .eq('case_id', id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Failed to list case notes:', error.message);
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message: 'Could not load the notes. Please try again.',
+        });
+    }
+
+    // Flatten the embedded author into a plain author_name for the client.
+    const notes = (data || []).map(({ author, ...n }) => ({
+      ...n,
+      author_name: author?.name ?? null,
+    }));
+    return res.json({ success: true, data: notes });
+  } catch (err) {
+    console.error('Unexpected error listing case notes:', err);
+    return res
+      .status(500)
+      .json({ success: false, message: 'Could not load the notes. Please try again.' });
+  }
+};
+
+module.exports = {
+  createReport,
+  listReports,
+  getReport,
+  updateStatus,
+  addNote,
+  listNotes,
+};
