@@ -17,6 +17,7 @@ import Home from './pages/Home';
 import ReportCase from './pages/ReportCase';
 import ReportSuccess from './pages/ReportSuccess';
 import CheckStatus from './pages/CheckStatus';
+import CaseStatus from './pages/CaseStatus';
 import Directory from './pages/Directory';
 import StaffLogin from './pages/StaffLogin';
 import StaffReports from './pages/StaffReports';
@@ -46,6 +47,7 @@ function App() {
           <Route path="/report" element={<ReportCase />} />
           <Route path="/report/success" element={<ReportSuccess />} />
           <Route path="/status" element={<CheckStatus />} />
+          <Route path="/status/result" element={<CaseStatus />} />
           <Route path="/directory" element={<Directory />} />
           <Route path="/staff/login" element={<StaffLogin />} />
           <Route path="/staff/reports" element={<StaffReports />} />

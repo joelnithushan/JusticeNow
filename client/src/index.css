@@ -586,3 +586,147 @@ form .btn {
     grid-column: 1 / -1;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Check Status — reference code input (JNOW-11)
+
+   Large, monospaced, and generously letter-spaced so reporters can type
+   from a handwritten note without mis-reading characters.
+   -------------------------------------------------------------------------- */
+.reference-code-input {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  font-family: 'SF Mono', 'Courier New', monospace;
+  font-size: 1.5rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  margin-top: 0.25rem;
+  transition: border-color 0.15s ease;
+}
+
+.reference-code-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(61, 74, 92, 0.15);
+}
+
+.reference-code-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* --------------------------------------------------------------------------
+   Case Status result page (JNOW-11)
+   -------------------------------------------------------------------------- */
+
+/* Larger status chip used on the result page */
+.status-display {
+  margin: 1.25rem 0;
+}
+
+.status-display .status-badge {
+  font-size: 1rem;
+  padding: 0.35rem 1rem;
+}
+
+/* Two-column definition list for submission date, case type, district */
+.case-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.3rem 1rem;
+  margin: 1rem 0 1.25rem;
+  font-size: 0.92rem;
+}
+
+.case-meta dt {
+  color: var(--color-text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.case-meta dd {
+  margin: 0;
+}
+
+/* Plain-language "what happens next" panel */
+.next-step-block {
+  background: #eef2ee;
+  border-left: 3px solid var(--color-success);
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin: 1.25rem 0;
+}
+
+.next-step-block h2 {
+  font-size: 1rem;
+  margin-bottom: 0.35rem;
+  color: var(--color-success);
+}
+
+.next-step-block p {
+  color: var(--color-success);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+/* Vertical timeline of reporter-visible notes */
+.case-timeline {
+  margin-top: 1.75rem;
+}
+
+.case-timeline h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+}
+
+.timeline-empty {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+/* ol so assistive technology counts the items */
+.timeline-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-left: 3px solid var(--color-border);
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.timeline-item {
+  position: relative;
+}
+
+/* Bullet dot on the rail */
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -1.6rem;
+  top: 0.35rem;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: var(--color-primary);
+  border: 2px solid var(--color-surface);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.timeline-date {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+
+.timeline-note {
+  font-size: 0.92rem;
+  line-height: 1.5;
+  margin: 0;
+}
