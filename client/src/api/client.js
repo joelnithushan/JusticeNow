@@ -82,4 +82,13 @@ export const addCaseNote = (id, { note, isReporterVisible = false }, token) =>
 /** Health check — useful when debugging "is the server up?". */
 export const checkHealth = () => api.get('/health');
 
+/** Public: fetch legal aid organisations based on filters. */
+export const fetchOrganisations = (filters = {}) => {
+  const params = {};
+  if (filters.district) params.district = filters.district;
+  if (filters.caseType) params.case_type = filters.caseType;
+  if (filters.search) params.search = filters.search;
+  return api.get('/organisations', { params });
+};
+
 export default api;
