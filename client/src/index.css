@@ -730,3 +730,90 @@ form .btn {
   line-height: 1.5;
   margin: 0;
 }
+/* --------------------------------------------------------------------------
+   Focus rings — visible for keyboard and assistive-tech users.
+   :focus-visible only triggers for keyboard focus, not mouse clicks,
+   so sighted mouse users don't see the ring on every click.
+   -------------------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   Staff header — top bar shown on all authenticated staff pages.
+   NOT rendered on any reporter-facing page.
+   -------------------------------------------------------------------------- */
+.staff-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: var(--color-primary);
+  color: #fff;
+  padding: 0.55rem 0.9rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.staff-header__email {
+  /* Truncate long email addresses on small screens */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Logout button — minimum 44×44 px touch target */
+.btn-logout {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 6px;
+  padding: 0.55rem 0.9rem;
+  min-height: 44px;
+  min-width: 44px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-logout:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* --------------------------------------------------------------------------
+   Staff login page
+   -------------------------------------------------------------------------- */
+.staff-login-page {
+  max-width: 360px; /* narrower than 480px default — login forms are compact */
+}
+
+.staff-login-note {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-bottom: 1rem;
+}
+
+/* Generic auth error banner — distinct from per-field .field-error */
+.login-error {
+  background: #fbeae8;
+  border: 1px solid var(--color-error);
+  border-left: 4px solid var(--color-error);
+  color: var(--color-error);
+  border-radius: 6px;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+/* Loading state shown by ProtectedRoute while the session resolves */
+.auth-loading {
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin-top: 2rem;
+}
+

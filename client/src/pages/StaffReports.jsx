@@ -1,17 +1,19 @@
 /**
- * JusticeNow — Staff view: list of incoming anonymous case reports.
+ * JusticeNow — Staff view: list of incoming anonymous case reports (STAFF ONLY).
  *
  * Legal aid attorneys and NGO officers use this page to triage what has
  * come in. There is NO reporter identity anywhere — the API never returns
  * one because the database never stores one.
  *
- * Auth guard arrives in JNOW-13; for now we assume a logged-in staff user.
+ * Auth guard: this page is wrapped in ProtectedRoute — unauthenticated users
+ * are redirected to /staff/login before this component ever mounts.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchReports } from '../api/client';
 import { CASE_TYPES } from '../constants';
+import StaffHeader from '../components/StaffHeader';
 
 /** Characters shown in the collapsed description preview. */
 const DESCRIPTION_PREVIEW_LENGTH = 120;
@@ -96,6 +98,9 @@ function StaffReports() {
 
   return (
     <div className="page staff-page">
+      {/* Staff header: shows logged-in email and logout button */}
+      <StaffHeader />
+
       <h1>{t('staffReports.title')}</h1>
 
       {/* Case-type filter — sent to the API as ?case_type= */}
