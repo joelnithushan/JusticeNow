@@ -114,7 +114,24 @@
   },
   "staffReportDetail": {
     "title": "Case report",
-    "reportId": "Report ID"
+    "reportId": "Report ID",
+    "loadFailed": "Could not load this case. Please try again.",
+    "statusHeading": "Case status",
+    "currentStatus": "Current status",
+    "statusFailed": "Could not update the status. Please try again.",
+    "notesHeading": "Case notes",
+    "addNoteLabel": "Add a note",
+    "addNotePlaceholder": "Record an update, or an internal note about this case.",
+    "visibleToggle": "Show this note to the reporter",
+    "visibleOn": "On — the reporter will see this note in their status timeline.",
+    "visibleOff": "Off — internal only. The reporter will NOT see this note.",
+    "addNote": "Add note",
+    "addingNote": "Adding…",
+    "noNotes": "No notes yet.",
+    "noteFailed": "Could not save the note. Please try again.",
+    "unknownAuthor": "Staff",
+    "markerVisible": "Visible to reporter",
+    "markerInternal": "Internal only"
   },
   "staffReports": {
     "title": "Incoming reports",
@@ -129,6 +146,7 @@
     "description": "Description",
     "fullDescription": "Full description",
     "expandHint": "Tap to read more",
+    "manageCase": "Manage case",
     "empty": "No reports yet",
     "loadFailed": "Could not load reports. Please try again.",
     "retry": "Try again"
