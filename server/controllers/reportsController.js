@@ -231,19 +231,17 @@ const getReport = async (req, res) => {
     const { data, error } = await supabase
       .from('case_reports')
       .select(
-        'id, reference_code, case_type, incident_date, district, description, status, created_at, updated_at',
+        'id, reference_code, case_type, incident_date, district, description, status, evidence_path, created_at, updated_at',
       )
       .eq('id', id)
       .maybeSingle();
 
     if (error) {
       console.error('Failed to fetch case report:', error.message);
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message: 'Could not load the case. Please try again.',
-        });
+      return res.status(500).json({
+        success: false,
+        message: 'Could not load the case. Please try again.',
+      });
     }
     if (!data) {
       return res.status(404).json({ success: false, message: 'Case not found.' });
@@ -295,12 +293,10 @@ const updateStatus = async (req, res) => {
 
     if (error) {
       console.error('Failed to update case status:', error.message);
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message: 'Could not update the status. Please try again.',
-        });
+      return res.status(500).json({
+        success: false,
+        message: 'Could not update the status. Please try again.',
+      });
     }
     if (!data) {
       return res.status(404).json({ success: false, message: 'Case not found.' });
@@ -308,12 +304,10 @@ const updateStatus = async (req, res) => {
     return res.json({ success: true, data });
   } catch (err) {
     console.error('Unexpected error updating case status:', err);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message: 'Could not update the status. Please try again.',
-      });
+    return res.status(500).json({
+      success: false,
+      message: 'Could not update the status. Please try again.',
+    });
   }
 };
 
@@ -366,12 +360,10 @@ const addNote = async (req, res) => {
         return res.status(404).json({ success: false, message: 'Case not found.' });
       }
       console.error('Failed to add case note:', error.message);
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message: 'Could not save the note. Please try again.',
-        });
+      return res.status(500).json({
+        success: false,
+        message: 'Could not save the note. Please try again.',
+      });
     }
 
     return res.status(201).json({
@@ -408,12 +400,10 @@ const listNotes = async (req, res) => {
 
     if (error) {
       console.error('Failed to list case notes:', error.message);
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message: 'Could not load the notes. Please try again.',
-        });
+      return res.status(500).json({
+        success: false,
+        message: 'Could not load the notes. Please try again.',
+      });
     }
 
     // Flatten the embedded author into a plain author_name for the client.
@@ -430,6 +420,82 @@ const listNotes = async (req, res) => {
   }
 };
 
+// How long a generated evidence link stays valid (seconds). Deliberately
+// short — the link is fetched on demand when staff click "open evidence", so it
+// never needs to live long, which limits the blast radius if a URL leaks.
+const EVIDENCE_URL_TTL_SECONDS = 60;
+
+/**
+ * GET /api/reports/:id/evidence — return a short-lived SIGNED URL for a case's
+ * evidence file (JNOW-35). STAFF ONLY (requireStaffAuth).
+ *
+ * SECURITY: the evidence bucket is PRIVATE. We never expose a public URL — we
+ * mint a signed URL that expires in EVIDENCE_URL_TTL_SECONDS. This is the only
+ * way staff can view an attachment, and it cannot be shared or indexed.
+ */
+const getEvidenceUrl = async (req, res) => {
+  const { id } = req.params;
+  if (!UUID_RE.test(id)) {
+    return res.status(404).json({ success: false, message: 'Case not found.' });
+  }
+
+  try {
+    // Look up the stored object path for this case (never trust a client path).
+    const { data: caseRow, error: caseError } = await supabase
+      .from('case_reports')
+      .select('id, evidence_path')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (caseError) {
+      console.error('Failed to look up evidence path:', caseError.message);
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message: 'Could not open the evidence. Please try again.',
+        });
+    }
+    if (!caseRow) {
+      return res.status(404).json({ success: false, message: 'Case not found.' });
+    }
+    if (!caseRow.evidence_path) {
+      // Distinct 404 so the UI can say "no attachment" rather than erroring.
+      return res
+        .status(404)
+        .json({ success: false, message: 'No evidence attached to this case.' });
+    }
+
+    // Mint a short-lived signed URL from the PRIVATE bucket.
+    const { data, error } = await supabase.storage
+      .from(EVIDENCE_BUCKET)
+      .createSignedUrl(caseRow.evidence_path, EVIDENCE_URL_TTL_SECONDS);
+
+    if (error || !data?.signedUrl) {
+      console.error('Failed to create signed evidence URL:', error?.message);
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message: 'Could not open the evidence. Please try again.',
+        });
+    }
+
+    return res.json({
+      success: true,
+      data: { url: data.signedUrl, expires_in: EVIDENCE_URL_TTL_SECONDS },
+    });
+  } catch (err) {
+    console.error('Unexpected error creating evidence URL:', err);
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Could not open the evidence. Please try again.',
+      });
+  }
+};
+
 module.exports = {
   createReport,
   listReports,
@@ -437,4 +503,5 @@ module.exports = {
   updateStatus,
   addNote,
   listNotes,
+  getEvidenceUrl,
 };

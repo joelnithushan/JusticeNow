@@ -79,6 +79,14 @@ export const addCaseNote = (id, { note, isReporterVisible = false }, token) =>
     authConfig(token),
   );
 
+/**
+ * Staff: fetch a short-lived SIGNED URL for a case's evidence file (JNOW-35).
+ * The bucket is private — this is the only way to view an attachment, and the
+ * URL expires quickly. Never a public link.
+ */
+export const fetchEvidenceUrl = (id, token) =>
+  api.get(`/reports/${id}/evidence`, authConfig(token));
+
 /** Health check — useful when debugging "is the server up?". */
 export const checkHealth = () => api.get('/health');
 

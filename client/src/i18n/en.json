@@ -141,7 +141,13 @@
     "noteFailed": "Could not save the note. Please try again.",
     "unknownAuthor": "Staff",
     "markerVisible": "Visible to reporter",
-    "markerInternal": "Internal only"
+    "markerInternal": "Internal only",
+    "evidenceHeading": "Evidence",
+    "openEvidence": "Open evidence",
+    "evidenceOpening": "Opening…",
+    "evidenceHint": "Opens in a new tab via a private link that expires in about a minute.",
+    "noEvidence": "No evidence was attached to this case.",
+    "evidenceFailed": "Could not open the evidence. Please try again."
   },
   "staffReports": {
     "title": "Incoming reports",
