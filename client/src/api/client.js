@@ -35,6 +35,16 @@ export const fetchReports = (filters = {}) => {
   return api.get('/reports', { params });
 };
 
+/**
+ * Fetch the status of an anonymous case by its reference code.
+ * The code is passed as a URL parameter, never in a request body or header,
+ * and is never stored in localStorage/sessionStorage.
+ *
+ * @param {string} referenceCode – the code the reporter received at submission
+ */
+export const fetchCaseStatus = (referenceCode) =>
+  api.get(`/status/${encodeURIComponent(referenceCode)}`);
+
 /** Health check — useful when debugging "is the server up?". */
 export const checkHealth = () => api.get('/health');
 
