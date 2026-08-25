@@ -3,6 +3,10 @@
  * These values must match server/constants.js and docs/schema.sql.
  */
 
+// Valid case statuses (mirrors case_reports.status CHECK constraint and
+// server/constants.js). Labels come from i18n ("statuses.<value>").
+export const CASE_STATUSES = ['received', 'under_review', 'referred', 'closed'];
+
 // Values sent to the API; labels come from i18n ("caseTypes.<value>").
 export const CASE_TYPES = [
   'harassment',
@@ -15,9 +19,29 @@ export const CASE_TYPES = [
 
 // The 25 administrative districts of Sri Lanka.
 export const DISTRICTS = [
-  'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo',
-  'Galle', 'Gampaha', 'Hambantota', 'Jaffna', 'Kalutara',
-  'Kandy', 'Kegalle', 'Kilinochchi', 'Kurunegala', 'Mannar',
-  'Matale', 'Matara', 'Monaragala', 'Mullaitivu', 'Nuwara Eliya',
-  'Polonnaruwa', 'Puttalam', 'Ratnapura', 'Trincomalee', 'Vavuniya',
+  'Ampara',
+  'Anuradhapura',
+  'Badulla',
+  'Batticaloa',
+  'Colombo',
+  'Galle',
+  'Gampaha',
+  'Hambantota',
+  'Jaffna',
+  'Kalutara',
+  'Kandy',
+  'Kegalle',
+  'Kilinochchi',
+  'Kurunegala',
+  'Mannar',
+  'Matale',
+  'Matara',
+  'Monaragala',
+  'Mullaitivu',
+  'Nuwara Eliya',
+  'Polonnaruwa',
+  'Puttalam',
+  'Ratnapura',
+  'Trincomalee',
+  'Vavuniya',
 ];
