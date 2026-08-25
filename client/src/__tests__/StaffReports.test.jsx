@@ -8,6 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import StaffReports from '../pages/StaffReports';
 import { fetchReports } from '../api/client';
 
@@ -55,7 +56,12 @@ const sampleReports = [
 ];
 
 function renderPage() {
-  return render(<StaffReports />);
+  // StaffReports now renders <Link> to the case detail, so it needs a Router.
+  return render(
+    <MemoryRouter>
+      <StaffReports />
+    </MemoryRouter>,
+  );
 }
 
 beforeEach(() => {
@@ -114,7 +120,10 @@ describe('StaffReports', () => {
     renderPage();
 
     await screen.findByText('JN-ABCDEFGH');
-    await user.selectOptions(screen.getByLabelText('Filter by case type'), 'harassment');
+    await user.selectOptions(
+      screen.getByLabelText('Filter by case type'),
+      'harassment',
+    );
 
     await waitFor(() => {
       expect(fetchReports).toHaveBeenLastCalledWith({ caseType: 'harassment' });
