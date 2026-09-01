@@ -990,3 +990,255 @@ form .btn {
   white-space: pre-wrap;
   line-height: 1.5;
 }
+
+/* ==========================================================================
+   Onboarding — the 3-slide intro (language → privacy → safety).
+   One frame shared by all three slides so they read as a single flow.
+
+   PALETTE: the onboarding uses the product's ink-navy tokens, scoped here so
+   they never leak into (or restyle) the rest of the app. All colours below
+   resolve to these locals, so the flow can be re-themed in one place.
+   ========================================================================== */
+.onboarding-slide {
+  --ob-primary: #14243f;
+  --ob-primary-hover: #0d1930;
+  --ob-bg: #f7f7f5;
+  --ob-surface: #ffffff;
+  --ob-text: #111827;
+  --ob-text-secondary: #4b5563;
+  --ob-border: #dddee1;
+  --ob-accent: #8a5f28;
+
+  /* min-height (never a fixed height) so content reflows and can grow at 200%
+     zoom without clipping; actions are pushed to the foot with margin-top:auto. */
+  min-height: calc(100vh - 2rem);
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  color: var(--ob-text);
+}
+
+/* Keep focus rings on-brand within the flow (navy, not the app-wide slate). */
+.onboarding-slide :focus-visible {
+  outline: 2px solid var(--ob-primary);
+  outline-offset: 2px;
+}
+
+/* Skip — top-right on every slide. Text control, but a full 44px tap target. */
+.onboarding-topbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.onboarding-skip {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.5rem 0.75rem;
+  background: none;
+  border: none;
+  color: var(--ob-text-secondary);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.onboarding-skip:hover {
+  color: var(--ob-text);
+  text-decoration: underline;
+}
+
+/* Progress: "Step 2 of 3" on the left, section label on the right. */
+.onboarding-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.onboarding-progress-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.onboarding-step {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ob-primary);
+}
+
+.onboarding-context {
+  font-size: 0.85rem;
+  color: var(--ob-text-secondary);
+}
+
+/* Three segments mirror the step text (decorative; aria-hidden in markup). */
+.onboarding-segments {
+  display: flex;
+  gap: 6px;
+}
+
+.onboarding-segment {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ob-border);
+}
+
+.onboarding-segment.is-filled {
+  background: var(--ob-primary);
+}
+
+/* Body — grows to fill the slide so the action row sits at the foot. */
+.onboarding-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.onboarding-illustration {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0 0.75rem;
+  /* Strokes inherit this colour (SVGs use currentColor). */
+  color: var(--ob-primary);
+}
+
+/* The illustration is ~160px tall but shrinks on very short/zoomed viewports;
+   it is decorative, so it may scale down freely without breaking the text. */
+.ob-svg {
+  height: 160px;
+  max-height: 40vh;
+  width: auto;
+  max-width: 100%;
+}
+
+.onboarding-heading {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  margin: 0;
+  color: var(--ob-text);
+}
+
+.onboarding-body {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--ob-text-secondary);
+}
+
+/* Slide 1 — language options. Big, obvious, each a full tap target. */
+.onboarding-lang-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+.onboarding-lang-option {
+  min-height: 48px;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ob-text);
+  background: var(--ob-surface);
+  border: 1.5px solid var(--ob-border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.onboarding-lang-option:hover {
+  border-color: var(--ob-primary);
+}
+
+.onboarding-lang-option.is-active {
+  border-color: var(--ob-primary);
+  /* 2px inset ring so the selected state does not rely on colour alone. */
+  box-shadow: inset 0 0 0 1px var(--ob-primary);
+  color: var(--ob-primary);
+}
+
+/* Slide 2 — reassurance list with tick glyphs. */
+.onboarding-reassure {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.onboarding-reassure li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.98rem;
+  color: var(--ob-text);
+}
+
+.ob-tick {
+  flex: none;
+  color: var(--ob-accent);
+}
+
+/* Slide 3 — static replica of the Quick Exit control + its caption. */
+.onboarding-exit-demo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.25rem 0 0;
+  padding: 0.75rem;
+  background: var(--ob-surface);
+  border: 1px solid var(--ob-border);
+  border-radius: 10px;
+}
+
+.ob-exit-replica {
+  flex: none;
+}
+
+.onboarding-exit-demo figcaption {
+  font-size: 0.9rem;
+  color: var(--ob-text-secondary);
+}
+
+/* Action row: optional Back (secondary) + primary. Pinned to the foot. */
+.onboarding-actions {
+  margin-top: auto;
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* Buttons share the row evenly. Override the base .btn width:100% (which would
+   otherwise fight the flex split and squeeze the longer "Get started" label
+   onto two lines); flex-basis 0 makes both track their share, not their text. */
+.onboarding-actions .btn {
+  margin: 0;
+  width: auto;
+}
+
+.onboarding-back,
+.onboarding-primary {
+  flex: 1 1 0;
+}
+
+/* Navy primary / outline within the flow (overrides the app-wide slate). */
+.onboarding-slide .btn-primary {
+  background: var(--ob-primary);
+  color: #fff;
+}
+
+.onboarding-slide .btn-primary:hover {
+  background: var(--ob-primary-hover);
+}
+
+.onboarding-slide .btn-secondary {
+  background: var(--ob-surface);
+  color: var(--ob-primary);
+  border: 1.5px solid var(--ob-primary);
+}

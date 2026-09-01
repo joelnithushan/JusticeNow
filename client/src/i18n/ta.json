@@ -156,5 +156,33 @@
     "copy": "கிளிப்போர்டுக்கு நகலெடுக்கவும்",
     "copied": "நகலெடுக்கப்பட்டது!",
     "warning": "இந்த குறியீட்டை இழந்தால் மீட்டெடுக்க முடியாது. தயவுசெய்து அதை எழுதி வைத்துக்கொள்ளுங்கள் அல்லது பாதுகாப்பான இடத்தில் சேமித்து வையுங்கள்."
+  },
+  "onboarding": {
+    "skip": "[uncertain] Skip",
+    "back": "[uncertain] Back",
+    "continue": "[uncertain] Continue",
+    "getStarted": "[uncertain] Get started",
+    "step": "[uncertain] Step {{current}} of {{total}}",
+    "language": {
+      "context": "[uncertain] Language",
+      "heading": "[uncertain] Choose your language",
+      "body": "[uncertain] Pick the language you are most comfortable reading. You can change it any time from the top of any screen."
+    },
+    "privacy": {
+      "context": "[uncertain] Your privacy",
+      "heading": "[uncertain] You stay anonymous",
+      "body": "[uncertain] We never ask for your name, your phone number, or your email address.",
+      "body2": "[uncertain] Instead you get a reference code. That code is the only way back to your case — and it is yours alone.",
+      "reassure1": "[uncertain] No account needed",
+      "reassure2": "[uncertain] No personal details stored",
+      "reassure3": "[uncertain] Nothing saved on this device"
+    },
+    "safety": {
+      "context": "[uncertain] Staying safe",
+      "heading": "[uncertain] Leave instantly, any time",
+      "body": "[uncertain] If someone comes near, tap the exit button in the corner. The screen clears at once and nothing you typed is kept.",
+      "body2": "[uncertain] You can find it on every screen while you are reporting.",
+      "exitReplicaLabel": "[uncertain] this button, bottom right"
+    }
   }
 }
