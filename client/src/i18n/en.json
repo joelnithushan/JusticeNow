@@ -171,5 +171,33 @@
     "copy": "Copy to clipboard",
     "copied": "Copied!",
     "warning": "This code cannot be recovered if lost. Please write it down or save it somewhere safe."
+  },
+  "onboarding": {
+    "skip": "Skip",
+    "back": "Back",
+    "continue": "Continue",
+    "getStarted": "Get started",
+    "step": "Step {{current}} of {{total}}",
+    "language": {
+      "context": "Language",
+      "heading": "Choose your language",
+      "body": "Pick the language you are most comfortable reading. You can change it any time from the top of any screen."
+    },
+    "privacy": {
+      "context": "Your privacy",
+      "heading": "You stay anonymous",
+      "body": "We never ask for your name, your phone number, or your email address.",
+      "body2": "Instead you get a reference code. That code is the only way back to your case — and it is yours alone.",
+      "reassure1": "No account needed",
+      "reassure2": "No personal details stored",
+      "reassure3": "Nothing saved on this device"
+    },
+    "safety": {
+      "context": "Staying safe",
+      "heading": "Leave instantly, any time",
+      "body": "If someone comes near, tap the exit button in the corner. The screen clears at once and nothing you typed is kept.",
+      "body2": "You can find it on every screen while you are reporting.",
+      "exitReplicaLabel": "this button, bottom right"
+    }
   }
 }
