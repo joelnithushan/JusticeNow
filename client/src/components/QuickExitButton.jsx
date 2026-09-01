@@ -45,6 +45,10 @@ export function isReporterScreen(pathname) {
   if (pathname === '/') return false; // splash — nothing to clear yet
   if (pathname === EXIT_PATH) return false; // already on the neutral screen
   if (pathname.startsWith('/staff')) return false; // staff: different threat model
+  // Onboarding: no case data has been entered yet, so there is nothing to
+  // clear. Slide 3 shows only a STATIC picture of this control, not the control
+  // itself — showing the live button here would be misleading.
+  if (pathname.startsWith('/onboarding')) return false;
   return true;
 }
 
