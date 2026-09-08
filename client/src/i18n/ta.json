@@ -75,7 +75,7 @@
     "inputHint": "நீங்கள் புகார் சமர்ப்பித்தபோது பெற்ற சீட்டில் உள்ள எண்.",
     "submit": "நிலையை சரிபார்க்க",
     "checking": "சரிபார்க்கிறது…",
-    "errorNotFound": "அந்த குறியீடு பொருந்தவில்லை. தயவுசெய்து மீண்டும் சரிபார்க்கவும்.",
+    "errorNotFound": "அந்த குறியீடு பொருந்தவில்லை. சரிபார்த்து மீண்டும் முயற்சிக்கவும்.",
     "errorNetwork": "சேவையகத்துடன் இணைக்க முடியவில்லை. இணைப்பை சரிபார்த்து மீண்டும் முயற்சிக்கவும்.",
     "caseStatus": "வழக்கு நிலை",
     "submittedOn": "சமர்ப்பிக்கப்பட்ட தேதி",
@@ -83,12 +83,12 @@
     "district": "மாவட்டம்",
     "whatHappensNext": "அடுத்து என்ன நடக்கும்",
     "updates": "புதுப்பிப்புகள்",
-    "noUpdates": "இன்னும் பொது புதுப்பிப்புகள் இல்லை. விரைவில் மறுபார்வை செய்யவும்.",
+    "noUpdates": "இன்னும் பொது புதுப்பிப்புகள் இல்லை. விரைவில் மீண்டும் சரிபார்க்கவும்.",
     "backToCheck": "மற்றொரு குறியீட்டை சரிபார்க்க",
     "nextSteps": {
-      "received": "பெறப்பட்டது — உங்கள் புகார் வரிசையில் உள்ளது. சட்ட உதவி அதிகாரி விரைவில் அதை மதிப்பாய்வு செய்யும்.",
+      "received": "பெறப்பட்டது — உங்கள் புகார் வரிசையில் உள்ளது. சட்ட உதவி அதிகாரி விரைவில் அதை மதிப்பாய்வு செய்வார்.",
       "under_review": "பரிசீலனையில் — சட்ட உதவி அதிகாரி உங்கள் புகாரை படிக்கிறார். இது பொதுவாக சில நாட்கள் எடுக்கும்.",
-      "referred": "பரிந்துரைக்கப்பட்டது — உங்கள் வழக்கு உங்களுக்கு உதவக்கூடிய நிபுணர் அமைப்பிற்கு அனுப்பப்பட்டுள்ளது. கீழே புதுப்பிப்புகளை பார்க்கவும்.",
+      "referred": "பரிந்துரைக்கப்பட்டது — உங்கள் வழக்கு உங்களுக்கு உதவக்கூடிய நிபுணர் அமைப்பிடம் அனுப்பப்பட்டுள்ளது. கீழே புதுப்பிப்புகளை பாருங்கள்.",
       "closed": "மூடப்பட்டது — உங்கள் வழக்கு தீர்க்கப்பட்டது அல்லது மேலும் தொடர முடியவில்லை. விவரங்களுக்கு கீழே உள்ள புதுப்பிப்புகளை பாருங்கள்."
     }
   },
@@ -108,23 +108,23 @@
   "staffLogin": {
     "title": "பணியாளர் உள்நுழைவு",
     "emailLabel": "மின்னஞ்சல் முகவரி",
-    "passwordLabel": "கடவுச்சொல்",
+    "passwordLabel": "கடவுச்சோற்",
     "submit": "உள்நுழையுங்கள்",
     "submitting": "உள்நுழைகிறது…",
     "errorInvalid": "இந்த விவரங்கள் பொருந்தவில்லை. மீண்டும் முயலவும்.",
     "errorEmailRequired": "உங்கள் மின்னஞ்சல் முகவரியை உள்ளிடுங்கள்.",
     "errorEmailFormat": "சரியான மின்னஞ்சல் முகவரியை உள்ளிடுங்கள்.",
     "errorPasswordRequired": "உங்கள் கடவுச்சோற்வை உள்ளிடுங்கள்.",
-    "noSelfRegister": "கணக்கு அணுகல் உங்கள் அமைப்பு நிர்வாகியால் வழங்கப்படும்."
+    "noSelfRegister": "கணக்கு அனுமதி உங்கள் கிளை நிர்வாகியின் மூலம் வழங்கப்படும்."
   },
   "staff": {
     "loggedInAs": "{{email}} ஆக உள்நுழைந்துள்ளீர்",
     "logout": "வெளியேறு",
-    "loading": "சமயத்தை சரிபார்க்கிறது…"
+    "loading": "கலைக்கலையை சரிபார்க்கிறது…"
   },
   "staffReportDetail": {
-    "title": "வழக்கு அறிக்கை",
-    "reportId": "அறிக்கையின் ஐடி",
+    "title": "வழக்கு முறையீடு",
+    "reportId": "முறையீடு ஐடி",
     "loadFailed": "இந்த வழக்கை ஏற்ற முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
     "statusHeading": "வழக்கு நிலை",
     "currentStatus": "தற்போதைய நிலை",
@@ -141,11 +141,17 @@
     "noteFailed": "குறிப்பை சேமிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
     "unknownAuthor": "ஊழியர்கள்",
     "markerVisible": "புகார்தாரருக்கு தெரியும்",
-    "markerInternal": "உள் மட்டுமே"
+    "markerInternal": "உள் மட்டுமே",
+    "evidenceHeading": "[uncertain] Evidence",
+    "openEvidence": "[uncertain] Open evidence",
+    "evidenceOpening": "[uncertain] Opening…",
+    "evidenceHint": "[uncertain] Opens in a new tab via a private link that expires in about a minute.",
+    "noEvidence": "[uncertain] No evidence was attached to this case.",
+    "evidenceFailed": "[uncertain] Could not open the evidence. Please try again."
   },
   "staffReports": {
     "title": "வந்துள்ள புகார்கள்",
-    "filterByType": "வழக்கு வகையால் வடிகட்டு",
+    "filterByType": "வழக்கு வகையால் வடிகட்ட",
     "allTypes": "அனைத்து வகைகளும்",
     "referenceCode": "குறிப்பு",
     "caseType": "வழக்கு வகை",
@@ -158,12 +164,40 @@
     "expandHint": "மேலும் படிக்க தட்டவும்",
     "manageCase": "வழக்கை நிர்வகிக்க",
     "empty": "புகார்கள் எதுவும் இல்லை.",
-    "loadFailed": "வழக்குகள் ஏற்ற முடியவில்லை. சேவையகம் இயங்குகிறதா?",
+    "loadFailed": "புகார்களை ஏற்ற முடியவில்லை. சேவையகம் இயங்குகிறதா?",
     "retry": "மீண்டும் முயற்சிக்க"
   },
   "referenceCode": {
     "copy": "கிளிப்போர்டுக்கு நகலெடுக்கவும்",
     "copied": "நகலெடுக்கப்பட்டது!",
     "warning": "இந்த குறியீட்டை இழந்தால் மீட்டெடுக்க முடியாது. தயவுசெய்து அதை எழுதி வைத்துக்கொள்ளுங்கள் அல்லது பாதுகாப்பான இடத்தில் சேமித்து வையுங்கள்."
+  },
+  "onboarding": {
+    "skip": "[uncertain] Skip",
+    "back": "[uncertain] Back",
+    "continue": "[uncertain] Continue",
+    "getStarted": "[uncertain] Get started",
+    "step": "[uncertain] Step {{current}} of {{total}}",
+    "language": {
+      "context": "[uncertain] Language",
+      "heading": "[uncertain] Choose your language",
+      "body": "[uncertain] Pick the language you are most comfortable reading. You can change it any time from the top of any screen."
+    },
+    "privacy": {
+      "context": "[uncertain] Your privacy",
+      "heading": "[uncertain] You stay anonymous",
+      "body": "[uncertain] We never ask for your name, your phone number, or your email address.",
+      "body2": "[uncertain] Instead you get a reference code. That code is the only way back to your case — and it is yours alone.",
+      "reassure1": "[uncertain] No account needed",
+      "reassure2": "[uncertain] No personal details stored",
+      "reassure3": "[uncertain] Nothing saved on this device"
+    },
+    "safety": {
+      "context": "[uncertain] Staying safe",
+      "heading": "[uncertain] Leave instantly, any time",
+      "body": "[uncertain] If someone comes near, tap the exit button in the corner. The screen clears at once and nothing you typed is kept.",
+      "body2": "[uncertain] You can find it on every screen while you are reporting.",
+      "exitReplicaLabel": "[uncertain] this button, bottom right"
+    }
   }
 }

@@ -20,6 +20,7 @@ import {
   fetchCaseNotes,
   updateReportStatus,
   addCaseNote,
+  fetchEvidenceUrl,
 } from '../api/client';
 
 vi.mock('../api/client', () => ({
@@ -27,6 +28,7 @@ vi.mock('../api/client', () => ({
   fetchCaseNotes: vi.fn(),
   updateReportStatus: vi.fn(),
   addCaseNote: vi.fn(),
+  fetchEvidenceUrl: vi.fn(),
 }));
 
 // Signed-in staff session with a token; user for StaffHeader.
@@ -85,6 +87,14 @@ beforeEach(() => {
     data: { data: { id: CASE_ID, status: 'closed', updated_at: 'x' } },
   });
   addCaseNote.mockResolvedValue({ data: { data: { id: 'n3' } } });
+  fetchEvidenceUrl.mockResolvedValue({
+    data: {
+      data: {
+        url: 'https://x.supabase.co/storage/v1/object/sign/evidence/f.pdf?token=SIGNED',
+        expires_in: 60,
+      },
+    },
+  });
 });
 
 describe('StaffReportDetail', () => {
@@ -140,5 +150,33 @@ describe('StaffReportDetail', () => {
         'tok',
       );
     });
+  });
+
+  it('shows "no evidence" when the case has no attachment', async () => {
+    renderPage();
+    expect(await screen.findByText(/no evidence was attached/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /open evidence/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('opens evidence via the signed URL when an attachment exists', async () => {
+    const user = userEvent.setup();
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => {});
+    fetchReport.mockResolvedValue({
+      data: { data: { ...caseData, evidence_path: 'stored-file.pdf' } },
+    });
+
+    renderPage();
+    const btn = await screen.findByRole('button', { name: /open evidence/i });
+    await user.click(btn);
+
+    await waitFor(() => expect(fetchEvidenceUrl).toHaveBeenCalledWith(CASE_ID, 'tok'));
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/object/sign/evidence/'),
+      '_blank',
+      expect.any(String),
+    );
+    openSpy.mockRestore();
   });
 });

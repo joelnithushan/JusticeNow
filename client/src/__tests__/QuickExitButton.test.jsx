@@ -52,6 +52,11 @@ describe('QuickExitButton visibility', () => {
     renderAt('/staff/reports');
     expect(screen.queryByRole('button', exitName)).not.toBeInTheDocument();
   });
+
+  it('is hidden on onboarding (no case data yet — slide 3 shows a static copy)', () => {
+    renderAt('/onboarding/safety');
+    expect(screen.queryByRole('button', exitName)).not.toBeInTheDocument();
+  });
 });
 
 describe('QuickExitButton behaviour', () => {
