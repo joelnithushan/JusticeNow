@@ -11,6 +11,7 @@ const {
   updateStatus,
   addNote,
   listNotes,
+  getEvidenceUrl,
 } = require('../controllers/reportsController');
 const requireStaffAuth = require('../middleware/requireStaffAuth');
 
@@ -38,5 +39,7 @@ router.get('/:id', requireStaffAuth, getReport);
 router.patch('/:id/status', requireStaffAuth, updateStatus);
 router.post('/:id/notes', requireStaffAuth, addNote);
 router.get('/:id/notes', requireStaffAuth, listNotes);
+// GET /api/reports/:id/evidence — short-lived signed URL for the attachment (JNOW-35)
+router.get('/:id/evidence', requireStaffAuth, getEvidenceUrl);
 
 module.exports = router;
