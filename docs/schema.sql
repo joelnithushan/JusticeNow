@@ -75,3 +75,16 @@ CREATE INDEX idx_case_reports_assigned_org ON case_reports (assigned_org_id);
 CREATE INDEX idx_case_notes_case_created   ON case_notes (case_id, created_at DESC);
 CREATE INDEX idx_organisations_district    ON organisations (district);
 CREATE INDEX idx_organisations_case_types  ON organisations USING GIN (case_types);
+
+-- Staff action audit trail. detail is JSON — never store case narratives here.
+CREATE TABLE audit_log (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    action     VARCHAR(50) NOT NULL,
+    case_id    UUID REFERENCES case_reports(id) ON DELETE SET NULL,
+    actor_id   UUID,
+    detail     JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_audit_log_case_created ON audit_log (case_id, created_at DESC);
+CREATE INDEX idx_audit_log_action       ON audit_log (action);

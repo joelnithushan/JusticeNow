@@ -1,28 +1,30 @@
 /**
- * JusticeNow — Staff authentication middleware (JNOW-13).
+ * JusticeNow — Staff authentication middleware (JNOW-13 / JNOW-36).
  *
  * WHY THIS EXISTS
- * Staff-only endpoints (change status, read/add case notes) must reject
- * anyone who is not a signed-in staff member. JNOW-32 added staff login on the
- * CLIENT (Supabase Auth — the JWT lives in the browser); this middleware is the
- * SERVER counterpart that verifies that JWT on each protected request.
+ * Staff-only endpoints must reject anyone who is not a signed-in staff
+ * member. Two token shapes are accepted:
  *
- * It is intentionally NOT a new auth system of its own — it validates the
- * existing Supabase session by asking Supabase who the token belongs to. If
- * JNOW-32 later adds its own server-side auth, this is the single place to
- * reconcile; every protected route imports this one function.
+ *  1. App-signed JWTs (JWT_SECRET) carrying role + organisation_id claims.
+ *     Used by org-scoping features (assign/refer) and their integration tests.
+ *  2. Supabase Auth access tokens — validated via supabase.auth.getUser.
+ *     Used by the existing staff login flow (JNOW-32).
  *
  * INTERFACE (what downstream handlers can rely on):
- *   req.staffUser = { id, email }   // the authenticated Supabase auth user
- * On any failure we respond 401 with a generic message and never call next().
+ *   req.staffUser = {
+ *     id,                 // auth subject / staff id
+ *     email,
+ *     role?,              // 'officer' | 'org_admin' | 'admin' (platform)
+ *     organisation_id?,   // org the staff belongs to (null for platform admin)
+ *   }
  *
  * ANONYMITY: this concerns STAFF identity only. It never touches reporter data.
  */
 
 const supabase = require('../config/supabase');
+const { verifyStaffToken } = require('../utils/staffJwt');
 
 async function requireStaffAuth(req, res, next) {
-  // Expect a bearer token: "Authorization: Bearer <supabase access token>".
   const header = req.headers.authorization || '';
   const [scheme, token] = header.split(' ');
 
@@ -34,8 +36,23 @@ async function requireStaffAuth(req, res, next) {
   }
 
   try {
-    // Ask Supabase to validate the JWT and return its user. A tampered or
-    // expired token yields an error or no user — both are treated as 401.
+    // Prefer our own JWT when JWT_SECRET is configured — tests and org-scoped
+    // routes rely on role / organisation_id claims living on the token.
+    const secret = process.env.JWT_SECRET;
+    if (secret) {
+      const claims = verifyStaffToken(token, secret);
+      if (claims) {
+        req.staffUser = {
+          id: claims.sub || claims.id,
+          email: claims.email || null,
+          role: claims.role || null,
+          organisation_id: claims.organisation_id ?? claims.org_id ?? null,
+        };
+        return next();
+      }
+    }
+
+    // Fall back to Supabase Auth (browser staff session from JNOW-32).
     const { data, error } = await supabase.auth.getUser(token);
 
     if (error || !data?.user) {
@@ -45,11 +62,17 @@ async function requireStaffAuth(req, res, next) {
       });
     }
 
-    // Attach only what downstream handlers need. No reporter data here.
-    req.staffUser = { id: data.user.id, email: data.user.email };
+    req.staffUser = {
+      id: data.user.id,
+      email: data.user.email,
+      role: data.user.user_metadata?.role || null,
+      organisation_id:
+        data.user.user_metadata?.organisation_id ||
+        data.user.app_metadata?.organisation_id ||
+        null,
+    };
     return next();
   } catch (err) {
-    // Never leak the underlying error to the caller.
     console.error('Staff auth verification failed:', err.message);
     return res.status(401).json({
       success: false,
