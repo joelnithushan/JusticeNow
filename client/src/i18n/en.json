@@ -19,7 +19,8 @@
     "checkStatus": "Check case status",
     "directory": "Legal resource directory",
     "staffLogin": "Staff login",
-    "privacyNote": "No account is needed to use JusticeNow. We never ask for your name, phone number, or email. You will receive a secure reference code to check your case status later."
+    "privacyNote": "No account is needed to use JusticeNow. We never ask for your name, phone number, or email. You will receive a secure reference code to check your case status later.",
+    "stayingSafe": "Staying safe guidance"
   },
   "caseTypes": {
     "harassment": "Harassment",
@@ -119,5 +120,35 @@
     "copy": "Copy to clipboard",
     "copied": "Copied!",
     "warning": "This code cannot be recovered if lost. Please write it down or save it somewhere safe."
+  },
+  "stayingSafe": {
+    "title": "Staying Safe",
+    "intro": "Using JusticeNow is designed to be discreet. These practices will help protect you further.",
+    "navLabel": "Staying safe page navigation",
+    "backHome": "Back to home",
+    "quickExit": {
+      "title": "How Quick Exit works",
+      "body": "The dark circular button fixed at the bottom-right of every reporter screen is Quick Exit. Tapping it immediately clears everything you have typed and replaces the screen with a plain clock face. The app does not appear in your recently used apps list after you exit. If you are in a hurry, tap it once — no confirmation is needed."
+    },
+    "refCode": {
+      "title": "Keep your reference code off a shared device",
+      "body": "When your report is submitted you receive a reference code. Do not save this code in a notes app or document on a device that other people can access. Write it on paper and store it somewhere private, or memorise it. Anyone who has the code can view your case status — though they will see no identifying information about you."
+    },
+    "privateDevice": {
+      "title": "Use a private device and network",
+      "body": "Whenever possible, use a device that only you have access to and a network you trust (for example, your personal mobile data rather than a shared Wi-Fi). Browsing history may be visible to others on a shared device or network. After using JusticeNow, clear your browser history if you are on a shared device."
+    },
+    "whoCanSee": {
+      "title": "Who can see your report",
+      "body": "Trained legal aid officers and NGO advocacy staff review reports. They see the case type, district, incident date, description, and any file you attached. They do not see your name, phone number, email address, or IP address — because we never collect those. Only your reference code links you to your case, and only you have that code."
+    },
+    "whoCannotSee": {
+      "title": "Who cannot see your report",
+      "body": "The general public, law enforcement, government agencies, and anyone without a staff account cannot access your report. JusticeNow does not share data with any third party. Your submission is encrypted in transit and stored securely. There is no publicly searchable database of cases."
+    },
+    "urgentHelp": {
+      "title": "When to seek urgent help",
+      "body": "JusticeNow is not an emergency service. If you or someone else is in immediate danger, contact emergency services (119 in Sri Lanka). If you fear retaliation for reporting, speak to a trusted legal aid organisation directly before submitting. The Legal Resource Directory on this app lists organisations that can advise you."
+    }
   }
 }
