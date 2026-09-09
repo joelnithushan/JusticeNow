@@ -12,6 +12,7 @@ const {
   addNote,
   listNotes,
   getEvidenceUrl,
+  assignReport,
 } = require('../controllers/reportsController');
 const requireStaffAuth = require('../middleware/requireStaffAuth');
 
@@ -41,5 +42,7 @@ router.post('/:id/notes', requireStaffAuth, addNote);
 router.get('/:id/notes', requireStaffAuth, listNotes);
 // GET /api/reports/:id/evidence — short-lived signed URL for the attachment (JNOW-35)
 router.get('/:id/evidence', requireStaffAuth, getEvidenceUrl);
+// PATCH /api/reports/:id/assign — refer/assign the case to an organisation (JNOW-36)
+router.patch('/:id/assign', requireStaffAuth, assignReport);
 
 module.exports = router;
