@@ -496,6 +496,137 @@ const getEvidenceUrl = async (req, res) => {
   }
 };
 
+/**
+ * Platform admins may act on any case. Officers / org_admins may only act on
+ * cases already assigned to their own organisation. Out-of-scope looks like a
+ * generic 404 so callers cannot probe which cases exist elsewhere.
+ */
+const isPlatformAdmin = (staff) => staff?.role === 'admin';
+
+const isCaseInStaffOrg = (caseRow, staff) =>
+  Boolean(staff?.organisation_id) &&
+  caseRow?.assigned_org_id === staff.organisation_id;
+
+/**
+ * PATCH /api/reports/:id/assign — refer/assign a case to an organisation
+ * (JNOW-36). STAFF ONLY (requireStaffAuth).
+ *
+ * Body: { assigned_org_id: string }
+ *
+ * - Target org must exist and be active → else 400 (no audit).
+ * - Org-scoped staff get a generic 404 when the case is outside their org.
+ * - On success, writes audit_log action `case_assigned` with
+ *   detail: { assigned_org_id }.
+ */
+const assignReport = async (req, res) => {
+  const { id } = req.params;
+  const assignedOrgId = (req.body?.assigned_org_id || '').trim();
+
+  if (!UUID_RE.test(id)) {
+    return res.status(404).json({ success: false, message: 'Case not found.' });
+  }
+  if (!assignedOrgId) {
+    return res.status(400).json({
+      success: false,
+      message: 'assigned_org_id is required.',
+    });
+  }
+
+  try {
+    // ---- Load the case (needed for org-scoping) ----
+    const { data: caseRow, error: caseError } = await supabase
+      .from('case_reports')
+      .select('id, assigned_org_id, status')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (caseError) {
+      console.error('Failed to load case for assign:', caseError.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Could not assign the case. Please try again.',
+      });
+    }
+    if (!caseRow) {
+      return res.status(404).json({ success: false, message: 'Case not found.' });
+    }
+
+    // ---- Org-scoping: non-admins may only touch cases in their own org ----
+    const staff = req.staffUser;
+    if (!isPlatformAdmin(staff) && !isCaseInStaffOrg(caseRow, staff)) {
+      // Identical to not-found — do not leak that the case exists elsewhere.
+      return res.status(404).json({ success: false, message: 'Case not found.' });
+    }
+
+    // ---- Target organisation must exist and be active ----
+    const { data: org, error: orgError } = await supabase
+      .from('organisations')
+      .select('id, is_active')
+      .eq('id', assignedOrgId)
+      .maybeSingle();
+
+    if (orgError) {
+      console.error('Failed to look up organisation:', orgError.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Could not assign the case. Please try again.',
+      });
+    }
+    if (!org || org.is_active !== true) {
+      // Inactive and nonexistent share the same 400 — no audit written.
+      return res.status(400).json({
+        success: false,
+        message: 'Organisation must exist and be active.',
+      });
+    }
+
+    // ---- Persist the assignment ----
+    const { data: updated, error: updateError } = await supabase
+      .from('case_reports')
+      .update({
+        assigned_org_id: assignedOrgId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select('id, assigned_org_id, status, updated_at')
+      .maybeSingle();
+
+    if (updateError || !updated) {
+      console.error('Failed to assign case:', updateError?.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Could not assign the case. Please try again.',
+      });
+    }
+
+    // ---- Audit trail (detail carries only the org id — never case narrative) ----
+    const { error: auditError } = await supabase.from('audit_log').insert({
+      action: 'case_assigned',
+      case_id: id,
+      actor_id: staff?.id ?? null,
+      detail: { assigned_org_id: assignedOrgId },
+    });
+
+    if (auditError) {
+      // Assignment already saved; surface a 500 so the missing audit is noticed
+      // in tests / ops rather than silently dropping the trail.
+      console.error('Failed to write case_assigned audit:', auditError.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Could not assign the case. Please try again.',
+      });
+    }
+
+    return res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error('Unexpected error assigning case:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Could not assign the case. Please try again.',
+    });
+  }
+};
+
 module.exports = {
   createReport,
   listReports,
@@ -504,4 +635,5 @@ module.exports = {
   addNote,
   listNotes,
   getEvidenceUrl,
+  assignReport,
 };
