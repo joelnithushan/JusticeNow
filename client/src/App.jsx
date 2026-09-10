@@ -17,6 +17,8 @@
  *     /status             Check case status by reference code
  *     /status/result      Case status result for a looked-up reference code
  *     /directory          Legal resource directory
+ *     /guidance           Know-your-rights topic list
+ *     /guidance/:topicId  Know-your-rights topic detail
  *     /exit               Neutral cover screen reached via Quick Exit button
  *
  *   Staff routes:
@@ -36,6 +38,8 @@ import LanguageSwitcher from './components/LanguageSwitcher';
 import ProtectedRoute from './components/ProtectedRoute';
 import Onboarding from './pages/Onboarding';
 import Home from './pages/Home';
+import Guidance from './pages/Guidance';
+import GuidanceTopic from './pages/GuidanceTopic';
 import ReportCase from './pages/ReportCase';
 import ReportSuccess from './pages/ReportSuccess';
 import CheckStatus from './pages/CheckStatus';
@@ -100,6 +104,9 @@ function App() {
             <Route path="/status/result" element={<CaseStatus />} />
             <Route path="/directory" element={<Directory />} />
             <Route path="/directory/:id" element={<OrganisationDetail />} />
+            {/* JNOW-39: know-your-rights guidance (reporter-facing, no auth). */}
+            <Route path="/guidance" element={<Guidance />} />
+            <Route path="/guidance/:topicId" element={<GuidanceTopic />} />
             {/* Neutral cover screen reached only via the Quick Exit button. */}
             <Route path="/exit" element={<QuickExitScreen />} />
 

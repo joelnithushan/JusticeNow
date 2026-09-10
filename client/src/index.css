@@ -991,6 +991,68 @@ form .btn {
   line-height: 1.5;
 }
 
+/* --------------------------------------------------------------------------
+   Know your rights guidance (JNOW-39)
+   Static, anonymous content: no forms, no storage, nothing to submit.
+   -------------------------------------------------------------------------- */
+
+/* One-line intro under the page heading */
+.guidance-intro {
+  color: var(--color-text-muted);
+  margin-bottom: 1rem;
+}
+
+/* Topic list reuses .reports-list/.report-card for look and a11y behaviour;
+   the extra classes below only tune typography inside the cards. */
+.guidance-topic-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.guidance-topic-card .report-card-header {
+  display: block; /* stacked title + summary, unlike the staff data grid */
+}
+
+.guidance-topic-title {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin-bottom: 0.2rem;
+}
+
+.guidance-topic-summary {
+  color: var(--color-text-muted);
+  font-size: 0.92rem;
+}
+
+/* The lawyer-review caveat: same reassuring green panel as privacy notes */
+.guidance-review-notice {
+  margin-top: 1.5rem;
+}
+
+/* Topic detail: back link above the heading */
+.guidance-back-link {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+}
+
+/* Bulleted rights list — default list semantics (assisted reading),
+   with breathing room for Tamil/Sinhala line heights. */
+.guidance-points {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.guidance-back {
+  margin-top: 1.5rem;
+}
+
 /* ==========================================================================
    Onboarding — the 3-slide intro (language → privacy → safety).
    One frame shared by all three slides so they read as a single flow.
