@@ -1,0 +1,81 @@
+/* ==========================================================================
+   JusticeNow — Staff login page
+   Reuses the global .page, .btn and form styles from index.css; only the
+   small login-specific tweaks live here.
+   ========================================================================== */
+
+.staff-login .tagline {
+  margin-bottom: 1rem;
+}
+
+/* Centre the back-to-home link under the form for a calmer, less form-like feel. */
+.staff-login .btn-link {
+  margin-top: 1rem;
+}
+
+/* Password field with a show/hide eye toggle. */
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  padding-right: 3rem; /* room for the eye button */
+}
+
+.password-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  color: var(--color-primary);
+}
+
+/* "or" divider between password and Google sign-in. */
+.or-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.25rem 0 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.or-divider::before,
+.or-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+/* Google sign-in button — neutral surface with the Google mark (kept off the
+   blue/orange palette; it is a third-party branded control). */
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btn-google:hover:not(:disabled) {
+  background: #f2f2f0;
+}
+
+.google-g {
+  flex-shrink: 0;
+}

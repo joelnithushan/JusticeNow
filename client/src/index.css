@@ -6,14 +6,28 @@
    ========================================================================== */
 
 :root {
+  /* 60% neutral — unchanged */
   --color-bg: #f7f6f3;
   --color-surface: #ffffff;
-  --color-primary: #3d4a5c;
-  --color-primary-hover: #2c3746;
-  --color-accent: #6b7f95;
+  --color-border: #d8d5cf;
   --color-text: #22262b;
   --color-text-muted: #5c6570;
-  --color-border: #d8d5cf;
+
+  /* 30% blue — primary (app bar, primary buttons, active/selected, headings) */
+  --color-primary: #0a3559;
+  --color-primary-hover: #0a3559; /* primary-pressed */
+  --color-primary-tint: #e7f0f8; /* light blue fill: info panels, selected rows */
+
+  /* 10% orange — secondary. Text on solid #F18501 MUST be on-secondary (#3D2200);
+     never white/light on orange (2.6:1, fails AA). Never #F18501 as text/icon on a
+     light background — use secondary-on-light (#7A4A00). Never in the safety path. */
+  --color-secondary: #f18501;
+  --color-secondary-hover: #d07500;
+  --color-secondary-tint: #fdf0de;
+  --color-on-secondary: #3d2200;
+  --color-secondary-on-light: #7a4a00; /* replaces the old grey-blue --color-accent */
+
+  /* error / safety — unchanged */
   --color-error: #b3402e;
   --color-success: #2e6b46;
 
@@ -78,6 +92,20 @@ h1 {
   font-size: 0.8rem;
   padding: 0.3rem 0.6rem;
   margin: 0.25rem 0 0.75rem;
+}
+
+/* --------------------------------------------------------------------------
+   App logo — shown at the top of every page
+   -------------------------------------------------------------------------- */
+.app-logo-header {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem 0 0;
+}
+
+.app-logo {
+  width: 72px;
+  height: 72px;
 }
 
 /* --------------------------------------------------------------------------
@@ -165,9 +193,33 @@ h1 {
   border: 1.5px solid var(--color-primary);
 }
 
+/* Orange secondary CTA — for the ONE permitted secondary action per screen
+   (e.g. "Track my case", "Find legal help"). Never a primary action; never in
+   the safety path. Text is on-secondary — white on orange fails AA. */
+.btn-accent {
+  background: var(--color-secondary);
+  color: var(--color-on-secondary);
+}
+
+.btn-accent:hover {
+  background: var(--color-secondary-hover);
+}
+
+/* Reporter case-tracking status chip — the ONE permitted solid-orange element
+   on the Check-Status screen. on-secondary text for AA contrast. */
+.status-chip {
+  display: inline-block;
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  background: var(--color-secondary);
+  color: var(--color-on-secondary);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
 .btn-link {
   background: none;
-  color: var(--color-accent);
+  color: var(--color-secondary-on-light);
   text-decoration: underline;
   font-weight: 400;
 }
@@ -226,17 +278,31 @@ form .btn {
   color: var(--color-text-muted);
 }
 
+/* The reference-code card is the ONE permitted solid-orange element on the
+   success screen (10% accent). Text on #F18501 MUST be on-secondary #3D2200 —
+   white/light on orange fails WCAG AA. */
 .reference-code {
+  display: block;
+  width: 100%;
   font-family: 'SF Mono', 'Courier New', monospace;
   font-size: 1.9rem;
+  font-weight: 800;
   letter-spacing: 0.2em;
-  background: var(--color-surface);
-  border: 2px dashed var(--color-primary);
+  background: var(--color-secondary);
+  border: 2px dashed var(--color-on-secondary);
+  color: var(--color-on-secondary);
   border-radius: 8px;
   padding: 0.9rem;
   text-align: center;
-  margin: 0.5rem 0 1rem;
-  user-select: all; /* one tap selects the whole code */
+  margin: 0.5rem 0 0.25rem;
+  cursor: pointer; /* the whole card is a copy button */
+}
+
+.copy-hint {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 0 0 1rem;
 }
 
 .success-page .warning {
@@ -292,6 +358,88 @@ form .btn {
 .status-badge.status-under_review { background: #f6efdc; color: #7d6224; }
 .status-badge.status-referred     { background: #e9e3f4; color: #5b4784; }
 .status-badge.status-closed       { background: #e4efe6; color: var(--color-success); }
+
+/* --------------------------------------------------------------------------
+   Staff nav — header strip shown only inside the staff area when signed in
+   -------------------------------------------------------------------------- */
+.staff-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0.6rem 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.staff-nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.staff-nav-links a {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.staff-nav-links a.active {
+  text-decoration: underline;
+  color: var(--color-primary-hover);
+}
+
+.staff-nav .btn-link {
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* Right-hand cluster: avatar shortcut + sign-out. */
+.staff-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Avatar control — small circle; image if uploaded, else initials on the
+   primary disc. A real button so it is keyboard reachable. */
+.staff-nav-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.staff-nav-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* --------------------------------------------------------------------------
+   Not-found (404) page
+   -------------------------------------------------------------------------- */
+.not-found p {
+  color: var(--color-text-muted);
+  margin-bottom: 1.25rem;
+}
 
 /* --------------------------------------------------------------------------
    Larger screens

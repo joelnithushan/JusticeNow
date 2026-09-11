@@ -17,19 +17,60 @@ import React, { createContext, useCallback, useContext, useMemo, useState } from
 import type { DocumentPickerAsset } from 'expo-document-picker';
 
 export interface ReportDraft {
-  caseType: string;
+  // Step 1 — Incident
+  reporterType: string; // one of REPORTER_TYPES (required)
+  caseType: string; // category, one of CASE_TYPES (required)
+  customCategory: string; // only when caseType === 'other'
+  title: string; // optional; auto-derived server-side if blank
+
+  // Step 2 — Details
+  description: string; // required
+  peopleInvolved: string; // optional, non-identifying
+  victimInformation: string; // optional
+
+  // Step 3 — Location & Time
   incidentDate: Date | null; // optional; null means "not provided"
-  district: string;
-  description: string;
+  incidentDateApproximate: boolean;
+  incidentTime: string; // optional free text (e.g. "around 6pm")
+  incidentTimeApproximate: boolean;
+  district: string; // optional now
+  locationName: string; // optional place name
+
+  // Step 4 — Evidence & Safety
   evidenceFile: DocumentPickerAsset | null; // optional
+  evidenceDescription: string; // optional
+  otherWitnesses: string; // '' | one of TRISTATE
+  witnessDetails: string; // optional
+  immediateRisk: string; // '' | one of TRISTATE
+  previouslyReported: string; // '' | one of PRIOR_REPORT_SOURCES
+  previousReportDetails: string; // optional
+  assistanceRequested: string[]; // subset of ASSISTANCE_TYPES
+  additionalInformation: string; // optional
 }
 
 const EMPTY_DRAFT: ReportDraft = {
+  reporterType: '',
   caseType: '',
-  incidentDate: null,
-  district: '',
+  customCategory: '',
+  title: '',
   description: '',
+  peopleInvolved: '',
+  victimInformation: '',
+  incidentDate: null,
+  incidentDateApproximate: false,
+  incidentTime: '',
+  incidentTimeApproximate: false,
+  district: '',
+  locationName: '',
   evidenceFile: null,
+  evidenceDescription: '',
+  otherWitnesses: '',
+  witnessDetails: '',
+  immediateRisk: '',
+  previouslyReported: '',
+  previousReportDetails: '',
+  assistanceRequested: [],
+  additionalInformation: '',
 };
 
 interface ReportFormContextValue {

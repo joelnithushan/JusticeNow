@@ -22,8 +22,11 @@ function Home() {
 
       <nav className="home-actions">
         <Link to="/report" className="btn btn-primary">{t('home.reportCase')}</Link>
-        <Link to="/status" className="btn btn-secondary">{t('home.checkStatus')}</Link>
+        {/* "Track my case" — the ONE permitted orange secondary CTA on Home.
+            Primary (Report a case) stays blue; the rest are neutral links. */}
+        <Link to="/status" className="btn btn-accent">{t('home.checkStatus')}</Link>
         <Link to="/directory" className="btn btn-link">{t('home.directory')}</Link>
+        <Link to="/about" className="btn btn-link">{t('home.about')}</Link>
         <Link to="/staff/login" className="btn btn-link subtle">{t('home.staffLogin')}</Link>
       </nav>
     </div>
