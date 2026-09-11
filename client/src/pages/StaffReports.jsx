@@ -1,17 +1,20 @@
 /**
- * JusticeNow — Staff view: list of incoming anonymous case reports.
+ * JusticeNow — Staff view: list of incoming anonymous case reports (STAFF ONLY).
  *
  * Legal aid attorneys and NGO officers use this page to triage what has
  * come in. There is NO reporter identity anywhere — the API never returns
  * one because the database never stores one.
  *
- * Auth guard arrives in JNOW-13; for now we assume a logged-in staff user.
+ * Auth guard: this page is wrapped in ProtectedRoute — unauthenticated users
+ * are redirected to /staff/login before this component ever mounts.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { fetchReports } from '../api/client';
 import { CASE_TYPES } from '../constants';
+import StaffHeader from '../components/StaffHeader';
 
 /** Characters shown in the collapsed description preview. */
 const DESCRIPTION_PREVIEW_LENGTH = 120;
@@ -96,6 +99,9 @@ function StaffReports() {
 
   return (
     <div className="page staff-page">
+      {/* Staff header: shows logged-in email and logout button */}
+      <StaffHeader />
+
       <h1>{t('staffReports.title')}</h1>
 
       {/* Case-type filter — sent to the API as ?case_type= */}
@@ -127,7 +133,11 @@ function StaffReports() {
       {!loading && error && (
         <div className="staff-state staff-error" role="alert">
           <p className="field-error">{error}</p>
-          <button type="button" className="btn btn-secondary staff-retry" onClick={handleRetry}>
+          <button
+            type="button"
+            className="btn btn-secondary staff-retry"
+            onClick={handleRetry}
+          >
             {t('staffReports.retry')}
           </button>
         </div>
@@ -146,11 +156,18 @@ function StaffReports() {
           {reports.map((report) => {
             const isExpanded = expandedId === report.id;
             const hasDescription = Boolean(report.description?.trim());
-            const preview = truncateText(report.description, DESCRIPTION_PREVIEW_LENGTH);
-            const showExpandHint = hasDescription && report.description.length > DESCRIPTION_PREVIEW_LENGTH;
+            const preview = truncateText(
+              report.description,
+              DESCRIPTION_PREVIEW_LENGTH,
+            );
+            const showExpandHint =
+              hasDescription && report.description.length > DESCRIPTION_PREVIEW_LENGTH;
 
             return (
-              <li key={report.id} className={`report-card${isExpanded ? ' is-expanded' : ''}`}>
+              <li
+                key={report.id}
+                className={`report-card${isExpanded ? ' is-expanded' : ''}`}
+              >
                 <button
                   type="button"
                   className="report-card-header"
@@ -159,13 +176,17 @@ function StaffReports() {
                   aria-controls={`report-desc-${report.id}`}
                 >
                   <span className="report-meta">
-                    <span className="report-label">{t('staffReports.referenceCode')}</span>
+                    <span className="report-label">
+                      {t('staffReports.referenceCode')}
+                    </span>
                     <span className="report-value mono">{report.reference_code}</span>
                   </span>
 
                   <span className="report-meta">
                     <span className="report-label">{t('staffReports.caseType')}</span>
-                    <span className="report-value">{t(`caseTypes.${report.case_type}`)}</span>
+                    <span className="report-value">
+                      {t(`caseTypes.${report.case_type}`)}
+                    </span>
                   </span>
 
                   <span className="report-meta">
@@ -174,14 +195,18 @@ function StaffReports() {
                   </span>
 
                   <span className="report-meta">
-                    <span className="report-label">{t('staffReports.incidentDate')}</span>
+                    <span className="report-label">
+                      {t('staffReports.incidentDate')}
+                    </span>
                     <span className="report-value">
                       {formatDate(report.incident_date, locale)}
                     </span>
                   </span>
 
                   <span className="report-meta">
-                    <span className="report-label">{t('staffReports.submittedDate')}</span>
+                    <span className="report-label">
+                      {t('staffReports.submittedDate')}
+                    </span>
                     <span className="report-value">
                       {formatDate(report.created_at, locale)}
                     </span>
@@ -196,24 +221,36 @@ function StaffReports() {
 
                   {hasDescription && !isExpanded && (
                     <span className="report-description-preview">
-                      <span className="report-label">{t('staffReports.description')}</span>
+                      <span className="report-label">
+                        {t('staffReports.description')}
+                      </span>
                       <span className="report-value">{preview}</span>
                       {showExpandHint && (
-                        <span className="report-expand-hint">{t('staffReports.expandHint')}</span>
+                        <span className="report-expand-hint">
+                          {t('staffReports.expandHint')}
+                        </span>
                       )}
                     </span>
                   )}
                 </button>
 
                 {isExpanded && hasDescription && (
-                  <div
-                    id={`report-desc-${report.id}`}
-                    className="report-card-body"
-                  >
+                  <div id={`report-desc-${report.id}`} className="report-card-body">
                     <p className="report-label">{t('staffReports.fullDescription')}</p>
                     <p className="report-full-description">{report.description}</p>
                   </div>
                 )}
+
+                {/* Open the full case view to change status and manage notes.
+                    Kept outside the toggle button (no nested interactive els). */}
+                <div className="report-card-actions">
+                  <Link
+                    to={`/staff/reports/${report.id}`}
+                    className="btn btn-secondary"
+                  >
+                    {t('staffReports.manageCase')}
+                  </Link>
+                </div>
               </li>
             );
           })}
