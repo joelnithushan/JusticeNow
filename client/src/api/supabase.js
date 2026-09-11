@@ -13,8 +13,12 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Google sign-in is an OPTIONAL staff feature. If its env vars are absent (e.g.
+// a build without secrets, or CI), we must NOT crash the whole app — createClient
+// throws on an empty URL/key. Fall back to harmless placeholders so the app still
+// renders; the Google flow simply fails at use-time instead of at import-time.
+const url = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
+const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 
 export const supabase = createClient(url, anonKey, {
   auth: {
