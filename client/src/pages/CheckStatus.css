@@ -1,0 +1,95 @@
+/* ==========================================================================
+   JusticeNow — Check case status
+   New styles only; global classes (.page .btn .status-badge .mono) come from
+   index.css. Calm, neutral palette to match the rest of the reporter flow.
+   ========================================================================== */
+
+.status-not-found {
+  margin-top: 1.25rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: #e8e6e1;
+  color: var(--color-text);
+  font-size: 0.95rem;
+}
+
+.status-network-error {
+  margin-top: 1.25rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: #f6ece9;
+  border-left: 3px solid var(--color-error);
+}
+
+.status-network-error p {
+  color: var(--color-error);
+  margin-bottom: 0.6rem;
+  font-size: 0.95rem;
+}
+
+.status-card {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.status-rows {
+  margin: 0;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.status-row dt {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.status-row dd {
+  margin: 0;
+  text-align: right;
+  font-size: 0.95rem;
+}
+
+.status-notes-title {
+  font-size: 1.05rem;
+  margin: 1.25rem 0 0.6rem;
+}
+
+.status-no-notes {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.status-timeline {
+  list-style: none;
+}
+
+.status-note {
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.status-note:first-child {
+  border-top: none;
+}
+
+.status-note-text {
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.status-note-date {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}

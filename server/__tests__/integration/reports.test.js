@@ -12,11 +12,15 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 
 // config/supabase.js requires these to be present; the values are never used
 // for a real call because fetch is stubbed.
 process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://localhost:54321';
 process.env.SUPABASE_KEY = process.env.SUPABASE_KEY || 'test-anon-key';
+// The app now wires in staff auth (services/auth.js), which requires a signing
+// secret at import time. A throwaway value is fine — no real tokens are minted.
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-do-not-use-in-prod';
 
 // Capture the row the app tries to insert, and fake a successful PostgREST
 // response so no real network call happens.
@@ -98,11 +102,43 @@ describe('POST /api/reports', () => {
  * real test in the PR that implements the feature.
  */
 describe('GET /api/reports (staff only)', () => {
-  it.todo('rejects an unauthenticated caller with 401 — JNOW: staff auth story');
+  // A JWT signed with the same secret services/auth.js verifies against. We mint
+  // it here (rather than logging in) so the test needs no DB — verifyToken only
+  // checks the signature, not that the staff row still exists.
+  const staffToken = jwt.sign(
+    { sub: 'staff-1', role: 'officer', org: 'org-1' },
+    process.env.JWT_SECRET,
+    { expiresIn: '8h' },
+  );
+
+  it('rejects an unauthenticated caller with 401', async () => {
+    const res = await request(app).get('/api/reports');
+
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('rejects a bogus/tampered token with 401', async () => {
+    const res = await request(app)
+      .get('/api/reports')
+      .set('Authorization', 'Bearer not-a-real-token');
+
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('allows a caller with a valid staff token (200)', async () => {
+    const res = await request(app)
+      .get('/api/reports')
+      .set('Authorization', `Bearer ${staffToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    // The fetch stub returns [] for the list query, so data is an empty array.
+    expect(Array.isArray(res.body.data)).toBe(true);
+  });
 });
 
-describe('GET /api/status/:reference_code (anonymous lookup)', () => {
-  it.todo('returns exactly ONE case selected by reference code');
-  it.todo('strips internal (non-reporter-visible) notes server-side');
-  it.todo('is rate limited and returns an identical response for not-found vs rate-limited');
-});
+// The anonymous status lookup is now implemented and fully covered in
+// __tests__/integration/status.test.js (safe projection, internal-note
+// stripping, rate limiting with an identical not-found/rate-limited response).

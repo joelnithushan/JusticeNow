@@ -30,14 +30,34 @@ test('the Quick Exit control is present on the report form', async ({ page }) =>
   await expect(page.getByRole('button', { name: /quick exit/i })).toBeVisible();
 });
 
-test.fixme(
-  'reporter submits a report, receives a code, and looks it up',
-  async ({ page }) => {
-    // PENDING: needs the backend running and the anonymous status-lookup
-    // endpoint (rate limited, internal notes stripped). Steps:
-    //   1. go to /report, fill case type + district + description
-    //   2. submit, land on /report/success, capture the JN- reference code
-    //   3. go to /status, enter the code, see the case status
-    await page.goto('/report');
-  },
-);
+test('reporter submits a report, receives a code, and looks it up', async ({ page }) => {
+  // Needs the backend running (VITE_API_BASE_URL pointed at it) and the
+  // anonymous status-lookup endpoint. Journey:
+  //   1. fill case type + district + description on /report
+  //   2. submit, land on /report/success, capture the JN- reference code
+  //   3. look the code up on /status and see the case status
+  await page.goto('/report');
+
+  // First real option after each select's placeholder (value="").
+  await page.selectOption('#caseType', { index: 1 });
+  await page.selectOption('#district', { index: 1 });
+  await page.fill(
+    '#description',
+    'Automated end-to-end check: a placeholder narrative long enough to pass validation.',
+  );
+
+  await page.getByRole('button', { name: /submit report/i }).click();
+
+  // Land on success and read the reference code the server issued.
+  await expect(page).toHaveURL(/\/report\/success$/);
+  const code = (await page.locator('.reference-code').innerText()).trim();
+  expect(code).toMatch(/^JN-/);
+
+  // Look it up anonymously and confirm the case is found (status chip shows).
+  await page.goto('/status');
+  await page.fill('#referenceCode', code);
+  await page.getByRole('button', { name: /check status|look ?up/i }).click();
+
+  await expect(page.locator('.status-card')).toBeVisible();
+  await expect(page.locator('.status-chip')).toBeVisible();
+});

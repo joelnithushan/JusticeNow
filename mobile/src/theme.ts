@@ -9,14 +9,37 @@
 import { StyleSheet } from 'react-native';
 
 export const colors = {
-  primary: '#0b3d5c',
+  // ── 30% blue — primary (app bar, primary buttons, active/selected, headings) ──
+  primary: '#0A3559',
+  primaryPressed: '#0A3559',
+  // Light blue fill: info panels, selected rows, badges, disabled surfaces.
+  // (This is the former neutral "secondary" #e8eef2 slot, now the blue tint.)
+  primaryTint: '#E7F0F8',
   primaryText: '#ffffff',
-  secondary: '#e8eef2',
+
+  // ── 10% orange — secondary. At most ONE solid-orange element per screen. ──
+  // HARD RULE: text on solid #F18501 MUST be `onSecondary` (#3D2200); white/light
+  // text on it fails WCAG AA (2.6:1). Never use #F18501 as text/icon on light —
+  // use `secondaryOnLight` (#7A4A00). Orange is NEVER used in the safety path.
+  secondary: '#F18501',
+  secondaryPressed: '#D07500',
+  secondaryTint: '#FDF0DE',
+  onSecondary: '#3D2200',
+  secondaryOnLight: '#7A4A00',
+
+  // ── 60% neutral — unchanged ──
   text: '#1a1a1a',
   muted: '#5a6b74',
-  danger: '#b00020',
   border: '#c3ced4',
   background: '#ffffff',
+
+  // ── Error / safety — unchanged. Orange must never appear here. ──
+  danger: '#b00020',
+
+  // Brand gradient (app bar / headers — part of the 30% blue). Blue only, using
+  // the listed hexes primary → primary-pressed (no new colours introduced).
+  gradientTop: '#0A3559',
+  gradientBottom: '#0A3559',
 };
 
 export const styles = StyleSheet.create({
@@ -47,7 +70,7 @@ export const styles = StyleSheet.create({
   privacyNote: {
     fontSize: 14,
     color: colors.primary,
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.primaryTint,
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
@@ -106,7 +129,7 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
   },
   btnSecondary: {
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.primaryTint,
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
@@ -114,6 +137,21 @@ export const styles = StyleSheet.create({
   },
   btnSecondaryText: {
     color: colors.primary,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  // Orange secondary CTA — for the ONE permitted secondary action per screen
+  // (e.g. "Track my case", "Find legal help"). Never a primary action; never in
+  // the safety path. Text MUST be on-secondary (#3D2200) — white on orange fails AA.
+  btnAccent: {
+    backgroundColor: colors.secondary,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  btnAccentText: {
+    color: colors.onSecondary,
     fontSize: 16,
     fontWeight: '700',
   },
