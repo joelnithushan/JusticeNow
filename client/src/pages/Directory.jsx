@@ -1,158 +1,139 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * JusticeNow (web) — Legal resource directory (list + filter).
+ *
+ * A PUBLIC, UNAUTHENTICATED browse of active legal-aid organisations. Reporters
+ * never log in here — the list is fetched through the TOKENLESS reporter `api`
+ * (fetchOrganisations), so no staff Authorization header is ever attached.
+ *
+ * Two optional filters (District, Case type) narrow the list; each is clearable
+ * back to "all" via its empty-string option. Each card links to /directory/:id.
+ *
+ * The directory is PUBLIC, so there is no no-oracle concern like the status
+ * screen: any failure surfaces the same generic, retryable network error and we
+ * never leak server text into the UI. All strings go through t().
+ */
+
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { fetchOrganisations } from '../api/client';
 import { CASE_TYPES, DISTRICTS } from '../constants';
+import './Directory.css';
 
 function Directory() {
   const { t } = useTranslation();
-  const [organisations, setOrganisations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  const [search, setSearch] = useState('');
+  // Both filters are optional; '' means "no filter" (show all).
   const [district, setDistrict] = useState('');
   const [caseType, setCaseType] = useState('');
 
-  const loadData = async () => {
+  const [orgs, setOrgs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setError(false);
     try {
-      const { data } = await fetchOrganisations({ search, district, caseType });
-      setOrganisations(data.data || []);
-    } catch (err) {
-      setError(t('directory.loadFailed'));
+      const res = await fetchOrganisations({
+        district: district || undefined,
+        caseType: caseType || undefined,
+      });
+      setOrgs(res.data.data);
+    } catch {
+      // Any failure surfaces the same generic, retryable error — we never leak
+      // server text into the UI (see CLAUDE.md — no server details in errors).
+      setError(true);
+      setOrgs([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [district, caseType]);
 
+  // Re-fetch whenever a filter changes (or on first mount).
   useEffect(() => {
-    // Debounce the search input slightly to avoid thrashing the API
-    const timer = setTimeout(() => {
-      loadData();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search, district, caseType]);
-
-  const clearFilters = () => {
-    setSearch('');
-    setDistrict('');
-    setCaseType('');
-  };
+    load();
+  }, [load]);
 
   return (
-    <div className="page directory-page">
+    <div className="page">
       <h1>{t('directory.title')}</h1>
 
       <div className="directory-filters">
-        <input
-          type="text"
-          placeholder={t('directory.searchPlaceholder')}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="search-input"
-          /* Placeholders are not an accessible name — give each filter control
-             an explicit aria-label so screen readers (and axe) can identify it. */
-          aria-label={t('directory.searchPlaceholder')}
-        />
-
-        <div className="filter-chips">
+        <div className="directory-filter">
+          <label htmlFor="filterDistrict">{t('directory.filterDistrict')}</label>
           <select
+            id="filterDistrict"
             value={district}
             onChange={(e) => setDistrict(e.target.value)}
-            aria-label={t('directory.districtFilter')}
           >
-            <option value="">{t('directory.districtFilter')}</option>
+            <option value="">{t('directory.allDistricts')}</option>
             {DISTRICTS.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
+              <option key={d} value={d}>{d}</option>
             ))}
           </select>
+        </div>
 
+        <div className="directory-filter">
+          <label htmlFor="filterCaseType">{t('directory.filterCaseType')}</label>
           <select
+            id="filterCaseType"
             value={caseType}
             onChange={(e) => setCaseType(e.target.value)}
-            aria-label={t('directory.caseTypeFilter')}
           >
-            <option value="">{t('directory.caseTypeFilter')}</option>
+            <option value="">{t('directory.allCaseTypes')}</option>
             {CASE_TYPES.map((c) => (
-              <option key={c} value={c}>
-                {t(`caseTypes.${c}`)}
-              </option>
+              <option key={c} value={c}>{t(`caseTypes.${c}`)}</option>
             ))}
           </select>
         </div>
       </div>
 
-      {error && <div className="field-error">{error}</div>}
-
       {loading ? (
-        <p>{t('common.loading')}</p>
-      ) : organisations.length === 0 ? (
-        <div className="empty-state">
-          <p>{t('directory.emptyState')}</p>
-          {(search || district || caseType) && (
-            <button type="button" onClick={clearFilters} className="btn btn-secondary">
-              {t('directory.clearFilters')}
-            </button>
-          )}
+        <p className="directory-loading">{t('common.loading')}</p>
+      ) : error ? (
+        <div className="directory-error" role="alert">
+          <p>{t('directory.networkError')}</p>
+          <button type="button" className="btn btn-secondary" onClick={load}>
+            {t('common.retry')}
+          </button>
         </div>
+      ) : orgs.length === 0 ? (
+        <p className="directory-empty">{t('directory.empty')}</p>
       ) : (
-        <ul className="reports-list">
-          {organisations.map((org) => (
-            <li key={org.id} className="report-card">
-              <Link
-                to={`/directory/${org.id}`}
-                state={{ org }}
-                className="report-card-header"
-                style={{ textDecoration: 'none' }}
-              >
-                <div
-                  style={{
-                    fontWeight: 600,
-                    fontSize: '1.1rem',
-                    marginBottom: '0.2rem',
-                  }}
-                >
-                  {org.name}
-                </div>
-
-                {org.description && (
-                  <div
-                    className="report-value"
-                    style={{
-                      display: '-webkit-box',
-                      WebkitLineClamp: 1,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {org.description}
-                  </div>
-                )}
-
-                <div className="report-meta" style={{ marginTop: '0.5rem' }}>
-                  {(org.contact_phone || org.contact_email) && (
-                    <span className="status-badge status-closed">
-                      {org.contact_phone || org.contact_email}
-                    </span>
-                  )}
-                  <span className="status-badge status-referred">{org.district}</span>
-                </div>
-              </Link>
+        <ul className="directory-list">
+          {orgs.map((org) => (
+            <li key={org.id}>
+              <OrgCard org={org} />
             </li>
           ))}
         </ul>
       )}
-
-      <div style={{ marginTop: '2rem' }}>
-        <Link to="/" className="btn btn-link">
-          {t('common.back')}
-        </Link>
-      </div>
     </div>
+  );
+}
+
+/** Presentational card: name, district, case-type chips, one-line description. */
+function OrgCard({ org }) {
+  const { t } = useTranslation();
+
+  return (
+    <Link to={`/directory/${org.id}`} className="org-card">
+      <span className="org-card-name">{org.name}</span>
+      <span className="org-card-district">{org.district}</span>
+
+      {org.case_types.length > 0 && (
+        <span className="org-chip-row">
+          {org.case_types.map((c) => (
+            <span key={c} className="org-chip">{t(`caseTypes.${c}`)}</span>
+          ))}
+        </span>
+      )}
+
+      {org.description && (
+        <span className="org-card-desc">{org.description}</span>
+      )}
+    </Link>
   );
 }
 

@@ -19,6 +19,9 @@ const reportRoutes = require('./routes/reports');
 const statusRoutes = require('./routes/status');
 const organisationRoutes = require('./routes/organisations');
 const staffRoutes = require('./routes/staff');
+const analyticsRoutes = require('./routes/analytics');
+const auditRoutes = require('./routes/audit');
+const transparencyRoutes = require('./routes/transparency');
 
 const app = express();
 
@@ -48,6 +51,9 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/status', statusRoutes);
 app.use('/api/organisations', organisationRoutes);
 app.use('/api/staff', staffRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/audit', auditRoutes);
+app.use('/api/transparency', transparencyRoutes);
 
 // Root Welcome Endpoint
 app.get('/', (req, res) => {

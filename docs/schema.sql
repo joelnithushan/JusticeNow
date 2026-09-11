@@ -32,6 +32,12 @@ CREATE TABLE staff_users (
     password_hash   VARCHAR(255) NOT NULL,
     role            VARCHAR(20) NOT NULL DEFAULT 'officer'
                     CHECK (role IN ('attorney', 'officer', 'admin')),
+    -- Soft-delete flag (U11). Staff are NEVER hard-deleted: audit_log.actor_id
+    -- references this row (ON DELETE SET NULL), so a hard delete would strip the
+    -- actor from every audit entry that person ever wrote. Deactivating instead
+    -- blocks login (see services/auth.js) while preserving the audit trail.
+    -- Added by docs/migrations/002_staff_is_active.sql for existing databases.
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -76,15 +82,29 @@ CREATE INDEX idx_case_notes_case_created   ON case_notes (case_id, created_at DE
 CREATE INDEX idx_organisations_district    ON organisations (district);
 CREATE INDEX idx_organisations_case_types  ON organisations USING GIN (case_types);
 
--- Staff action audit trail. detail is JSON — never store case narratives here.
+-- ---------------------------------------------------------------------
+-- Audit log
+--
+-- An append-only trail of staff actions (status changes, note adds,
+-- assignments, admin mutations, logins). It exists for accountability, so
+-- it records WHO did WHAT and WHEN — never the case contents.
+--
+-- ANONYMITY / PRIVACY: `detail` must NEVER contain case narrative, evidence
+-- paths, reference codes, or any reporter PII (name/email/phone/IP). The audit
+-- trail is readable by staff/admins; leaking reporter-linked content here would
+-- defeat anonymity by construction. Store only non-sensitive metadata such as
+-- the from/to status or the org id involved.
+-- ---------------------------------------------------------------------
 CREATE TABLE audit_log (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    action     VARCHAR(50) NOT NULL,
+    -- Nullable so an action can outlive the case/actor it referenced;
+    -- ON DELETE SET NULL keeps the trail even after the row is removed.
     case_id    UUID REFERENCES case_reports(id) ON DELETE SET NULL,
-    actor_id   UUID,
-    detail     JSONB NOT NULL DEFAULT '{}',
+    actor_id   UUID REFERENCES staff_users(id) ON DELETE SET NULL,
+    action     TEXT NOT NULL,
+    detail     JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_audit_log_case_created ON audit_log (case_id, created_at DESC);
-CREATE INDEX idx_audit_log_action       ON audit_log (action);
+CREATE INDEX idx_audit_log_created_at      ON audit_log (created_at DESC);
+CREATE INDEX idx_audit_log_case_created    ON audit_log (case_id, created_at DESC);

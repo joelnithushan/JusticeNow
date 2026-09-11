@@ -6,22 +6,20 @@
   "common": {
     "loading": "Loading…",
     "back": "Back",
+    "retry": "Try again",
     "comingSoon": "This page is coming in the next sprint.",
     "optional": "optional"
   },
   "quickExit": {
-    "label": "Quick exit",
-    "ariaLabel": "Leave this app now",
-    "back": "Go back"
+    "label": "Quick exit"
   },
   "home": {
     "reportCase": "Report a case",
     "checkStatus": "Check case status",
     "directory": "Legal resource directory",
+    "about": "About & safety",
     "staffLogin": "Staff login",
-    "guidance": "Know your rights",
-    "privacyNote": "No account is needed to use JusticeNow. We never ask for your name, phone number, or email. You will receive a secure reference code to check your case status later.",
-    "stayingSafe": "Staying safe guidance"
+    "privacyNote": "You do not need an account. We never ask who you are."
   },
   "caseTypes": {
     "harassment": "Harassment",
@@ -29,7 +27,16 @@
     "land_dispute": "Land dispute",
     "discrimination": "Discrimination",
     "official_misconduct": "Official misconduct",
-    "other": "Other"
+    "other": "Other",
+    "violence": "Violence",
+    "domestic_violence": "Domestic violence",
+    "sexual_abuse": "Sexual harassment or abuse",
+    "child_protection": "Child protection issue",
+    "corruption": "Corruption",
+    "abuse_of_authority": "Abuse of authority",
+    "human_rights_violation": "Human rights violation",
+    "workplace_abuse": "Workplace abuse",
+    "cyber_harassment": "Cyber harassment"
   },
   "statuses": {
     "received": "Received",
@@ -40,9 +47,6 @@
   "report": {
     "title": "Report a case",
     "privacyReassurance": "We never ask for your name. Nothing on this form identifies you.",
-    "privacyNoteCaseType": "We never ask for your name, phone or email.",
-    "privacyNoteDistrict": "We only ask for your district, never your address.",
-    "privacyNoteEvidence": "Only legal aid staff can open what you attach.",
     "caseType": "What kind of incident is this?",
     "caseTypePlaceholder": "Select a case type",
     "incidentDate": "When did it happen?",
@@ -68,212 +72,280 @@
     "writeItDown": "Write this code down or take a screenshot now.",
     "explanation": "This code is the ONLY way to check on your case later. We cannot recover it for you, because we do not know who you are.",
     "checkStatusButton": "Check case status",
-    "backHome": "Back to home"
+    "backHome": "Back to home",
+    "tapToCopy": "Tap the code to copy it",
+    "copied": "Copied to clipboard"
   },
   "status": {
     "title": "Check case status",
-    "inputLabel": "Enter your reference code",
-    "inputPlaceholder": "E.G. AB12-CD34-EF56",
-    "inputHint": "The code on the slip you received when you submitted your report.",
-    "submit": "Check status",
-    "checking": "Checking…",
-    "errorNotFound": "That code didn't match. Check it and try again.",
-    "errorNetwork": "Could not connect to the server. Check your connection and try again.",
-    "caseStatus": "Case status",
-    "submittedOn": "Submitted on",
-    "caseType": "Case type",
-    "district": "District",
-    "whatHappensNext": "What happens next",
-    "updates": "Updates",
-    "noUpdates": "No public updates yet. Check back soon.",
-    "backToCheck": "Check another code",
-    "nextSteps": {
-      "received": "Received — your report is in the queue. A legal aid officer will begin reviewing it shortly.",
-      "under_review": "Under review — a legal aid officer is reading your report. This usually takes a few days.",
-      "referred": "Referred — your case has been passed to a specialist organisation who can assist you. Check updates below.",
-      "closed": "Closed — your case has been resolved or could not be taken further. See the updates below for details."
-    }
+    "codeLabel": "Your reference code",
+    "codePlaceholder": "JN-XXXXXXXX",
+    "lookup": "Check status",
+    "looking": "Checking…",
+    "notFound": "No case matches that reference code. Check the code and try again, or try later.",
+    "statusLabel": "Current status",
+    "caseTypeLabel": "Case type",
+    "districtLabel": "District",
+    "incidentLabel": "Incident date",
+    "submittedLabel": "Submitted",
+    "notesTitle": "Updates",
+    "noNotes": "No updates yet. Check back later.",
+    "networkError": "Could not reach the server. Check your connection and try again."
   },
   "directory": {
     "title": "Legal resource directory",
-    "searchPlaceholder": "Search by organisation name",
-    "districtFilter": "All districts",
-    "caseTypeFilter": "All case types",
-    "emptyState": "No organisations match those filters.",
-    "clearFilters": "Clear filters",
-    "contactTitle": "Contact",
+    "filterDistrict": "District",
+    "filterCaseType": "Case type",
+    "allDistricts": "All districts",
+    "allCaseTypes": "All case types",
+    "empty": "No organisations match your filters. Try clearing them.",
+    "networkError": "Could not reach the server. Check your connection and try again.",
+    "handles": "Handles",
+    "contact": "Contact",
     "call": "Call",
     "email": "Email",
-    "handledCaseTypes": "Handles these case types:",
-    "loadFailed": "Could not load the directory. Please try again."
+    "notFound": "This organisation is no longer available."
+  },
+  "about": {
+    "title": "About & safety",
+    "whatTitle": "What JusticeNow is",
+    "whatBody": "JusticeNow lets anyone in Sri Lanka report a human rights violation anonymously and follow what happens next. It is aligned with UN Sustainable Development Goal 16 — peace, justice and strong institutions.",
+    "howTitle": "How it works",
+    "how1": "Report what happened using a short, guided form. You never give your name.",
+    "how2": "You receive a private reference code — a code like JN-XXXXXXXX that stands in for you.",
+    "how3": "Come back any time and enter that code to check your case status and read any updates.",
+    "anonTitle": "Your anonymity",
+    "anonBody1": "We never ask for your name, phone number, email or an account. There is nothing that ties a case to you — your reference code is the only link to it.",
+    "anonBody2": "Because of this, we cannot recover a lost code, not even for you: we do not know who you are. Nothing about your case is saved on this device.",
+    "safetyTitle": "Staying safe",
+    "safetyBody": "The Quick Exit button sits on every screen. One tap closes JusticeNow and clears anything you have typed. Write your reference code somewhere safe — and if this device is shared or not private, keep the code on something else.",
+    "footer": "Aligned with UN SDG 16 · Peace, Justice & Strong Institutions"
   },
   "staffLogin": {
     "title": "Staff login",
-    "emailLabel": "Email address",
-    "passwordLabel": "Password",
-    "submit": "Sign in",
-    "submitting": "Signing in…",
-    "errorInvalid": "Those details didn’t match. Please try again.",
-    "errorEmailRequired": "Please enter your email address.",
-    "errorEmailFormat": "Please enter a valid email address.",
-    "errorPasswordRequired": "Please enter your password.",
-    "noSelfRegister": "Account access is provisioned by your organisation administrator."
-  },
-  "staff": {
-    "loggedInAs": "Signed in as {{email}}",
-    "logout": "Log out",
-    "loading": "Checking session…"
-  },
-  "staffReportDetail": {
-    "title": "Case report",
-    "reportId": "Report ID",
-    "loadFailed": "Could not load this case. Please try again.",
-    "statusHeading": "Case status",
-    "currentStatus": "Current status",
-    "statusFailed": "Could not update the status. Please try again.",
-    "notesHeading": "Case notes",
-    "addNoteLabel": "Add a note",
-    "addNotePlaceholder": "Record an update, or an internal note about this case.",
-    "visibleToggle": "Show this note to the reporter",
-    "visibleOn": "On — the reporter will see this note in their status timeline.",
-    "visibleOff": "Off — internal only. The reporter will NOT see this note.",
-    "addNote": "Add note",
-    "addingNote": "Adding…",
-    "noNotes": "No notes yet.",
-    "noteFailed": "Could not save the note. Please try again.",
-    "unknownAuthor": "Staff",
-    "markerVisible": "Visible to reporter",
-    "markerInternal": "Internal only",
-    "evidenceHeading": "Evidence",
-    "openEvidence": "Open evidence",
-    "evidenceOpening": "Opening…",
-    "evidenceHint": "Opens in a new tab via a private link that expires in about a minute.",
-    "noEvidence": "No evidence was attached to this case.",
-    "evidenceFailed": "Could not open the evidence. Please try again."
+    "subtitle": "Sign in to the case dashboard.",
+    "email": "Email",
+    "emailPlaceholder": "you@organisation.org",
+    "password": "Password",
+    "passwordPlaceholder": "Your password",
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "failed": "Could not sign you in. Check your details and try again.",
+    "backHome": "Back to home",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "or": "or",
+    "google": "Sign in with Google",
+    "googleBusy": "Signing in…",
+    "googleFailed": "Google sign-in failed. Please try again."
   },
   "staffReports": {
     "title": "Incoming reports",
     "filterByType": "Filter by case type",
     "allTypes": "All case types",
+    "filterByStatus": "Filter by status",
+    "allStatuses": "All statuses",
     "referenceCode": "Reference",
     "caseType": "Case type",
     "district": "District",
-    "incidentDate": "Incident date",
-    "submittedDate": "Submitted",
+    "date": "Submitted",
     "status": "Status",
-    "description": "Description",
-    "fullDescription": "Full description",
-    "expandHint": "Tap to read more",
-    "manageCase": "Manage case",
-    "empty": "No reports yet",
-    "loadFailed": "Could not load reports. Please try again.",
-    "retry": "Try again"
+    "empty": "No reports found.",
+    "loadFailed": "Could not load reports. Is the server running?",
+    "signOut": "Sign out",
+    "sessionExpired": "Your session has expired. Please sign in again."
   },
-  "referenceCode": {
-    "copy": "Copy to clipboard",
-    "copied": "Copied!",
-    "warning": "This code cannot be recovered if lost. Please write it down or save it somewhere safe."
+  "staffNav": {
+    "label": "Staff navigation",
+    "reports": "Reports",
+    "analytics": "Analytics",
+    "admin": "Admin",
+    "audit": "Audit",
+    "signOut": "Sign out",
+    "navProfile": "Profile"
   },
-  "guidance": {
-    "title": "Know your rights",
-    "intro": "Plain-language summaries of rights that protect you in Sri Lanka. Choose a topic to read more.",
-    "reviewNotice": "This information is general guidance, not legal advice. It must be reviewed by a qualified lawyer before it is treated as advice for a specific case.",
-    "backToTopics": "All topics",
-    "notFound": "That topic does not exist. Choose one from the list below.",
-    "topics": {
-      "arrest_detention": {
-        "title": "Rights during arrest and detention",
-        "summary": "What the police may and may not do if you are arrested or held.",
-        "points": [
-          "If you are arrested, the police must tell you why you are being arrested.",
-          "You cannot be held without being produced before a magistrate. In most cases you must be brought before a magistrate within 24 hours of your arrest, not counting travel time.",
-          "You have the right to talk to a lawyer and to have a lawyer present. If you cannot afford one, you can ask for free legal aid.",
-          "You may inform a relative or a friend that you have been arrested and where you are being held.",
-          "The police must record your arrest. You, or a person on your behalf, can ask which station you are being held at.",
-          "You must be treated humanely. Torture and cruel, inhuman or degrading treatment are prohibited and are crimes under Sri Lankan law.",
-          "Anything you say can be used in court, so it is sensible to speak to a lawyer before answering questions about the offence."
-        ]
-      },
-      "discrimination_harassment": {
-        "title": "Protection from discrimination and harassment",
-        "summary": "What you can do if you are treated unfairly or harassed because of who you are.",
-        "points": [
-          "Every person is equal before the law. The Constitution forbids the state from discriminating against you on grounds of race, religion, language, caste, sex, political opinion or place of birth.",
-          "Discrimination by a state institution — for example refusing a service, a licence or a benefit because of who you are — can be challenged through fundamental rights applications.",
-          "Harassment, including sexual harassment at work or in public institutions, is a crime. You can complain to the police, and at work you can also complain to the head of your institution or a labour tribunal.",
-          "Keep records: dates, places, what was said or done, and the names of anyone who saw it. Written records make a complaint much stronger.",
-          "You do not need a lawyer to make a police complaint. A friend or family member can help you write it, and legal aid organisations can help you for free."
-        ]
-      },
-      "legal_aid": {
-        "title": "Free legal aid",
-        "summary": "How to get a lawyer's help even if you cannot pay for one.",
-        "points": [
-          "Free legal aid means advice and representation from a lawyer at no cost, for people who cannot afford to pay.",
-          "Legal aid is available for many kinds of problems: family matters, land disputes, employment problems, criminal defence and complaints about discrimination.",
-          "The Legal Aid Commission of Sri Lanka has offices across the country and can be reached by phone on 1951. Many NGOs also give free legal help — see the legal resource directory in this app.",
-          "When you go for legal aid, bring any documents about your problem: letters, agreements, receipts, medical or police records.",
-          "You may bring a trusted person with you. Asking for legal help does not create any record that identifies you in this app."
-        ]
-      }
-    }
+  "profile": {
+    "title": "My profile",
+    "subtitle": "Keep your details up to date.",
+    "changePhoto": "Change photo",
+    "name": "Full name",
+    "nic": "NIC number",
+    "nicInvalid": "Enter a valid Sri Lankan NIC.",
+    "phone": "Mobile number",
+    "phoneInvalid": "Enter a valid Sri Lankan mobile number.",
+    "designation": "Designation",
+    "barNumber": "Bar number",
+    "gender": "Gender",
+    "dateOfBirth": "Date of birth",
+    "email": "Email",
+    "role": "Role",
+    "organisation": "Organisation",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "saved": "Your profile has been saved.",
+    "completePrompt": "Please complete your profile before you continue.",
+    "changePassword": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "passwordChanged": "Your password has been changed.",
+    "googlePasswordNote": "You sign in with Google, so there is no password to change here.",
+    "male": "Male",
+    "female": "Female",
+    "navProfile": "Profile",
+    "loadFailed": "Could not load your profile. Please try again.",
+    "saveFailed": "Could not save your profile. Please try again.",
+    "photoFailed": "Could not upload the photo. Please try again.",
+    "passwordFailed": "Could not change your password. Please try again."
   },
-  "onboarding": {
-    "skip": "Skip",
+  "caseDetail": {
+    "title": "Case detail",
     "back": "Back",
-    "continue": "Continue",
-    "getStarted": "Get started",
-    "step": "Step {{current}} of {{total}}",
-    "language": {
-      "context": "Language",
-      "heading": "Choose your language",
-      "body": "Pick the language you are most comfortable reading. You can change it any time from the top of any screen."
-    },
-    "privacy": {
-      "context": "Your privacy",
-      "heading": "You stay anonymous",
-      "body": "We never ask for your name, your phone number, or your email address.",
-      "body2": "Instead you get a reference code. That code is the only way back to your case — and it is yours alone.",
-      "reassure1": "No account needed",
-      "reassure2": "No personal details stored",
-      "reassure3": "Nothing saved on this device"
-    },
-    "safety": {
-      "context": "Staying safe",
-      "heading": "Leave instantly, any time",
-      "body": "If someone comes near, tap the exit button in the corner. The screen clears at once and nothing you typed is kept.",
-      "body2": "You can find it on every screen while you are reporting.",
-      "exitReplicaLabel": "this button, bottom right"
-    }
+    "metadataTitle": "Case details",
+    "caseTypeLabel": "Case type",
+    "districtLabel": "District",
+    "incident": "Incident date",
+    "submitted": "Submitted",
+    "updated": "Last updated",
+    "notProvided": "Not provided",
+    "narrativeTitle": "What was reported",
+    "evidenceTitle": "Evidence",
+    "openEvidence": "Open evidence file",
+    "evidenceShortLived": "This link expires in a minute. If it stops working, refresh the case to get a new one.",
+    "noEvidence": "No evidence was attached to this case.",
+    "assignedTitle": "Assigned organisation",
+    "assignedTo": "Assigned to",
+    "unassigned": "Not assigned to any organisation.",
+    "assignLabel": "Assign to an organisation",
+    "assignPlaceholder": "Select an organisation",
+    "assign": "Assign",
+    "unassign": "Unassign",
+    "assignFailed": "Could not update the assignment. Please try again.",
+    "notesTitle": "Notes",
+    "noNotes": "No notes yet.",
+    "addNote": "Add note",
+    "adding": "Adding…",
+    "notePlaceholder": "Write a note about this case.",
+    "visibleToReporter": "Visible to the reporter",
+    "internalNote": "Internal note",
+    "reporterVisibleBadge": "Visible to reporter",
+    "internalBadge": "Internal",
+    "authorLabel": "By",
+    "unknownAuthor": "Unknown",
+    "noteFailed": "Could not add the note. Please try again.",
+    "emptyNote": "Please write a note before adding it.",
+    "statusActionsTitle": "Change status",
+    "moveTo": "Move to {{status}}",
+    "reasonRequired": "A reason is required to move a referred case back to review.",
+    "reasonPlaceholder": "Why is this case being moved back to review?",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "changing": "Updating…",
+    "statusFailed": "Could not change the status. Please try again.",
+    "networkError": "Could not reach the server. Check your connection and try again.",
+    "notFound": "This case could not be found.",
+    "sessionExpired": "Your session has expired. Please sign in again."
   },
-  "stayingSafe": {
-    "title": "Staying Safe",
-    "intro": "Using JusticeNow is designed to be discreet. These practices will help protect you further.",
-    "navLabel": "Staying safe page navigation",
-    "backHome": "Back to home",
-    "quickExit": {
-      "title": "How Quick Exit works",
-      "body": "The dark circular button fixed at the bottom-right of every reporter screen is Quick Exit. Tapping it immediately clears everything you have typed and replaces the screen with a plain clock face. The app does not appear in your recently used apps list after you exit. If you are in a hurry, tap it once — no confirmation is needed."
-    },
-    "refCode": {
-      "title": "Keep your reference code off a shared device",
-      "body": "When your report is submitted you receive a reference code. Do not save this code in a notes app or document on a device that other people can access. Write it on paper and store it somewhere private, or memorise it. Anyone who has the code can view your case status — though they will see no identifying information about you."
-    },
-    "privateDevice": {
-      "title": "Use a private device and network",
-      "body": "Whenever possible, use a device that only you have access to and a network you trust (for example, your personal mobile data rather than a shared Wi-Fi). Browsing history may be visible to others on a shared device or network. After using JusticeNow, clear your browser history if you are on a shared device."
-    },
-    "whoCanSee": {
-      "title": "Who can see your report",
-      "body": "Trained legal aid officers and NGO advocacy staff review reports. They see the case type, district, incident date, description, and any file you attached. They do not see your name, phone number, email address, or IP address — because we never collect those. Only your reference code links you to your case, and only you have that code."
-    },
-    "whoCannotSee": {
-      "title": "Who cannot see your report",
-      "body": "The general public, law enforcement, government agencies, and anyone without a staff account cannot access your report. JusticeNow does not share data with any third party. Your submission is encrypted in transit and stored securely. There is no publicly searchable database of cases."
-    },
-    "urgentHelp": {
-      "title": "When to seek urgent help",
-      "body": "JusticeNow is not an emergency service. If you or someone else is in immediate danger, contact emergency services (119 in Sri Lanka). If you fear retaliation for reporting, speak to a trusted legal aid organisation directly before submitting. The Legal Resource Directory on this app lists organisations that can advise you."
-    }
+  "analytics": {
+    "title": "Analytics",
+    "total": "Total cases",
+    "byStatus": "By status",
+    "byCaseType": "By case type",
+    "byDistrict": "By district",
+    "recentVolume": "Recent volume (last 6 months)",
+    "empty": "No data yet. Figures will appear once cases are reported.",
+    "networkError": "Could not load analytics. Check your connection and try again."
+  },
+  "admin": {
+    "title": "Admin",
+    "organisations": "Organisations",
+    "staff": "Staff",
+    "auditTrail": "Audit trail"
+  },
+  "adminOrg": {
+    "listTitle": "Organisations",
+    "editorTitle": "Organisation",
+    "new": "New",
+    "edit": "Edit organisation",
+    "name": "Name",
+    "description": "Description",
+    "district": "District",
+    "caseTypes": "Case types handled",
+    "contactPhone": "Contact phone",
+    "contactEmail": "Contact email",
+    "active": "Active",
+    "inactive": "Inactive",
+    "save": "Save",
+    "saving": "Saving…",
+    "deactivate": "Deactivate",
+    "deactivateConfirm": "Deactivate this organisation? It will be hidden from the public directory and can no longer be assigned to cases. Its staff and history are kept.",
+    "created": "Organisation created.",
+    "empty": "No organisations yet.",
+    "networkError": "Could not save. Check your connection and try again.",
+    "nameRequired": "A name is required.",
+    "districtRequired": "A district is required."
+  },
+  "roles": {
+    "officer": "Officer",
+    "attorney": "Attorney",
+    "admin": "Admin"
+  },
+  "adminStaff": {
+    "listTitle": "Staff",
+    "editorTitle": "Staff member",
+    "new": "New",
+    "edit": "Edit staff member",
+    "name": "Name",
+    "email": "Email",
+    "role": "Role",
+    "organisation": "Organisation",
+    "password": "Password",
+    "passwordHint": "Use at least 8 characters.",
+    "newPassword": "Set new password",
+    "newPasswordHint": "Leave blank to keep the current password. New passwords must be at least 8 characters.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "save": "Save",
+    "saving": "Saving…",
+    "deactivate": "Deactivate",
+    "deactivateConfirm": "Deactivate this staff member? They will no longer be able to sign in. Their audit history is kept, and you can reactivate them later.",
+    "created": "Staff member created.",
+    "empty": "No staff members yet.",
+    "networkError": "Could not save. Check your connection and try again.",
+    "nameRequired": "A name is required.",
+    "emailRequired": "An email is required.",
+    "passwordRequired": "A password is required.",
+    "roleRequired": "A role is required.",
+    "organisationRequired": "An organisation is required."
+  },
+  "audit": {
+    "title": "Audit trail",
+    "filterByAction": "Filter by action",
+    "allActions": "All actions",
+    "empty": "No audit entries yet.",
+    "networkError": "Could not load the audit trail. Check your connection and try again.",
+    "loadMore": "Load more",
+    "system": "System",
+    "unassigned": "Unassigned",
+    "reasonLabel": "Reason",
+    "orgLabel": "Organisation",
+    "visibleToReporter": "Visible to reporter",
+    "internalNote": "Internal note"
+  },
+  "auditActions": {
+    "status_changed": "Status changed",
+    "note_added": "Note added",
+    "case_assigned": "Case assigned",
+    "org_created": "Organisation created",
+    "org_updated": "Organisation updated",
+    "org_deleted": "Organisation deleted",
+    "staff_created": "Staff member created",
+    "staff_updated": "Staff member updated",
+    "staff_deleted": "Staff member deleted",
+    "staff_login": "Staff signed in"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The page you were looking for does not exist.",
+    "home": "Back to home"
   }
 }

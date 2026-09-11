@@ -1,0 +1,88 @@
+/* ==========================================================================
+   JusticeNow — Staff Analytics page
+   Aggregate dashboard: a prominent total plus proportional horizontal bar
+   sections built with plain divs (no chart library). Reuses the global
+   palette (index.css :root vars) and the shared .staff-page width cap.
+   ========================================================================== */
+
+/* Prominent total-cases figure. */
+.analytics-total-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 1.5rem;
+  margin: 1rem 0 1.75rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.analytics-total-number {
+  font-size: 2.75rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--color-primary);
+}
+
+.analytics-total-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.analytics-empty {
+  color: var(--color-text-muted);
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.analytics-section {
+  margin-bottom: 1.75rem;
+}
+
+.analytics-section-title {
+  font-size: 1.05rem;
+  margin-bottom: 0.75rem;
+}
+
+/* One bar: fixed-width label, a flexible track, then the count. */
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.bar-label {
+  flex: 0 0 7.5rem;
+  font-size: 0.85rem;
+  color: var(--color-text);
+  /* Keep long district/type names on one line rather than reflowing the row. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bar-track {
+  flex: 1 1 auto;
+  height: 1rem;
+  border-radius: 999px;
+  background: #e8e6e1;
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-primary);
+}
+
+.bar-count {
+  flex: 0 0 2.25rem;
+  text-align: right;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text);
+}

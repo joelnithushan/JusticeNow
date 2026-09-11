@@ -1,0 +1,129 @@
+/* ==========================================================================
+   JusticeNow — Admin (organisations + staff) shared styles.
+   Imported ONLY by the four Admin* pages. Reuses the global palette/classes
+   from index.css (.page .staff-page .btn .reports-table .status-badge …) and
+   adds just what the admin CRUD surfaces need on top.
+   ========================================================================== */
+
+/* Title row: page heading on the left, the "New" action on the right. */
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-header h1 {
+  margin-bottom: 0;
+}
+
+/* A compact "New" button that does not stretch full-width like the base .btn. */
+.btn-inline {
+  display: inline-block;
+  width: auto;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.9rem;
+}
+
+/* Make table rows read as clickable (they navigate to the editor). */
+.admin-table tbody tr {
+  cursor: pointer;
+}
+
+.admin-table tbody tr:hover {
+  background: #f0eee9;
+}
+
+/* Reuse the pill look of .status-badge for the active/inactive markers. */
+.badge-active {
+  background: #e4efe6;
+  color: var(--color-success);
+}
+
+.badge-inactive {
+  background: #f4e3e3;
+  color: var(--color-error);
+}
+
+/* Reuse the pill look for the staff role marker. */
+.badge-role {
+  background: #e3ecf6;
+  color: #33567d;
+}
+
+/* Case-types multi-select: borderless fieldset so it lines up with the other
+   form fields; the legend acts as the field's label. */
+.checkbox-fieldset {
+  border: none;
+  padding: 0;
+  margin: 1rem 0 0;
+}
+
+.checkbox-fieldset legend {
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+/* Case-types multi-select: a wrapping list of checkbox + label pairs. */
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-top: 0.3rem;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 400;
+  margin: 0;
+}
+
+/* Inline checkbox must not stretch to full width like the base form inputs. */
+.checkbox-group input[type='checkbox'] {
+  width: auto;
+}
+
+/* The edit-only is_active toggle sits on its own row. */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.toggle-row label {
+  margin: 0;
+}
+
+.toggle-row input[type='checkbox'] {
+  width: auto;
+}
+
+/* A hint line under a field (e.g. the password minimum-length note). */
+.field-hint {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+/* A destructive secondary action (Deactivate) — outlined in the error colour. */
+.btn-danger {
+  background: var(--color-surface);
+  color: var(--color-error);
+  border: 1.5px solid var(--color-error);
+  margin-top: 0.75rem;
+}
+
+/* Row of actions at the foot of the editor (Save + Deactivate). */
+.admin-actions {
+  margin-top: 1.5rem;
+}
+
+/* Back link above the editor form. */
+.admin-back {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+}

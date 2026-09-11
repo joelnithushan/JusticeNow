@@ -2,18 +2,22 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
-import { QuickExitProvider } from './context/QuickExitContext';
+import { AuthProvider } from './context/AuthContext';
+import { ProfileProvider } from './context/ProfileContext';
 import './i18n'; // initialise translations before the first render
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      {/* QuickExitProvider lets the Quick Exit button wipe in-progress case
-          data (held in memory only) across the whole app in one tap. */}
-      <QuickExitProvider>
-        <App />
-      </QuickExitProvider>
+      {/* Staff auth lives in memory only (see AuthContext) — never persisted. */}
+      <AuthProvider>
+        {/* Profile is fetched on login and kept in memory only; it must sit
+            INSIDE AuthProvider so it can read the auth state. */}
+        <ProfileProvider>
+          <App />
+        </ProfileProvider>
+      </AuthProvider>
     </BrowserRouter>
-  </React.StrictMode>,
+  </React.StrictMode>
 );

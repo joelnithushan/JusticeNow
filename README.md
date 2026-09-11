@@ -113,6 +113,17 @@ Two decisions are deliberate and central to the product, not incidental:
 
 ## Project structure
 
+The repository now contains **three** parts that share one backend:
+
+- **`/client`** — the React + Vite **PWA** (the original submitted coursework).
+- **`/mobile`** — an **Expo React Native** app (installable Android APK). It is an
+  *addition* that consumes the same API; it does not replace the PWA.
+- **`/server`** — the **shared** Express REST API (Supabase). Both `/client` and
+  `/mobile` talk to it — the server is unchanged by the mobile addition.
+
+See [`mobile/README.md`](mobile/README.md) and [`mobile/BUILDING.md`](mobile/BUILDING.md)
+for running the app on a phone and producing the APK.
+
 ```
 /client                 React PWA (Vite, port 3000)
   index.html            App shell — title, meta, PWA hooks
@@ -124,6 +135,14 @@ Two decisions are deliberate and central to the product, not incidental:
     /i18n               index.js + en/ta/si translation files
     /api                client.js — Axios instance + API helpers
     constants.js        Case types and districts (mirrors the server)
+/mobile                 Expo React Native app (Android APK via EAS)
+  app/                  expo-router screens (Home, 3-step report, success,
+                        status, directory, staff login/reports)
+  components/           LanguageSwitcher, QuickExitButton
+  src/                  api/client.ts, constants.ts, i18n (en/ta/si),
+                        context/ReportFormContext.tsx, theme.ts
+  app.json / eas.json   Expo + EAS build config (preview profile = APK)
+  BUILDING.md           Dev + APK build guide
 /server                 Express API (port 5000)
   index.js              HTTP listener
   app.js                Express app (routes, CORS, error handling)
