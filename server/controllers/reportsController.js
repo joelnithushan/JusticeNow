@@ -159,7 +159,9 @@ const listReports = async (req, res) => {
 
     let query = supabase
       .from('case_reports')
-      .select('id, reference_code, case_type, incident_date, district, status, assigned_org_id, created_at, updated_at')
+      .select(
+        'id, reference_code, case_type, incident_date, district, status, assigned_org_id, created_at, updated_at',
+      )
       .order('created_at', { ascending: false });
 
     if (case_type) query = query.eq('case_type', case_type.toLowerCase());
@@ -185,4 +187,453 @@ const listReports = async (req, res) => {
   }
 };
 
-module.exports = { createReport, listReports };
+// Rough UUID v4-ish check. Used to turn a malformed :id into a clean 404
+// instead of letting Postgres raise a 22P02 that would surface as a 500.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Resolve the authenticated Supabase user to a staff_users row.
+ *
+ * WHY: case_notes.author_id is a foreign key to staff_users(id), but the
+ * authenticated user comes from Supabase Auth (a different id space). We match
+ * on email — the one field both sides share. If there is no matching staff row
+ * (e.g. an unseeded dev environment), we return null and the note is still
+ * saved with a null author rather than failing the request.
+ *
+ * @returns {Promise<{id: string, name: string} | null>}
+ */
+const resolveStaffUser = async (email) => {
+  if (!email) return null;
+  const { data, error } = await supabase
+    .from('staff_users')
+    .select('id, name')
+    .eq('email', email)
+    .maybeSingle();
+  if (error) {
+    console.error('Failed to resolve staff user:', error.message);
+    return null;
+  }
+  return data || null;
+};
+
+/**
+ * GET /api/reports/:id — fetch a single case for the staff detail view.
+ * STAFF ONLY (requireStaffAuth). Returns the full case; staff are trusted to
+ * read the narrative. There is still no reporter identity to return.
+ */
+const getReport = async (req, res) => {
+  const { id } = req.params;
+  if (!UUID_RE.test(id)) {
+    return res.status(404).json({ success: false, message: 'Case not found.' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('case_reports')
+      .select(
+        'id, reference_code, case_type, incident_date, district, description, status, evidence_path, created_at, updated_at',
+      )
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Failed to fetch case report:', error.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Could not load the case. Please try again.',
+      });
+    }
+    if (!data) {
+      return res.status(404).json({ success: false, message: 'Case not found.' });
+    }
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('Unexpected error fetching case report:', err);
+    return res
+      .status(500)
+      .json({ success: false, message: 'Could not load the case. Please try again.' });
+  }
+};
+
+/**
+ * PATCH /api/reports/:id/status — change a case's workflow status.
+ * STAFF ONLY (requireStaffAuth).
+ *
+ * Per JNOW-13 we validate the new status against the allowed SET
+ * (CASE_STATUSES) and apply it. NOTE: the canTransition() state-machine in
+ * services/statusTransition.js (received→under_review→referred→closed, admin-
+ * only reopen) is intentionally NOT enforced here — this story specifies a free
+ * 4-option control and simple set-validation. Wiring canTransition + an audit
+ * trail is a follow-up that needs a reliable staff role and an audit table.
+ */
+const updateStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!UUID_RE.test(id)) {
+    return res.status(404).json({ success: false, message: 'Case not found.' });
+  }
+
+  const normalised = (status || '').trim().toLowerCase();
+  if (!normalised || !CASE_STATUSES.includes(normalised)) {
+    return res.status(400).json({
+      success: false,
+      message: `status must be one of: ${CASE_STATUSES.join(', ')}.`,
+    });
+  }
+
+  try {
+    // Update and ask for the row back so we can 404 when nothing matched.
+    const { data, error } = await supabase
+      .from('case_reports')
+      .update({ status: normalised, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('id, status, updated_at')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Failed to update case status:', error.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Could not update the status. Please try again.',
+      });
+    }
+    if (!data) {
+      return res.status(404).json({ success: false, message: 'Case not found.' });
+    }
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('Unexpected error updating case status:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Could not update the status. Please try again.',
+    });
+  }
+};
+
+/**
+ * POST /api/reports/:id/notes — add a dated note to a case.
+ * STAFF ONLY (requireStaffAuth).
+ *
+ * Body: { note: string, is_reporter_visible?: boolean }
+ * is_reporter_visible defaults to FALSE (internal). A note is only ever shown
+ * to the anonymous reporter when this is explicitly true — the default must
+ * stay false so an internal aside can never surface by accident.
+ */
+const addNote = async (req, res) => {
+  const { id } = req.params;
+  const { note, is_reporter_visible } = req.body;
+
+  if (!UUID_RE.test(id)) {
+    return res.status(404).json({ success: false, message: 'Case not found.' });
+  }
+  if (!note || !note.trim()) {
+    return res
+      .status(400)
+      .json({ success: false, message: 'note is required and cannot be empty.' });
+  }
+
+  // Coerce to a strict boolean — anything other than an explicit true is
+  // treated as internal. Never trust the client to send a real boolean.
+  const isReporterVisible =
+    is_reporter_visible === true || is_reporter_visible === 'true';
+
+  try {
+    // Attribute the note to the signed-in staff member where we can (see
+    // resolveStaffUser). author_id may be null in an unseeded environment.
+    const staff = await resolveStaffUser(req.staffUser?.email);
+
+    const { data, error } = await supabase
+      .from('case_notes')
+      .insert({
+        case_id: id,
+        author_id: staff?.id ?? null,
+        note: note.trim(),
+        is_reporter_visible: isReporterVisible,
+      })
+      .select('id, note, is_reporter_visible, created_at, author_id')
+      .maybeSingle();
+
+    if (error) {
+      // 23503 = foreign-key violation → the case_id does not exist.
+      if (error.code === '23503') {
+        return res.status(404).json({ success: false, message: 'Case not found.' });
+      }
+      console.error('Failed to add case note:', error.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Could not save the note. Please try again.',
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      data: { ...data, author_name: staff?.name ?? null },
+    });
+  } catch (err) {
+    console.error('Unexpected error adding case note:', err);
+    return res
+      .status(500)
+      .json({ success: false, message: 'Could not save the note. Please try again.' });
+  }
+};
+
+/**
+ * GET /api/reports/:id/notes — list a case's notes, newest first.
+ * STAFF ONLY (requireStaffAuth) — this returns INTERNAL notes too, so it must
+ * never be reachable by an anonymous caller. (The reporter-facing lookup lives
+ * in statusController and returns only reporter-visible notes.)
+ */
+const listNotes = async (req, res) => {
+  const { id } = req.params;
+  if (!UUID_RE.test(id)) {
+    return res.status(404).json({ success: false, message: 'Case not found.' });
+  }
+
+  try {
+    // Embed the author's name via the author_id -> staff_users FK.
+    const { data, error } = await supabase
+      .from('case_notes')
+      .select('id, note, is_reporter_visible, created_at, author:staff_users(name)')
+      .eq('case_id', id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Failed to list case notes:', error.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Could not load the notes. Please try again.',
+      });
+    }
+
+    // Flatten the embedded author into a plain author_name for the client.
+    const notes = (data || []).map(({ author, ...n }) => ({
+      ...n,
+      author_name: author?.name ?? null,
+    }));
+    return res.json({ success: true, data: notes });
+  } catch (err) {
+    console.error('Unexpected error listing case notes:', err);
+    return res
+      .status(500)
+      .json({ success: false, message: 'Could not load the notes. Please try again.' });
+  }
+};
+
+// How long a generated evidence link stays valid (seconds). Deliberately
+// short — the link is fetched on demand when staff click "open evidence", so it
+// never needs to live long, which limits the blast radius if a URL leaks.
+const EVIDENCE_URL_TTL_SECONDS = 60;
+
+/**
+ * GET /api/reports/:id/evidence — return a short-lived SIGNED URL for a case's
+ * evidence file (JNOW-35). STAFF ONLY (requireStaffAuth).
+ *
+ * SECURITY: the evidence bucket is PRIVATE. We never expose a public URL — we
+ * mint a signed URL that expires in EVIDENCE_URL_TTL_SECONDS. This is the only
+ * way staff can view an attachment, and it cannot be shared or indexed.
+ */
+const getEvidenceUrl = async (req, res) => {
+  const { id } = req.params;
+  if (!UUID_RE.test(id)) {
+    return res.status(404).json({ success: false, message: 'Case not found.' });
+  }
+
+  try {
+    // Look up the stored object path for this case (never trust a client path).
+    const { data: caseRow, error: caseError } = await supabase
+      .from('case_reports')
+      .select('id, evidence_path')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (caseError) {
+      console.error('Failed to look up evidence path:', caseError.message);
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message: 'Could not open the evidence. Please try again.',
+        });
+    }
+    if (!caseRow) {
+      return res.status(404).json({ success: false, message: 'Case not found.' });
+    }
+    if (!caseRow.evidence_path) {
+      // Distinct 404 so the UI can say "no attachment" rather than erroring.
+      return res
+        .status(404)
+        .json({ success: false, message: 'No evidence attached to this case.' });
+    }
+
+    // Mint a short-lived signed URL from the PRIVATE bucket.
+    const { data, error } = await supabase.storage
+      .from(EVIDENCE_BUCKET)
+      .createSignedUrl(caseRow.evidence_path, EVIDENCE_URL_TTL_SECONDS);
+
+    if (error || !data?.signedUrl) {
+      console.error('Failed to create signed evidence URL:', error?.message);
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message: 'Could not open the evidence. Please try again.',
+        });
+    }
+
+    return res.json({
+      success: true,
+      data: { url: data.signedUrl, expires_in: EVIDENCE_URL_TTL_SECONDS },
+    });
+  } catch (err) {
+    console.error('Unexpected error creating evidence URL:', err);
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Could not open the evidence. Please try again.',
+      });
+  }
+};
+
+/**
+ * Platform admins may act on any case. Officers / org_admins may only act on
+ * cases already assigned to their own organisation. Out-of-scope looks like a
+ * generic 404 so callers cannot probe which cases exist elsewhere.
+ */
+const isPlatformAdmin = (staff) => staff?.role === 'admin';
+
+const isCaseInStaffOrg = (caseRow, staff) =>
+  Boolean(staff?.organisation_id) &&
+  caseRow?.assigned_org_id === staff.organisation_id;
+
+/**
+ * PATCH /api/reports/:id/assign — refer/assign a case to an organisation
+ * (JNOW-36). STAFF ONLY (requireStaffAuth).
+ *
+ * Body: { assigned_org_id: string }
+ *
+ * - Target org must exist and be active → else 400 (no audit).
+ * - Org-scoped staff get a generic 404 when the case is outside their org.
+ * - On success, writes audit_log action `case_assigned` with
+ *   detail: { assigned_org_id }.
+ */
+const assignReport = async (req, res) => {
+  const { id } = req.params;
+  const assignedOrgId = (req.body?.assigned_org_id || '').trim();
+
+  if (!UUID_RE.test(id)) {
+    return res.status(404).json({ success: false, message: 'Case not found.' });
+  }
+  if (!assignedOrgId) {
+    return res.status(400).json({
+      success: false,
+      message: 'assigned_org_id is required.',
+    });
+  }
+
+  try {
+    // ---- Load the case (needed for org-scoping) ----
+    const { data: caseRow, error: caseError } = await supabase
+      .from('case_reports')
+      .select('id, assigned_org_id, status')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (caseError) {
+      console.error('Failed to load case for assign:', caseError.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Could not assign the case. Please try again.',
+      });
+    }
+    if (!caseRow) {
+      return res.status(404).json({ success: false, message: 'Case not found.' });
+    }
+
+    // ---- Org-scoping: non-admins may only touch cases in their own org ----
+    const staff = req.staffUser;
+    if (!isPlatformAdmin(staff) && !isCaseInStaffOrg(caseRow, staff)) {
+      // Identical to not-found — do not leak that the case exists elsewhere.
+      return res.status(404).json({ success: false, message: 'Case not found.' });
+    }
+
+    // ---- Target organisation must exist and be active ----
+    const { data: org, error: orgError } = await supabase
+      .from('organisations')
+      .select('id, is_active')
+      .eq('id', assignedOrgId)
+      .maybeSingle();
+
+    if (orgError) {
+      console.error('Failed to look up organisation:', orgError.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Could not assign the case. Please try again.',
+      });
+    }
+    if (!org || org.is_active !== true) {
+      // Inactive and nonexistent share the same 400 — no audit written.
+      return res.status(400).json({
+        success: false,
+        message: 'Organisation must exist and be active.',
+      });
+    }
+
+    // ---- Persist the assignment ----
+    const { data: updated, error: updateError } = await supabase
+      .from('case_reports')
+      .update({
+        assigned_org_id: assignedOrgId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select('id, assigned_org_id, status, updated_at')
+      .maybeSingle();
+
+    if (updateError || !updated) {
+      console.error('Failed to assign case:', updateError?.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Could not assign the case. Please try again.',
+      });
+    }
+
+    // ---- Audit trail (detail carries only the org id — never case narrative) ----
+    const { error: auditError } = await supabase.from('audit_log').insert({
+      action: 'case_assigned',
+      case_id: id,
+      actor_id: staff?.id ?? null,
+      detail: { assigned_org_id: assignedOrgId },
+    });
+
+    if (auditError) {
+      // Assignment already saved; surface a 500 so the missing audit is noticed
+      // in tests / ops rather than silently dropping the trail.
+      console.error('Failed to write case_assigned audit:', auditError.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Could not assign the case. Please try again.',
+      });
+    }
+
+    return res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error('Unexpected error assigning case:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Could not assign the case. Please try again.',
+    });
+  }
+};
+
+module.exports = {
+  createReport,
+  listReports,
+  getReport,
+  updateStatus,
+  addNote,
+  listNotes,
+  getEvidenceUrl,
+  assignReport,
+};

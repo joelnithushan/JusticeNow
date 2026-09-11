@@ -8,11 +8,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import StaffReports from '../pages/StaffReports';
 import { fetchReports } from '../api/client';
 
 vi.mock('../api/client', () => ({
   fetchReports: vi.fn(),
+}));
+
+// StaffReports renders <StaffHeader>, which calls useAuth(). Mock the auth
+// context so these tests stay isolated to the reports list — they need a
+// signed-in staff user, not a real Supabase session (and no Supabase env).
+vi.mock('../context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { email: 'staff@example.test' },
+    session: {},
+    loading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
 }));
 
 const sampleReports = [
@@ -42,7 +56,12 @@ const sampleReports = [
 ];
 
 function renderPage() {
-  return render(<StaffReports />);
+  // StaffReports now renders <Link> to the case detail, so it needs a Router.
+  return render(
+    <MemoryRouter>
+      <StaffReports />
+    </MemoryRouter>,
+  );
 }
 
 beforeEach(() => {
@@ -101,7 +120,10 @@ describe('StaffReports', () => {
     renderPage();
 
     await screen.findByText('JN-ABCDEFGH');
-    await user.selectOptions(screen.getByLabelText('Filter by case type'), 'harassment');
+    await user.selectOptions(
+      screen.getByLabelText('Filter by case type'),
+      'harassment',
+    );
 
     await waitFor(() => {
       expect(fetchReports).toHaveBeenLastCalledWith({ caseType: 'harassment' });

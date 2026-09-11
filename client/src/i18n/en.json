@@ -19,6 +19,7 @@
     "checkStatus": "Check case status",
     "directory": "Legal resource directory",
     "staffLogin": "Staff login",
+    "guidance": "Know your rights",
     "privacyNote": "No account is needed to use JusticeNow. We never ask for your name, phone number, or email. You will receive a secure reference code to check your case status later.",
     "stayingSafe": "Staying safe guidance"
   },
@@ -94,10 +95,61 @@
     }
   },
   "directory": {
-    "title": "Legal resource directory"
+    "title": "Legal resource directory",
+    "searchPlaceholder": "Search by organisation name",
+    "districtFilter": "All districts",
+    "caseTypeFilter": "All case types",
+    "emptyState": "No organisations match those filters.",
+    "clearFilters": "Clear filters",
+    "contactTitle": "Contact",
+    "call": "Call",
+    "email": "Email",
+    "handledCaseTypes": "Handles these case types:",
+    "loadFailed": "Could not load the directory. Please try again."
   },
   "staffLogin": {
-    "title": "Staff login"
+    "title": "Staff login",
+    "emailLabel": "Email address",
+    "passwordLabel": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "errorInvalid": "Those details didn’t match. Please try again.",
+    "errorEmailRequired": "Please enter your email address.",
+    "errorEmailFormat": "Please enter a valid email address.",
+    "errorPasswordRequired": "Please enter your password.",
+    "noSelfRegister": "Account access is provisioned by your organisation administrator."
+  },
+  "staff": {
+    "loggedInAs": "Signed in as {{email}}",
+    "logout": "Log out",
+    "loading": "Checking session…"
+  },
+  "staffReportDetail": {
+    "title": "Case report",
+    "reportId": "Report ID",
+    "loadFailed": "Could not load this case. Please try again.",
+    "statusHeading": "Case status",
+    "currentStatus": "Current status",
+    "statusFailed": "Could not update the status. Please try again.",
+    "notesHeading": "Case notes",
+    "addNoteLabel": "Add a note",
+    "addNotePlaceholder": "Record an update, or an internal note about this case.",
+    "visibleToggle": "Show this note to the reporter",
+    "visibleOn": "On — the reporter will see this note in their status timeline.",
+    "visibleOff": "Off — internal only. The reporter will NOT see this note.",
+    "addNote": "Add note",
+    "addingNote": "Adding…",
+    "noNotes": "No notes yet.",
+    "noteFailed": "Could not save the note. Please try again.",
+    "unknownAuthor": "Staff",
+    "markerVisible": "Visible to reporter",
+    "markerInternal": "Internal only",
+    "evidenceHeading": "Evidence",
+    "openEvidence": "Open evidence",
+    "evidenceOpening": "Opening…",
+    "evidenceHint": "Opens in a new tab via a private link that expires in about a minute.",
+    "noEvidence": "No evidence was attached to this case.",
+    "evidenceFailed": "Could not open the evidence. Please try again."
   },
   "staffReports": {
     "title": "Incoming reports",
@@ -112,6 +164,7 @@
     "description": "Description",
     "fullDescription": "Full description",
     "expandHint": "Tap to read more",
+    "manageCase": "Manage case",
     "empty": "No reports yet",
     "loadFailed": "Could not load reports. Please try again.",
     "retry": "Try again"
@@ -120,6 +173,78 @@
     "copy": "Copy to clipboard",
     "copied": "Copied!",
     "warning": "This code cannot be recovered if lost. Please write it down or save it somewhere safe."
+  },
+  "guidance": {
+    "title": "Know your rights",
+    "intro": "Plain-language summaries of rights that protect you in Sri Lanka. Choose a topic to read more.",
+    "reviewNotice": "This information is general guidance, not legal advice. It must be reviewed by a qualified lawyer before it is treated as advice for a specific case.",
+    "backToTopics": "All topics",
+    "notFound": "That topic does not exist. Choose one from the list below.",
+    "topics": {
+      "arrest_detention": {
+        "title": "Rights during arrest and detention",
+        "summary": "What the police may and may not do if you are arrested or held.",
+        "points": [
+          "If you are arrested, the police must tell you why you are being arrested.",
+          "You cannot be held without being produced before a magistrate. In most cases you must be brought before a magistrate within 24 hours of your arrest, not counting travel time.",
+          "You have the right to talk to a lawyer and to have a lawyer present. If you cannot afford one, you can ask for free legal aid.",
+          "You may inform a relative or a friend that you have been arrested and where you are being held.",
+          "The police must record your arrest. You, or a person on your behalf, can ask which station you are being held at.",
+          "You must be treated humanely. Torture and cruel, inhuman or degrading treatment are prohibited and are crimes under Sri Lankan law.",
+          "Anything you say can be used in court, so it is sensible to speak to a lawyer before answering questions about the offence."
+        ]
+      },
+      "discrimination_harassment": {
+        "title": "Protection from discrimination and harassment",
+        "summary": "What you can do if you are treated unfairly or harassed because of who you are.",
+        "points": [
+          "Every person is equal before the law. The Constitution forbids the state from discriminating against you on grounds of race, religion, language, caste, sex, political opinion or place of birth.",
+          "Discrimination by a state institution — for example refusing a service, a licence or a benefit because of who you are — can be challenged through fundamental rights applications.",
+          "Harassment, including sexual harassment at work or in public institutions, is a crime. You can complain to the police, and at work you can also complain to the head of your institution or a labour tribunal.",
+          "Keep records: dates, places, what was said or done, and the names of anyone who saw it. Written records make a complaint much stronger.",
+          "You do not need a lawyer to make a police complaint. A friend or family member can help you write it, and legal aid organisations can help you for free."
+        ]
+      },
+      "legal_aid": {
+        "title": "Free legal aid",
+        "summary": "How to get a lawyer's help even if you cannot pay for one.",
+        "points": [
+          "Free legal aid means advice and representation from a lawyer at no cost, for people who cannot afford to pay.",
+          "Legal aid is available for many kinds of problems: family matters, land disputes, employment problems, criminal defence and complaints about discrimination.",
+          "The Legal Aid Commission of Sri Lanka has offices across the country and can be reached by phone on 1951. Many NGOs also give free legal help — see the legal resource directory in this app.",
+          "When you go for legal aid, bring any documents about your problem: letters, agreements, receipts, medical or police records.",
+          "You may bring a trusted person with you. Asking for legal help does not create any record that identifies you in this app."
+        ]
+      }
+    }
+  },
+  "onboarding": {
+    "skip": "Skip",
+    "back": "Back",
+    "continue": "Continue",
+    "getStarted": "Get started",
+    "step": "Step {{current}} of {{total}}",
+    "language": {
+      "context": "Language",
+      "heading": "Choose your language",
+      "body": "Pick the language you are most comfortable reading. You can change it any time from the top of any screen."
+    },
+    "privacy": {
+      "context": "Your privacy",
+      "heading": "You stay anonymous",
+      "body": "We never ask for your name, your phone number, or your email address.",
+      "body2": "Instead you get a reference code. That code is the only way back to your case — and it is yours alone.",
+      "reassure1": "No account needed",
+      "reassure2": "No personal details stored",
+      "reassure3": "Nothing saved on this device"
+    },
+    "safety": {
+      "context": "Staying safe",
+      "heading": "Leave instantly, any time",
+      "body": "If someone comes near, tap the exit button in the corner. The screen clears at once and nothing you typed is kept.",
+      "body2": "You can find it on every screen while you are reporting.",
+      "exitReplicaLabel": "this button, bottom right"
+    }
   },
   "stayingSafe": {
     "title": "Staying Safe",
