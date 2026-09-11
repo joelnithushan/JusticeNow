@@ -7,14 +7,12 @@ const multer = require('multer');
 const {
   createReport,
   listReports,
-  getReport,
-  updateStatus,
-  addNote,
-  listNotes,
-  getEvidenceUrl,
-  assignReport,
+  getCase,
+  addCaseNote,
+  changeCaseStatus,
+  assignCase,
 } = require('../controllers/reportsController');
-const requireStaffAuth = require('../middleware/requireStaffAuth');
+const { requireStaff } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -25,24 +23,32 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB cap
 });
 
-// POST /api/reports — anonymous submission ("evidence" = optional file field)
+// POST /api/reports — anonymous submission ("evidence" = optional file field).
+// DELIBERATELY UNGUARDED: reporters never authenticate, so this route must NOT
+// carry requireStaff — adding auth here would break anonymous reporting.
 router.post('/', upload.single('evidence'), createReport);
 
-// GET /api/reports — staff list with ?case_type= and ?status= filters
-router.get('/', listReports);
+// GET /api/reports — staff list with ?case_type= and ?status= filters.
+// GUARDED: listing cases is staff-only (see CLAUDE.md authorization matrix —
+// "List cases" is NEVER anonymous). requireStaff rejects missing/invalid tokens
+// with 401 before the controller runs.
+router.get('/', requireStaff, listReports);
 
-// ── Staff case-management routes (JNOW-13) — all require a staff session ──
-// GET    /api/reports/:id         — single case for the detail view
-// PATCH  /api/reports/:id/status  — change workflow status
-// POST   /api/reports/:id/notes   — add a dated note (internal or reporter-visible)
-// GET    /api/reports/:id/notes   — list all notes for a case, newest first
-router.get('/:id', requireStaffAuth, getReport);
-router.patch('/:id/status', requireStaffAuth, updateStatus);
-router.post('/:id/notes', requireStaffAuth, addNote);
-router.get('/:id/notes', requireStaffAuth, listNotes);
-// GET /api/reports/:id/evidence — short-lived signed URL for the attachment (JNOW-35)
-router.get('/:id/evidence', requireStaffAuth, getEvidenceUrl);
-// PATCH /api/reports/:id/assign — refer/assign the case to an organisation (JNOW-36)
-router.patch('/:id/assign', requireStaffAuth, assignReport);
+// --- Staff case-detail sub-routes (U7). ALL guarded by requireStaff --------
+// The full case view and every mutation on a case are staff-only (see CLAUDE.md
+// authorization matrix). requireStaff rejects missing/invalid tokens with 401
+// before any controller runs.
+
+// GET /api/reports/:id — full case + notes + signed evidence URL + transitions.
+router.get('/:id', requireStaff, getCase);
+
+// POST /api/reports/:id/notes — add an internal or reporter-visible note.
+router.post('/:id/notes', requireStaff, addCaseNote);
+
+// PATCH /api/reports/:id/status — move through the status state machine.
+router.patch('/:id/status', requireStaff, changeCaseStatus);
+
+// PATCH /api/reports/:id/assign — assign or unassign the case to an org.
+router.patch('/:id/assign', requireStaff, assignCase);
 
 module.exports = router;

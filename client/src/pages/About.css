@@ -1,0 +1,54 @@
+/* ==========================================================================
+   JusticeNow — About / How-it-works / Privacy & Safety
+   New styles only; global classes come from index.css.
+   ========================================================================== */
+
+.about-section {
+  margin-bottom: 1.5rem;
+}
+
+.about-section h2 {
+  font-size: 1.15rem;
+  margin-bottom: 0.5rem;
+}
+
+.about-section p {
+  line-height: 1.6;
+}
+
+.about-steps {
+  padding-left: 1.25rem;
+}
+
+.about-steps li {
+  margin-bottom: 0.6rem;
+  line-height: 1.55;
+}
+
+.about-callout {
+  background: #eef2ee;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.about-callout h2 {
+  font-size: 1.05rem;
+  color: var(--color-primary);
+  margin-bottom: 0.5rem;
+}
+
+.about-callout p {
+  line-height: 1.6;
+}
+
+.about-callout p + p {
+  margin-top: 0.6rem;
+}
+
+.about-footer {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+  margin: 0.5rem 0 1.25rem;
+}

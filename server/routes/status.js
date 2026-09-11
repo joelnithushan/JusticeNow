@@ -1,36 +1,25 @@
 /**
- * JusticeNow — /api/status routes (JNOW-11).
+ * JusticeNow — /api/status routes.
  *
- * Rate-limiting is applied only to this router because it is the single
- * place where an attacker could guess reference codes by brute force.
- * 20 requests per 15 minutes per IP is generous enough for legitimate
- * reporters re-checking their status, but tight enough to make systematic
- * guessing impractical against a 10-character base-32 code space.
+ * Anonymous reporters look up their case status and reporter-visible notes using
+ * only their reference code. This route is UNAUTHENTICATED by design (reporters
+ * never log in) and MUST stay rate-limited: the reference code is a guessable
+ * password, so the limiter throttles brute-force enumeration.
+ *
+ * Routes only — no logic, no Supabase calls here (see CLAUDE.md architecture).
  */
 
 const express = require('express');
-const rateLimit = require('express-rate-limit');
-const { getCaseStatus } = require('../controllers/statusController');
+const { createRateLimiter } = require('../middleware/rateLimit');
+const { getStatus } = require('../controllers/statusController');
 
 const router = express.Router();
 
-// ---- Rate limiter ----
-// windowMs: 15 minutes
-// limit:    20 requests per window per IP
-// The generic 429 message deliberately does not confirm that the endpoint
-// is for case lookup — just "Too many requests".
-const statusLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 20,
-  standardHeaders: 'draft-7', // Return rate-limit info in the `RateLimit-*` headers
-  legacyHeaders: false,
-  message: {
-    success: false,
-    message: 'Too many requests. Please wait a few minutes and try again.',
-  },
-});
+// One limiter instance per process, closing over its own attempt map.
+const statusRateLimiter = createRateLimiter();
 
-// GET /api/status/:referenceCode
-router.get('/:referenceCode', statusLimiter, getCaseStatus);
+// The limiter runs first and, on breach, flags req.isRateLimited so the
+// controller can answer with the SAME generic 404 it uses for "not found".
+router.get('/:reference_code', statusRateLimiter, getStatus);
 
 module.exports = router;

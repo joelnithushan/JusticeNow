@@ -1,0 +1,111 @@
+/* ==========================================================================
+   JusticeNow — Legal resource directory (list)
+   New styles only; global classes come from index.css.
+   ========================================================================== */
+
+.directory-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.directory-filter {
+  flex: 1 1 45%;
+  min-width: 140px;
+}
+
+.directory-filter label {
+  display: block;
+  font-weight: 600;
+  margin: 0 0 0.3rem;
+}
+
+.directory-filter select {
+  width: 100%;
+  padding: 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  background: var(--color-surface);
+}
+
+.directory-loading,
+.directory-empty {
+  margin-top: 1.5rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.directory-error {
+  margin-top: 1.5rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: #f6ece9;
+  border-left: 3px solid var(--color-error);
+}
+
+.directory-error p {
+  color: var(--color-error);
+  margin-bottom: 0.6rem;
+}
+
+.directory-list {
+  list-style: none;
+  margin-top: 1.25rem;
+}
+
+.org-card {
+  display: block;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  text-decoration: none;
+  color: var(--color-text);
+}
+
+.org-card:hover {
+  border-color: var(--color-secondary-on-light);
+}
+
+.org-card-name {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.org-card-district {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-top: 0.1rem;
+}
+
+.org-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.org-chip {
+  background: #eef1f5;
+  color: var(--color-primary);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.org-card-desc {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

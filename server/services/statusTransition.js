@@ -20,8 +20,13 @@
 // in docs/schema.sql.
 const STATUSES = ['received', 'under_review', 'referred', 'closed'];
 
-// Staff roles — must mirror the staff_users.role CHECK constraint.
-const STAFF_ROLES = ['officer', 'attorney', 'admin'];
+// Staff roles — must mirror the staff_users.role CHECK constraint (now includes
+// org_admin, the per-organisation staff manager). For the status state machine,
+// org_admin is an ordinary staff role: it may move a case forward like an
+// officer/attorney, but reopening a closed case stays ADMIN_ONLY (the platform
+// superadmin). org_admin's extra powers are over STAFF and its OWN org — not the
+// case lifecycle — so it is deliberately NOT in ADMIN_ONLY.
+const STAFF_ROLES = ['officer', 'attorney', 'org_admin', 'admin'];
 const ADMIN_ONLY = ['admin'];
 
 /**

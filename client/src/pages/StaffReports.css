@@ -1,0 +1,37 @@
+/* ==========================================================================
+   JusticeNow — Staff reports list
+   Reuses .staff-page, .reports-table, .status-badge and .mono from index.css;
+   only the filter layout and row-link styling live here.
+   ========================================================================== */
+
+.reports-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.reports-filters .filter-group {
+  flex: 1 1 200px;
+}
+
+/* Filter labels use the global form-label look but without the large top margin
+   the report form gives them, since these sit in their own row. */
+.reports-filters label {
+  display: block;
+  font-weight: 600;
+  margin: 0 0 0.3rem;
+}
+
+/* The reference-code cell is a link into the case detail view; keep it readable
+   as a table cell rather than a bright default link. */
+.reports-table td.mono a {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.reports-table td.mono a:hover,
+.reports-table td.mono a:focus {
+  text-decoration: underline;
+}

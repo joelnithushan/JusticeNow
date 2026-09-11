@@ -1,139 +1,173 @@
 /**
- * JusticeNow — Root component: app header + routes.
+ * JusticeNow — Root component: routes + the always-visible Quick Exit button.
  *
- * The header bar holds two always-visible safety/UX features:
- *   • LanguageSwitcher — so every page is accessible in the user's language,
- *     even if they land deep in the flow.
- *   • QuickExitButton — safety feature; immediately navigates away from the app.
- *
- * Neither component stores anything to localStorage/sessionStorage.
- *
- * ROUTE STRUCTURE:
- *
- *   Public (reporter) routes — NO auth, NO auth context:
- *     /                   Home
- *     /report             Submit a case report (anonymous)
- *     /report/success     Reference code display
- *     /status             Check case status by reference code
- *     /status/result      Case status result for a looked-up reference code
- *     /directory          Legal resource directory
- *     /guidance           Know-your-rights topic list
- *     /guidance/:topicId  Know-your-rights topic detail
- *     /exit               Neutral cover screen reached via Quick Exit button
- *
- *   Staff routes:
- *     /staff/login        Login form — public, outside the auth guard
- *     /staff/reports      Case list  — PROTECTED by ProtectedRoute
- *     /staff/reports/:id  Case detail — PROTECTED by ProtectedRoute
- *
- * AuthProvider wraps the entire tree so the session is resolved before
- * ProtectedRoute renders. Reporter components never consume AuthContext.
+ * Route map: reporter pages are public; every /staff/* route except login is
+ * wrapped in a client-side guard (RequireStaff/RequireAdmin). Those guards are
+ * UX only — the SERVER is the real authorization boundary.
  */
 
 import React from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import QuickExitButton from './components/QuickExitButton';
-import LanguageSwitcher from './components/LanguageSwitcher';
-import ProtectedRoute from './components/ProtectedRoute';
-import Onboarding from './pages/Onboarding';
+import AppLogo from './components/AppLogo';
+import StaffNav from './components/StaffNav';
+import { RequireStaff, RequireAdmin, RequireProfile } from './components/RequireStaff';
+import { useAuth } from './context/AuthContext';
 import Home from './pages/Home';
-import Guidance from './pages/Guidance';
-import GuidanceTopic from './pages/GuidanceTopic';
 import ReportCase from './pages/ReportCase';
 import ReportSuccess from './pages/ReportSuccess';
 import CheckStatus from './pages/CheckStatus';
-import CaseStatus from './pages/CaseStatus';
 import Directory from './pages/Directory';
-import OrganisationDetail from './pages/OrganisationDetail';
+import DirectoryDetail from './pages/DirectoryDetail';
+import About from './pages/About';
 import StaffLogin from './pages/StaffLogin';
 import StaffReports from './pages/StaffReports';
-import StaffReportDetail from './pages/StaffReportDetail';
-import QuickExitScreen from './pages/QuickExitScreen';
-import StayingSafe from './pages/StayingSafe';
+import StaffProfile from './pages/StaffProfile';
+import StaffCaseDetail from './pages/StaffCaseDetail';
+import StaffAnalytics from './pages/StaffAnalytics';
+import StaffAudit from './pages/StaffAudit';
+import AdminOrganisations from './pages/AdminOrganisations';
+import AdminOrganisationEdit from './pages/AdminOrganisationEdit';
+import AdminStaff from './pages/AdminStaff';
+import AdminStaffEdit from './pages/AdminStaffEdit';
+import NotFound from './pages/NotFound';
 
 function App() {
-  const { pathname } = useLocation();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
 
-  // Onboarding is a self-contained, full-screen flow: it carries its OWN
-  // language selection (slide 1) and its own step chrome, so the app-level
-  // header would be a duplicate control there. Hide it on those routes.
-  const isOnboarding = pathname.startsWith('/onboarding');
+  // The staff nav appears only inside the staff area and only for a logged-in
+  // staff member — reporters never see it, and neither does the login page
+  // (there is no session there yet).
+  const isStaffArea =
+    location.pathname.startsWith('/staff') && location.pathname !== '/staff/login';
+  const showStaffNav = isStaffArea && isAuthenticated;
 
   return (
-    /*
-     * AuthProvider wraps everything so useAuth() is available in ProtectedRoute,
-     * StaffHeader, and StaffLogin. Reporter components never call useAuth().
-     */
-    <AuthProvider>
-      <div className="app-container">
-        {/*
-          App-level header: present on every page EXCEPT onboarding.
-          - QuickExitButton is fixed-position (bottom-right) via CSS. It decides
-            for itself which screens to appear on (not onboarding — no case data
-            to clear yet; slide 3 only shows a static picture of it).
-          - LanguageSwitcher sits in the header bar so the user can always
-            switch language regardless of which page they are on.
-        */}
-        {!isOnboarding && (
-          <header className="app-header">
-            <LanguageSwitcher />
-          </header>
-        )}
+    <div className="app-container">
+      {/* Safety feature: visible on every page, always in the same place */}
+      <QuickExitButton />
 
-        {/* Safety feature. Fixed bottom-right (thumb-reachable) via CSS and
-            rendered outside the header so it floats over the page. It decides
-            for itself which screens to appear on (reporter pages only). */}
-        <QuickExitButton />
-
-        <main className="main-content">
-          <Routes>
-            {/* ── Onboarding (3-slide intro) ──────────────────────────────── */}
-            {/* Bare /onboarding jumps to the first slide. Session-only: nothing
-                is written to storage, so a fresh visit simply shows it again. */}
-            <Route
-              path="/onboarding"
-              element={<Navigate to="/onboarding/language" replace />}
-            />
-            <Route path="/onboarding/:step" element={<Onboarding />} />
-
-            {/* ── Public / reporter routes ────────────────────────────────── */}
-            <Route path="/" element={<Home />} />
-            <Route path="/report" element={<ReportCase />} />
-            <Route path="/report/success" element={<ReportSuccess />} />
-            <Route path="/status" element={<CheckStatus />} />
-            <Route path="/status/result" element={<CaseStatus />} />
-            <Route path="/directory" element={<Directory />} />
-            <Route path="/directory/:id" element={<OrganisationDetail />} />
-            {/* JNOW-39: know-your-rights guidance (reporter-facing, no auth). */}
-            <Route path="/guidance" element={<Guidance />} />
-            <Route path="/guidance/:topicId" element={<GuidanceTopic />} />
-            {/* JNOW-40 — dedicated safety guidance page */}
-            <Route path="/staying-safe" element={<StayingSafe />} />
-            {/* Neutral cover screen reached only via the Quick Exit button. */}
-            <Route path="/exit" element={<QuickExitScreen />} />
-
-            {/* ── Staff: login (public — must NOT be inside ProtectedRoute) ── */}
-            <Route path="/staff/login" element={<StaffLogin />} />
-
-            {/*
-             * ── Staff: protected routes ────────────────────────────────────
-             * ProtectedRoute checks auth state and renders <Outlet /> if the
-             * user is authenticated, or redirects to /staff/login if not.
-             * Adding a new staff page? Nest it here — it gets the guard for free.
-             */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/staff/reports" element={<StaffReports />} />
-              <Route path="/staff/reports/:id" element={<StaffReportDetail />} />
-            </Route>
-
-            {/* ── Catch-all: fall back to home ─────────────────────────────── */}
-            <Route path="*" element={<Home />} />
-          </Routes>
-        </main>
+      <div className="app-logo-header">
+        <AppLogo />
       </div>
-    </AuthProvider>
 
+      {showStaffNav && <StaffNav />}
+
+      <main className="main-content">
+        <Routes>
+          {/* Reporter (public, anonymous) routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/report" element={<ReportCase />} />
+          <Route path="/report/success" element={<ReportSuccess />} />
+          <Route path="/status" element={<CheckStatus />} />
+          <Route path="/directory" element={<Directory />} />
+          <Route path="/directory/:id" element={<DirectoryDetail />} />
+          <Route path="/about" element={<About />} />
+
+          {/* Staff login stays PUBLIC — it mints the session. */}
+          <Route path="/staff/login" element={<StaffLogin />} />
+
+          {/* Staff routes — guarded (client-side UX; server is the real boundary).
+              RequireProfile wraps the content so a staffer with an incomplete
+              profile is forced to /staff/profile until they finish it. The
+              profile page itself is guarded by RequireStaff ONLY (not the gate),
+              so it stays reachable — that is where they complete the profile. */}
+          <Route
+            path="/staff/profile"
+            element={
+              <RequireStaff>
+                <StaffProfile />
+              </RequireStaff>
+            }
+          />
+          <Route
+            path="/staff/reports"
+            element={
+              <RequireStaff>
+                <RequireProfile>
+                  <StaffReports />
+                </RequireProfile>
+              </RequireStaff>
+            }
+          />
+          <Route
+            path="/staff/case/:id"
+            element={
+              <RequireStaff>
+                <RequireProfile>
+                  <StaffCaseDetail />
+                </RequireProfile>
+              </RequireStaff>
+            }
+          />
+          <Route
+            path="/staff/analytics"
+            element={
+              <RequireStaff>
+                <RequireProfile>
+                  <StaffAnalytics />
+                </RequireProfile>
+              </RequireStaff>
+            }
+          />
+          {/* Admin-only staff routes */}
+          <Route
+            path="/staff/audit"
+            element={
+              <RequireAdmin>
+                <RequireProfile>
+                  <StaffAudit />
+                </RequireProfile>
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/staff/admin/organisations"
+            element={
+              <RequireAdmin>
+                <RequireProfile>
+                  <AdminOrganisations />
+                </RequireProfile>
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/staff/admin/organisation/:id"
+            element={
+              <RequireAdmin>
+                <RequireProfile>
+                  <AdminOrganisationEdit />
+                </RequireProfile>
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/staff/admin/staff"
+            element={
+              <RequireAdmin>
+                <RequireProfile>
+                  <AdminStaff />
+                </RequireProfile>
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/staff/admin/staff-member/:id"
+            element={
+              <RequireAdmin>
+                <RequireProfile>
+                  <AdminStaffEdit />
+                </RequireProfile>
+              </RequireAdmin>
+            }
+          />
+
+          {/* Unknown routes: honest 404, not a silent redirect home. */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </main>
+    </div>
   );
 }
 

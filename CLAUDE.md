@@ -28,8 +28,19 @@ NGO officers, admins) authenticate. Every rule below exists to protect that prop
   log in, ever.
 - **Never return internal case notes to an unauthenticated caller.** Filter on the
   server, never in the client.
-- **Never write case data to `localStorage` or `sessionStorage`.** The only permitted
-  device storage is a single boolean flag for "onboarding seen".
+- **Never write CASE DATA to device storage** (`localStorage`/`sessionStorage`/
+  AsyncStorage): no narratives, report drafts, reference codes, evidence, or
+  internal notes. Report drafts stay in memory only (never written to disk) and
+  are discarded on submit or when the app closes. NOTE: the web client still has
+  a Quick Exit control that clears the draft on demand; the mobile Quick Exit was
+  removed by product decision, so the mobile draft relies on the in-memory rule.
+  The ONLY things allowed on the device are non-case UI preferences — the
+  "onboarding/setup seen" flag and the chosen **language + district** (persisted
+  by explicit product decision so returning users aren't re-asked). NOTE the
+  residual risk this accepts: a saved language can hint at a reporter's ethnicity
+  and district reveals coarse location, so on a shared/seized phone these leave a
+  trace. This trade-off was chosen deliberately; do not persist anything beyond
+  these keys, and never persist case content.
 - **Never serve evidence files through public URLs.** Short-lived signed URLs only.
 - **Never log case narratives, evidence paths or reference codes.**
 - **Never commit `.env` or any real credential.** Only `.env.example` belongs in the repo.
