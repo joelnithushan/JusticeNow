@@ -33,7 +33,29 @@
         {
           "image": "./assets/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#0b3d5c"
+          "backgroundColor": "#0A3559"
+        }
+      ],
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "JusticeNow uses your photo library only so you can choose a profile picture. Images are not linked to any case.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "JusticeNow uses the camera only to scan your case QR code. No photo is taken or stored.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "JusticeNow can center the map on your area to help you pick an incident location. Your location is never tracked or stored — only the place name you choose is saved."
         }
       ]
     ]

@@ -3,9 +3,12 @@
  *
  * This is the single entry every screen renders inside. It:
  *  - initialises i18n (the side-effect import sets up en/ta/si + device detect),
- *  - provides the in-memory report draft to the whole tree,
- *  - renders the navigation Stack, and
- *  - mounts the Quick Exit button ONCE so it floats over every screen.
+ *  - provides the in-memory report draft to the whole tree, and
+ *  - renders the navigation Stack.
+ *
+ * NOTE: the floating Quick Exit button was removed by product decision. The
+ * component (components/QuickExitButton.tsx) and the neutral /exit screen remain
+ * in the tree but are no longer mounted, so re-enabling is a one-line change.
  *
  * Screen files live in /app and become routes by their filename:
  *   app/index.tsx        -> "/"            (Home)
@@ -25,25 +28,38 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 // Side-effect import: initialises i18next before any screen uses t().
 import '../src/i18n';
 import { ReportFormProvider } from '../src/context/ReportFormContext';
-import QuickExitButton from '../components/QuickExitButton';
+import { OnboardingProvider } from '../src/context/OnboardingContext';
+import { PreferencesProvider } from '../src/context/PreferencesContext';
+import { AuthProvider } from '../src/context/AuthContext';
+import { ProfileProvider } from '../src/context/ProfileContext';
 import { colors } from '../src/theme';
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <ReportFormProvider>
-        <StatusBar style="light" />
-        {/* Headers are hidden: each screen renders its own title, and the
-            Quick Exit button floats above everything via the overlay below. */}
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.background },
-          }}
-        />
-        {/* Rendered last so it sits on top of whatever screen is showing. */}
-        <QuickExitButton />
-      </ReportFormProvider>
+      {/* AuthProvider is outermost among the app providers so BOTH reporter and
+        staff screens can read the (in-memory) staff session. */}
+      <AuthProvider>
+        {/* Inside AuthProvider so it can read the (in-memory) session: it fetches
+          the staffer's own profile once authed. Reporter screens have no authed
+          session, so it simply never fetches for them. */}
+        <ProfileProvider>
+          <OnboardingProvider>
+            <PreferencesProvider>
+              <ReportFormProvider>
+                <StatusBar style="light" />
+                {/* Headers are hidden: each screen renders its own title. */}
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: colors.background },
+                  }}
+                />
+              </ReportFormProvider>
+            </PreferencesProvider>
+          </OnboardingProvider>
+        </ProfileProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

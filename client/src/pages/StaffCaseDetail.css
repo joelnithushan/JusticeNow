@@ -1,0 +1,163 @@
+/* ==========================================================================
+   JusticeNow — Staff case-detail page
+   Reuses .staff-page, .status-badge, .mono, .btn and form styles from
+   index.css; only the card layout and note-timeline styling live here.
+   ========================================================================== */
+
+.case-detail .back-link {
+  display: inline-block;
+  width: auto;
+  padding: 0.25rem 0;
+  margin-bottom: 0.5rem;
+}
+
+.case-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.case-header .reference {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+/* --------------------------------------------------------------------------
+   Cards — one per section (metadata, narrative, evidence, assign, notes, status)
+   -------------------------------------------------------------------------- */
+.case-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.case-card h2 {
+  font-size: 1.05rem;
+  margin-bottom: 0.75rem;
+}
+
+.case-card .muted {
+  color: var(--color-text-muted);
+}
+
+.case-card .hint {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-top: 0.5rem;
+}
+
+/* Assign / evidence cards keep the global full-width .btn from getting a huge
+   top margin inside a card. */
+.case-card .btn {
+  margin-top: 0.75rem;
+}
+
+/* --------------------------------------------------------------------------
+   Metadata rows
+   -------------------------------------------------------------------------- */
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.3rem 0;
+}
+
+.meta-label {
+  color: var(--color-text-muted);
+}
+
+.meta-value {
+  font-weight: 600;
+  text-align: right;
+}
+
+.narrative {
+  white-space: pre-wrap; /* preserve line breaks in the reporter's narrative */
+  line-height: 1.6;
+}
+
+/* --------------------------------------------------------------------------
+   Notes timeline
+   -------------------------------------------------------------------------- */
+.notes-list {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+}
+
+.note-row {
+  border-top: 1px solid var(--color-border);
+  padding: 0.75rem 0;
+}
+
+.note-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.note-date {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.note-text {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.note-author {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-top: 0.35rem;
+}
+
+/* Note visibility badges reuse the pill shape of .status-badge with their own
+   colours: internal = neutral, reporter-visible = the app's success green. */
+.status-badge.note-internal {
+  background: #e8e6e1;
+  color: var(--color-text-muted);
+}
+
+.status-badge.note-visible {
+  background: #d7ede2;
+  color: var(--color-success);
+}
+
+/* The "visible to reporter" checkbox row — inline, not the block form label. */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 400;
+  margin: 0.75rem 0 0;
+}
+
+.checkbox-row input {
+  width: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Status actions
+   -------------------------------------------------------------------------- */
+.status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.status-actions .btn {
+  width: auto;
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
+.reason-box {
+  margin-top: 0.75rem;
+}

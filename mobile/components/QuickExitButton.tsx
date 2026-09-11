@@ -47,6 +47,7 @@ export function isReporterScreen(pathname: string): boolean {
   if (pathname === '/') return false; // splash — nothing to clear yet
   if (pathname === EXIT_PATH) return false; // already on the neutral screen
   if (pathname.startsWith('/staff')) return false; // staff: different threat model
+  if (pathname.startsWith('/onboarding')) return false; // intro — no case data yet
   return true;
 }
 
