@@ -27,6 +27,8 @@ function Home() {
         <Link to="/status" className="btn btn-secondary">{t('home.checkStatus')}</Link>
         <Link to="/guidance" className="btn btn-link">{t('home.guidance')}</Link>
         <Link to="/directory" className="btn btn-link">{t('home.directory')}</Link>
+        {/* JNOW-40: safety guidance page — a reporter-safety link, not a primary action */}
+        <Link to="/staying-safe" className="btn btn-link">{t('home.stayingSafe')}</Link>
         <Link to="/staff/login" className="btn btn-link subtle">{t('home.staffLogin')}</Link>
       </nav>
     </div>
