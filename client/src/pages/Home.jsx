@@ -1,7 +1,7 @@
 /**
  * JusticeNow — Landing page.
  * The two main actions (report / check status),
- * plus links to the directory and staff login.
+ * plus links to guidance, the directory and staff login.
  *
  * Note: LanguageSwitcher is rendered in App.jsx (the app-level header)
  * so it is visible on every page — it is NOT duplicated here.
@@ -25,6 +25,7 @@ function Home() {
           <Link to="/report" className="btn btn-primary">{t('home.reportCase')}</Link>
         </div>
         <Link to="/status" className="btn btn-secondary">{t('home.checkStatus')}</Link>
+        <Link to="/guidance" className="btn btn-link">{t('home.guidance')}</Link>
         <Link to="/directory" className="btn btn-link">{t('home.directory')}</Link>
         {/* JNOW-40: safety guidance page — a reporter-safety link, not a primary action */}
         <Link to="/staying-safe" className="btn btn-link">{t('home.stayingSafe')}</Link>

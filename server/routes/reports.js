@@ -4,7 +4,17 @@
 
 const express = require('express');
 const multer = require('multer');
-const { createReport, listReports } = require('../controllers/reportsController');
+const {
+  createReport,
+  listReports,
+  getReport,
+  updateStatus,
+  addNote,
+  listNotes,
+  getEvidenceUrl,
+  assignReport,
+} = require('../controllers/reportsController');
+const requireStaffAuth = require('../middleware/requireStaffAuth');
 
 const router = express.Router();
 
@@ -20,5 +30,19 @@ router.post('/', upload.single('evidence'), createReport);
 
 // GET /api/reports — staff list with ?case_type= and ?status= filters
 router.get('/', listReports);
+
+// ── Staff case-management routes (JNOW-13) — all require a staff session ──
+// GET    /api/reports/:id         — single case for the detail view
+// PATCH  /api/reports/:id/status  — change workflow status
+// POST   /api/reports/:id/notes   — add a dated note (internal or reporter-visible)
+// GET    /api/reports/:id/notes   — list all notes for a case, newest first
+router.get('/:id', requireStaffAuth, getReport);
+router.patch('/:id/status', requireStaffAuth, updateStatus);
+router.post('/:id/notes', requireStaffAuth, addNote);
+router.get('/:id/notes', requireStaffAuth, listNotes);
+// GET /api/reports/:id/evidence — short-lived signed URL for the attachment (JNOW-35)
+router.get('/:id/evidence', requireStaffAuth, getEvidenceUrl);
+// PATCH /api/reports/:id/assign — refer/assign the case to an organisation (JNOW-36)
+router.patch('/:id/assign', requireStaffAuth, assignReport);
 
 module.exports = router;
