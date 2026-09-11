@@ -87,6 +87,7 @@ export const addCaseNote = (id, { note, isReporterVisible = false }, token) =>
 export const fetchEvidenceUrl = (id, token) =>
   api.get(`/reports/${id}/evidence`, authConfig(token));
 
+
 /** Health check — useful when debugging "is the server up?". */
 export const checkHealth = () => api.get('/health');
 

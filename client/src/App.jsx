@@ -50,6 +50,7 @@ import StaffLogin from './pages/StaffLogin';
 import StaffReports from './pages/StaffReports';
 import StaffReportDetail from './pages/StaffReportDetail';
 import QuickExitScreen from './pages/QuickExitScreen';
+import StayingSafe from './pages/StayingSafe';
 
 function App() {
   const { pathname } = useLocation();
@@ -107,6 +108,8 @@ function App() {
             {/* JNOW-39: know-your-rights guidance (reporter-facing, no auth). */}
             <Route path="/guidance" element={<Guidance />} />
             <Route path="/guidance/:topicId" element={<GuidanceTopic />} />
+            {/* JNOW-40 — dedicated safety guidance page */}
+            <Route path="/staying-safe" element={<StayingSafe />} />
             {/* Neutral cover screen reached only via the Quick Exit button. */}
             <Route path="/exit" element={<QuickExitScreen />} />
 
@@ -130,6 +133,7 @@ function App() {
         </main>
       </div>
     </AuthProvider>
+
   );
 }
 
