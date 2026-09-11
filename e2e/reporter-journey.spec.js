@@ -38,6 +38,38 @@ test('Quick Exit is not shown on the splash screen', async ({ page }) => {
   );
 });
 
+test('reporter can open know-your-rights guidance in every language', async ({
+  page,
+}) => {
+  await page.goto('/');
+
+  // Home links to the guidance section (JNOW-39).
+  await page.getByRole('link', { name: /know your rights/i }).click();
+  await expect(page).toHaveURL(/\/guidance$/);
+  await expect(
+    page.getByRole('heading', { name: /know your rights/i }),
+  ).toBeVisible();
+
+  // All three topics are listed; open one.
+  await page
+    .getByRole('link', { name: /rights during arrest and detention/i })
+    .click();
+  await expect(page).toHaveURL(/\/guidance\/arrest_detention$/);
+  await expect(
+    page.getByRole('heading', { name: /rights during arrest and detention/i }),
+  ).toBeVisible();
+
+  // The not-legal-advice caveat is always present.
+  await expect(page.getByText(/not legal advice/i)).toBeVisible();
+
+  // Back to the list, switch to Tamil, and the content follows.
+  await page.getByRole('link', { name: /all topics/i }).click();
+  await page.getByRole('button', { name: 'தமிழ்' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'உங்கள் உரிமைகளை அறிந்துகொள்ளுங்கள்' }),
+  ).toBeVisible();
+});
+
 test('Quick Exit clears the form and Back cannot restore it', async ({ page }) => {
   await page.goto('/report');
 
