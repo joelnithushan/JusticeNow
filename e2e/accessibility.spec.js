@@ -14,6 +14,8 @@ const PUBLIC_PAGES = [
   { name: 'Report a case', path: '/report' },
   { name: 'Check status', path: '/status' },
   { name: 'Directory', path: '/directory' },
+  { name: 'Guidance', path: '/guidance' },
+  { name: 'Guidance topic', path: '/guidance/arrest_detention' },
   { name: 'Staff login', path: '/staff/login' },
 ];
 
