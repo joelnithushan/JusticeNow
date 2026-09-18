@@ -296,6 +296,13 @@ function NoteRow({ note }) {
             ? t('caseDetail.reporterVisibleBadge')
             : t('caseDetail.internalBadge')}
         </span>
+        {/* Flag a reporter's own reply so staff can tell it apart from a note a
+            case worker wrote. Filtering is unchanged — this is display only. */}
+        {note.sender === 'reporter' && (
+          <span className="status-badge note-from-reporter">
+            {t('caseDetail.reporterMessage')}
+          </span>
+        )}
         <span className="note-date">{formatDate(note.created_at)}</span>
       </div>
       <p className="note-text">{note.note}</p>

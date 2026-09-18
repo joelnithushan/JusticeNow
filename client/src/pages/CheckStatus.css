@@ -93,3 +93,73 @@
   font-size: 0.8rem;
   margin-top: 0.25rem;
 }
+
+/* Sender label above each note; the two sides are also tinted and aligned
+   differently so staff vs. the reporter's own replies read at a glance. */
+.status-note-sender {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 0.15rem;
+}
+
+/* Reporter's own replies: tinted panel, aligned to the trailing edge. */
+.status-note-reporter {
+  background: #eef3ee;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  margin-left: 1.5rem;
+  border-top: none;
+  text-align: right;
+}
+
+.status-note-reporter + .status-note {
+  border-top: none;
+}
+
+/* Staff notes keep the plain, leading-edge timeline look. */
+.status-note-staff {
+  margin-right: 1.5rem;
+}
+
+/* ---- Reply form (two-way thread) ---- */
+.status-reply {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.status-reply-heading {
+  font-size: 1.05rem;
+  margin: 0 0 0.6rem;
+}
+
+.status-reply-input {
+  width: 100%;
+}
+
+.status-reply-privacy {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0.75rem;
+  line-height: 1.45;
+}
+
+.status-reply-sent {
+  margin: 0 0 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  background: #eef3ee;
+  color: var(--color-text);
+  font-size: 0.9rem;
+}
+
+.status-reply-error {
+  margin: 0 0 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  background: #f6ece9;
+  border-left: 3px solid var(--color-error);
+  color: var(--color-error);
+  font-size: 0.9rem;
+}
