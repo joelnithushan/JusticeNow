@@ -238,7 +238,7 @@ async function getCaseDetail(id, caller) {
   // the client via is_reporter_visible so it can badge each note, NOT filtered.
   const { data: notes, error: notesError } = await supabase
     .from('case_notes')
-    .select('id, note, is_reporter_visible, author_id, created_at')
+    .select('id, note, is_reporter_visible, sender, author_id, created_at')
     .eq('case_id', caseRow.id)
     .order('created_at', { ascending: true }); // oldest -> newest timeline
 
@@ -255,6 +255,9 @@ async function getCaseDetail(id, caller) {
     id: n.id,
     note: n.note,
     is_reporter_visible: n.is_reporter_visible,
+    // 'staff' | 'reporter' — lets the dashboard badge a reporter's own reply
+    // distinctly. Default legacy rows (written before the column) to 'staff'.
+    sender: n.sender === 'reporter' ? 'reporter' : 'staff',
     author_id: n.author_id,
     author_name: n.author_id ? staffNames.get(n.author_id) || null : null,
     created_at: n.created_at,
@@ -352,7 +355,7 @@ async function addNote({ caseId, authorId, note, isReporterVisible, caller }) {
       // Coerce to a strict boolean — the body value is client-controlled.
       is_reporter_visible: Boolean(isReporterVisible),
     })
-    .select('id, note, is_reporter_visible, author_id, created_at')
+    .select('id, note, is_reporter_visible, sender, author_id, created_at')
     .single();
 
   if (error) {
@@ -365,6 +368,9 @@ async function addNote({ caseId, authorId, note, isReporterVisible, caller }) {
     id: data.id,
     note: data.note,
     is_reporter_visible: data.is_reporter_visible,
+    // Staff-authored notes default to 'staff' at the DB; echo it back so a
+    // freshly-added note has the same shape as the ones from getCaseById.
+    sender: data.sender === 'reporter' ? 'reporter' : 'staff',
     author_id: data.author_id,
     author_name: data.author_id ? staffNames.get(data.author_id) || null : null,
     created_at: data.created_at,

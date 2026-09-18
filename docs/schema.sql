@@ -59,14 +59,19 @@ CREATE TABLE case_reports (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Staff notes on a case. is_reporter_visible controls whether the note is
--- shown to the anonymous reporter on the Check Status page.
+-- Notes on a case. is_reporter_visible controls whether the note is shown to the
+-- anonymous reporter on the Check Status page. `sender` records who wrote it:
+-- 'staff' (a case worker) or 'reporter' (a reply the anonymous reporter posted
+-- back using only their reference code — author_id NULL, always reporter-visible,
+-- and carrying NO reporter identity). See migration 003.
 CREATE TABLE case_notes (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     case_id             UUID NOT NULL REFERENCES case_reports(id) ON DELETE CASCADE,
     author_id           UUID REFERENCES staff_users(id) ON DELETE SET NULL,
     note                TEXT NOT NULL,
     is_reporter_visible BOOLEAN NOT NULL DEFAULT FALSE,
+    sender              TEXT NOT NULL DEFAULT 'staff'
+                        CHECK (sender IN ('staff', 'reporter')),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

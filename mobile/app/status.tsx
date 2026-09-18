@@ -37,8 +37,9 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import ReporterTopBar from '../components/ReporterTopBar';
 import ErrorState from '../components/ErrorState';
 import QrScannerModal from '../components/QrScannerModal';
-import { fetchCaseStatus } from '../src/api/client';
-import type { CaseStatus } from '../src/api/client';
+import { fetchCaseStatus, postCaseMessage } from '../src/api/client';
+import type { CaseStatus, CaseStatusNote } from '../src/api/client';
+import { REPORTER_MESSAGE_MAX } from '../src/constants';
 import { colors, styles as theme } from '../src/theme';
 
 // A small QR glyph for the "Scan QR code" button.
@@ -239,6 +240,43 @@ export default function CheckStatus() {
 function StatusCard({ data }: { data: CaseStatus }) {
   const { t } = useTranslation();
 
+  // Replies the reporter posts this session, appended to the notes the server
+  // sent. Held in component state only — never written to device storage, in
+  // keeping with the "no case data on disk" rule.
+  const [messages, setMessages] = useState<CaseStatusNote[]>([]);
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+
+  const thread = [...data.notes, ...messages];
+  const trimmed = draft.trim();
+  const canSend = trimmed.length > 0 && trimmed.length <= REPORTER_MESSAGE_MAX && !sending;
+
+  const send = async () => {
+    if (!canSend) return;
+    if (trimmed.length > REPORTER_MESSAGE_MAX) {
+      setReplyError(t('status.replyTooLong'));
+      return;
+    }
+    setReplyError(null);
+    setSending(true);
+    setSent(false);
+    try {
+      const res = await postCaseMessage(data.reference_code, trimmed);
+      // Append the note the server echoed back (sender: 'reporter').
+      setMessages((prev) => [...prev, res.data.data.note]);
+      setDraft('');
+      setSent(true);
+    } catch {
+      // Never log the error — it can carry the message or the code. Per the
+      // no-oracle rule any server answer is one generic, retryable failure.
+      setReplyError(t('status.replyFailed'));
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <View style={local.card}>
       {/* Status is shown as the ONE permitted solid-orange chip on the
@@ -274,18 +312,79 @@ function StatusCard({ data }: { data: CaseStatus }) {
       <StatusTimeline status={data.status} />
 
       <Text style={local.notesTitle}>{t('status.notesTitle')}</Text>
-      {data.notes.length === 0 ? (
+      {thread.length === 0 ? (
         <Text style={local.noNotes}>{t('status.noNotes')}</Text>
       ) : (
         <View>
-          {data.notes.map((n, i) => (
-            <View key={`${n.created_at}-${i}`} style={local.noteItem}>
-              <Text style={local.noteText}>{n.note}</Text>
-              <Text style={local.noteDate}>{formatDate(n.created_at)}</Text>
-            </View>
-          ))}
+          {thread.map((n, i) => {
+            const mine = n.sender === 'reporter';
+            return (
+              <View
+                key={`${n.created_at}-${i}`}
+                style={[local.noteItem, mine ? local.noteMine : local.noteStaff]}
+              >
+                <Text style={local.noteSender}>
+                  {mine ? t('status.senderYou') : t('status.senderStaff')}
+                </Text>
+                <Text style={local.noteText}>{n.note}</Text>
+                <Text style={local.noteDate}>{formatDate(n.created_at)}</Text>
+              </View>
+            );
+          })}
         </View>
       )}
+
+      {/* Reply box — the reporter->staff half of the thread. The message is tied
+          ONLY to the reference code; no name/contact is sent, and the draft lives
+          in memory only (never on disk). */}
+      <View style={local.replyBox}>
+        <Text style={local.replyHeading}>{t('status.replyHeading')}</Text>
+        <Text style={theme.label} nativeID="replyLabel">
+          {t('status.replyLabel')}
+        </Text>
+        <TextInput
+          style={[theme.input, theme.textarea, replyError ? local.inputError : null]}
+          value={draft}
+          onChangeText={(v) => {
+            setDraft(v);
+            if (replyError) setReplyError(null);
+            if (sent) setSent(false);
+          }}
+          placeholder={t('status.replyPlaceholder')}
+          placeholderTextColor={colors.muted}
+          multiline
+          numberOfLines={4}
+          maxLength={REPORTER_MESSAGE_MAX}
+          editable={!sending}
+          accessibilityLabel={t('status.replyLabel')}
+          accessibilityLabelledBy="replyLabel"
+        />
+        <Text style={theme.privacyNoteSmall}>{t('status.replyPrivacy')}</Text>
+        {replyError ? (
+          <Text style={theme.fieldError} accessibilityRole="alert">
+            {replyError}
+          </Text>
+        ) : null}
+        {sent ? (
+          <Text style={local.sentText} accessibilityRole="alert">
+            {t('status.sent')}
+          </Text>
+        ) : null}
+        <Pressable
+          onPress={send}
+          disabled={!canSend}
+          style={[theme.btnPrimary, !canSend && theme.btnDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel={sending ? t('status.sending') : t('status.send')}
+          accessibilityState={{ disabled: !canSend, busy: sending }}
+        >
+          {sending ? (
+            <ActivityIndicator color={colors.primaryText} />
+          ) : (
+            <Text style={theme.btnPrimaryText}>{t('status.send')}</Text>
+          )}
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -497,8 +596,28 @@ const local = StyleSheet.create({
   },
   noteItem: {
     paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.primaryTint,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  // Staff notes: neutral tint, aligned to the start.
+  noteStaff: {
+    backgroundColor: colors.primaryTint,
+    alignSelf: 'flex-start',
+    maxWidth: '92%',
+  },
+  // The reporter's own replies: accent tint, aligned to the end, so a two-way
+  // thread reads at a glance without exposing any identity.
+  noteMine: {
+    backgroundColor: colors.secondaryTint,
+    alignSelf: 'flex-end',
+    maxWidth: '92%',
+  },
+  noteSender: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.muted,
+    marginBottom: 2,
   },
   noteText: {
     fontSize: 15,
@@ -509,5 +628,26 @@ const local = StyleSheet.create({
     fontSize: 12,
     color: colors.muted,
     marginTop: 4,
+  },
+
+  // Reply composer.
+  replyBox: {
+    marginTop: 18,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.primaryTint,
+  },
+  replyHeading: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 10,
+  },
+  sentText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '700',
+    marginTop: 6,
+    marginBottom: 6,
   },
 });
