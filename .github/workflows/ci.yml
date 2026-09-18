@@ -31,6 +31,29 @@ jobs:
       - name: Unit + integration tests
         run: npm test
 
+  mobile-typecheck:
+    name: Mobile typecheck (tsc)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node from .nvmrc
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        working-directory: mobile
+        run: npm ci
+
+      # The mobile app has no unit suite yet; a strict TypeScript check is the
+      # gate that keeps the Expo app building. --noEmit: type-check only.
+      - name: Typecheck
+        working-directory: mobile
+        run: npx tsc --noEmit
+
   e2e:
     name: End-to-end (Playwright)
     runs-on: ubuntu-latest
