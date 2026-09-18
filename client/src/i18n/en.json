@@ -90,7 +90,18 @@
     "submittedLabel": "Submitted",
     "notesTitle": "Updates",
     "noNotes": "No updates yet. Check back later.",
-    "networkError": "Could not reach the server. Check your connection and try again."
+    "networkError": "Could not reach the server. Check your connection and try again.",
+    "senderYou": "You",
+    "senderStaff": "Case worker",
+    "replyHeading": "Send a message to your case worker",
+    "replyLabel": "Your message",
+    "replyPlaceholder": "Add an update or ask a question about your case.",
+    "replyPrivacy": "Don't include your name or contact details — your case is anonymous and this message is tied only to your reference code.",
+    "send": "Send message",
+    "sending": "Sending…",
+    "sent": "Your message has been sent.",
+    "replyFailed": "Could not send your message. Please try again.",
+    "replyTooLong": "Please keep your message under 2000 characters."
   },
   "directory": {
     "title": "Legal resource directory",
@@ -229,6 +240,7 @@
     "internalNote": "Internal note",
     "reporterVisibleBadge": "Visible to reporter",
     "internalBadge": "Internal",
+    "reporterMessage": "From reporter",
     "authorLabel": "By",
     "unknownAuthor": "Unknown",
     "noteFailed": "Could not add the note. Please try again.",

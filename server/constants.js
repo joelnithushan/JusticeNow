@@ -48,6 +48,18 @@ const PRIOR_REPORT_SOURCES = [
 // the 4-status workflow drives canTransition, the DB CHECK, and staff controls.
 const CASE_STATUSES = ['received', 'under_review', 'referred', 'closed'];
 
+// Who wrote a case note (mirrors case_notes.sender CHECK constraint). A
+// 'reporter' note is a reply an anonymous reporter posts on their own case via
+// its reference code — it carries NO identity. Keep identical to
+// client/src/constants.js and mobile/src/constants.ts.
+const NOTE_SENDERS = ['staff', 'reporter'];
+
+// Bounds for a reporter's reply message. Kept short: this is a follow-up on an
+// existing case, not a second narrative. Enforced client-side (UX), server-side
+// (authority) and — via length — never trusted from the client.
+const REPORTER_MESSAGE_MIN = 1;
+const REPORTER_MESSAGE_MAX = 2000;
+
 // The 25 administrative districts of Sri Lanka.
 const DISTRICTS = [
   'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo',
@@ -82,6 +94,9 @@ module.exports = {
   TRISTATE,
   PRIOR_REPORT_SOURCES,
   CASE_STATUSES,
+  NOTE_SENDERS,
+  REPORTER_MESSAGE_MIN,
+  REPORTER_MESSAGE_MAX,
   DISTRICTS,
   AUDIT_ACTIONS,
 };

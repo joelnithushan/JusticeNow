@@ -130,6 +130,15 @@
   color: var(--color-success);
 }
 
+/* Flags a reporter's own reply in the thread — a distinct accent tint so staff
+   can tell it apart from notes a case worker wrote. Pushed to sit beside the
+   visibility badge; the timestamp keeps the trailing edge. */
+.status-badge.note-from-reporter {
+  background: #e3e9f2;
+  color: var(--color-text);
+  margin-right: auto;
+}
+
 /* The "visible to reporter" checkbox row — inline, not the block form label. */
 .checkbox-row {
   display: flex;

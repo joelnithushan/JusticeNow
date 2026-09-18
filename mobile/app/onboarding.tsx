@@ -20,6 +20,8 @@
 import React, { useRef, useState } from 'react';
 import {
   Dimensions,
+  Image,
+  ImageSourcePropType,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -34,20 +36,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import GradientBackground from '../components/GradientBackground';
 import BrandLogo from '../components/BrandLogo';
-import { AnonDocArt, ShieldArt, DoorArt } from '../components/OnboardingArt';
 import { colors } from '../src/theme';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
 type Slide = {
   key: string;
-  Art: React.ComponentType<{ width?: number; height?: number }>;
+  // Each slide shows the matching illustration the team placed in assets/
+  // (onboarding-1/2/3.png), bundled at build time via require().
+  img: ImageSourcePropType;
 };
 
 const SLIDES: Slide[] = [
-  { key: 'anonymity', Art: AnonDocArt },
-  { key: 'reporting', Art: ShieldArt },
-  { key: 'safety', Art: DoorArt },
+  { key: 'anonymity', img: require('../assets/onboarding-1.png') },
+  { key: 'reporting', img: require('../assets/onboarding-2.png') },
+  { key: 'safety', img: require('../assets/onboarding-3.png') },
 ];
 
 export default function Onboarding() {
@@ -91,7 +94,7 @@ export default function Onboarding() {
         onMomentumScrollEnd={onScrollEnd}
         style={styles.pager}
       >
-        {SLIDES.map(({ key, Art }) => (
+        {SLIDES.map(({ key, img }) => (
           <View key={key} style={[styles.slide, { width: SCREEN_W }]}>
             {/* Illustration blob: soft gradient circle + floating accents. */}
             <View style={styles.blobWrap}>
@@ -105,7 +108,12 @@ export default function Onboarding() {
               <View style={[styles.accent, styles.accentTR]} />
               <View style={[styles.accent, styles.accentBL]} />
               <View style={[styles.accent, styles.accentBR]} />
-              <Art width={200} height={200} />
+              <Image
+                source={img}
+                style={styles.art}
+                resizeMode="contain"
+                accessibilityIgnoresInvertColors
+              />
             </View>
 
             <Text style={styles.heading}>{t(`onboarding.${key}.heading`)}</Text>
@@ -169,6 +177,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 40,
   },
+  // Your onboarding illustration, sized to sit inside the gradient blob.
+  art: { width: 200, height: 200 },
   blob: {
     position: 'absolute',
     top: 0,
