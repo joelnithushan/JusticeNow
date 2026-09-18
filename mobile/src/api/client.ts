@@ -304,12 +304,15 @@ export const fetchReports = (filters: ReportFilters = {}) => {
 
 /**
  * A single reporter-visible note in a case's status timeline.
- * The server returns ONLY { note, created_at } — never an author or an internal
- * note — so the reporter's anonymity and the internal/visible boundary hold.
+ * The server returns ONLY { note, created_at, sender } — never an author or an
+ * internal note — so the reporter's anonymity and the internal/visible boundary
+ * hold. `sender` says who wrote it: 'staff' (a case worker) or 'reporter' (a
+ * reply the reporter themselves posted), so the thread can label each line.
  */
 export interface CaseStatusNote {
   note: string;
   created_at: string;
+  sender: 'staff' | 'reporter';
 }
 
 /**
@@ -355,6 +358,26 @@ export interface CaseStatusResponse {
  */
 export const fetchCaseStatus = (referenceCode: string) =>
   api.get<CaseStatusResponse>(`/status/${encodeURIComponent(referenceCode)}`);
+
+export interface PostCaseMessageResponse {
+  success: boolean;
+  data: { note: CaseStatusNote };
+}
+
+/**
+ * Post a reporter's reply on their OWN case — the reporter->staff half of the
+ * case thread. Uses the TOKENLESS reporter `api` (never a staff header): the
+ * reference code is the ONLY handle, and NOTHING identifying is sent.
+ *
+ * Like the lookup, the server rate-limits this and returns an IDENTICAL generic
+ * 404 for both "wrong code" and "rate limited", so the screen must treat any 4xx
+ * the same way. Never log the message or the code.
+ */
+export const postCaseMessage = (referenceCode: string, message: string) =>
+  api.post<PostCaseMessageResponse>('/status/message', {
+    reference_code: referenceCode,
+    message,
+  });
 
 /**
  * A public legal-aid organisation in the resource directory. Mirrors the
@@ -433,6 +456,34 @@ export interface TransparencyResponse {
  */
 export const fetchTransparency = () =>
   api.get<TransparencyResponse>('/transparency');
+
+export interface LegalGuidance {
+  category: string;
+  summary: string;
+  how_handled: string[];
+  applicable_laws: string[];
+  steps: string[];
+  approximate_fees: string;
+  safety_note: string;
+}
+
+export interface GuidanceResponse {
+  success: boolean;
+  data: {
+    guidance: LegalGuidance;
+    organisations: Organisation[];
+  };
+}
+
+/**
+ * AI Legal Guidance — describe a situation, get educational guidance (case type,
+ * Sri Lankan law, steps) plus real legal-aid orgs. Tokenless `api`: this is a
+ * public, anonymous helper and is NOT filing a case. The scenario is sent to the
+ * server (which calls the AI); it is never stored. Optional district focuses the
+ * org referrals.
+ */
+export const fetchLegalGuidance = (scenario: string, district?: string) =>
+  api.post<GuidanceResponse>('/ai/guidance', { scenario, district });
 
 /**
  * The ADMIN view of an organisation: the public Organisation fields PLUS the
