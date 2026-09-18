@@ -84,6 +84,20 @@ export const fetchCaseStatus = (referenceCode) =>
   api.get(`/status/${encodeURIComponent(referenceCode)}`);
 
 /**
+ * Anonymous reporter reply on their OWN case thread, addressed only by the
+ * reference code they already hold. Uses the TOKENLESS reporter `api` — reporters
+ * never authenticate, so no Authorization header is ever attached. `referenceCode`
+ * and `message` map to the server's snake_case `reference_code` / `message` body.
+ *
+ * The message is case content and the code is a case handle — NEVER log either.
+ * The server rate-limits this endpoint and returns an IDENTICAL generic 404 for
+ * "not found" and "rate limited"; callers must treat any 4xx the same way and not
+ * try to distinguish them (no-oracle rule, see CLAUDE.md).
+ */
+export const postCaseMessage = (referenceCode, message) =>
+  api.post('/status/message', { reference_code: referenceCode, message });
+
+/**
  * List active legal-aid organisations, optionally filtered by district and/or
  * case type. Uses the TOKENLESS reporter `api` — the directory is public and
  * reporters never authenticate, so no Authorization header is sent. The

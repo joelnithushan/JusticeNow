@@ -92,6 +92,16 @@ export const CASE_STATUSES = [
 
 export type CaseStatusValue = (typeof CASE_STATUSES)[number];
 
+// Who wrote a case note (mirrors case_notes.sender CHECK + server NOTE_SENDERS).
+// A 'reporter' note is a reply the anonymous reporter posts on their own case;
+// it carries NO identity. Keep identical to server/constants.js.
+export const NOTE_SENDERS = ['staff', 'reporter'] as const;
+export type NoteSender = (typeof NOTE_SENDERS)[number];
+
+// Bounds for a reporter's reply message (mirrors server REPORTER_MESSAGE_*).
+export const REPORTER_MESSAGE_MIN = 1;
+export const REPORTER_MESSAGE_MAX = 2000;
+
 // Staff roles. MUST stay identical to server STAFF_ROLES (services/
 // statusTransition.js), which mirrors the staff_users.role CHECK constraint.
 // Values are the wire values; labels are resolved via t(`roles.${value}`).
