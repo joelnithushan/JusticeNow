@@ -68,6 +68,15 @@ function ShieldIcon({ color, size = 20 }: IconProps) {
     </Svg>
   );
 }
+function ScalesIcon({ color, size = 20 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 3 v18 M7 21 h10" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Path d="M5 7 h14 M12 5 l7 2 M12 5 L5 7" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M5 7 l-2.5 5 h5 Z M19 7 l-2.5 5 h5 Z" stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
+    </Svg>
+  );
+}
 function ChartIcon({ color, size = 20 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -85,42 +94,6 @@ function LockIcon({ color, size = 20 }: IconProps) {
     </Svg>
   );
 }
-function ChevronIcon({ color, size = 20 }: IconProps) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M9 6 l6 6 l-6 6" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
-
-// One row of the secondary-actions menu card.
-function MenuRow({
-  href,
-  icon,
-  label,
-  last,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-  last?: boolean;
-}) {
-  // The row layout lives on a plain inner View. Putting flex layout directly on
-  // the Link-cloned Pressable proved unreliable (the row collapsed to a column),
-  // so the Pressable is just the touch target and the View owns the layout.
-  return (
-    <Link href={href} asChild>
-      <Pressable accessibilityRole="button">
-        <View style={[local.row, !last && local.rowDivider]}>
-          <View style={local.rowIcon}>{icon}</View>
-          <Text style={local.rowLabel}>{label}</Text>
-          <ChevronIcon color={colors.muted} />
-        </View>
-      </Pressable>
-    </Link>
-  );
-}
-
 export default function Home() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -150,11 +123,8 @@ export default function Home() {
       </View>
 
       <ScrollView contentContainerStyle={local.page} showsVerticalScrollIndicator={false}>
-        {/* Hero: brand seal in a raised medallion, tagline, privacy reassurance. */}
+        {/* Compact hero: brand seal + tagline. */}
         <View style={local.hero}>
-          {/* Outer view carries the drop shadow (no clipping); inner clipped
-              circle holds a soft domed gradient + the seal, so it reads as a
-              raised 3D brand coin rather than a flat watermark. */}
           <View style={local.medallionShadow}>
             <View style={local.medallion}>
               <GradientBackground
@@ -163,61 +133,82 @@ export default function Home() {
                 to="#DCE9F5"
                 style={local.medallionFill}
               />
-              <BrandLogo size={88} accessibilityLabel={t('app.title')} />
+              <BrandLogo size={68} accessibilityLabel={t('app.title')} />
             </View>
           </View>
           <Text style={local.tagline}>{t('app.tagline')}</Text>
-
-          <View style={local.privacyChip}>
-            <LockIcon color={colors.primary} size={16} />
-            <Text style={local.privacyText}>{t('home.privacyNote')}</Text>
-          </View>
         </View>
 
-      {/* Primary actions. */}
-      <Link href="/report" asChild>
-        <Pressable style={local.primaryBtn} accessibilityRole="button">
-          <DocIcon color={colors.primaryText} />
-          <Text style={local.primaryText}>{t('home.reportCase')}</Text>
-        </Pressable>
-      </Link>
+        {/* Primary actions — full-width. */}
+        <Link href="/report" asChild>
+          <Pressable style={local.primaryBtn} accessibilityRole="button">
+            <DocIcon color={colors.primaryText} />
+            <Text style={local.primaryText}>{t('home.reportCase')}</Text>
+          </Pressable>
+        </Link>
 
-      {/* "Check status" — the ONE permitted orange accent, as an OUTLINE (not a
-          solid slab) so it reads as secondary to the navy primary. Orange text on
-          white uses secondaryOnLight for WCAG AA (solid #F18501 text fails AA). */}
-      <Link href="/status" asChild>
-        <Pressable style={local.accentBtn} accessibilityRole="button">
-          <SearchIcon color={colors.secondaryOnLight} />
-          <Text style={local.accentText}>{t('home.checkStatus')}</Text>
-        </Pressable>
-      </Link>
+        {/* "Check status" — the ONE permitted orange accent (outline). */}
+        <Link href="/status" asChild>
+          <Pressable style={local.accentBtn} accessibilityRole="button">
+            <SearchIcon color={colors.secondaryOnLight} />
+            <Text style={local.accentText}>{t('home.checkStatus')}</Text>
+          </Pressable>
+        </Link>
 
-      {/* Secondary links as a grouped menu card (not bare web links). */}
-      <View style={local.menu}>
-        <MenuRow
-          href="/directory"
-          icon={<DirectoryIcon color={colors.primary} />}
-          label={t('home.directory')}
-        />
-        <MenuRow
-          href="/about"
-          icon={<ShieldIcon color={colors.primary} />}
-          label={t('home.about')}
-        />
-        <MenuRow
-          href="/transparency"
-          icon={<ChartIcon color={colors.primary} />}
-          label={t('transparency.menu')}
-        />
-        <MenuRow
-          href="/staff/login"
-          icon={<LockIcon color={colors.primary} />}
-          label={t('home.staffLogin')}
-          last
-        />
-      </View>
+        {/* Secondary destinations as a 2×2 grid of tiles. */}
+        <View style={local.grid}>
+          <GridTile
+            href="/guidance"
+            icon={<ScalesIcon color={colors.primary} size={26} />}
+            label={t('guidance.menu')}
+          />
+          <GridTile
+            href="/directory"
+            icon={<DirectoryIcon color={colors.primary} size={26} />}
+            label={t('home.directory')}
+          />
+          <GridTile
+            href="/about"
+            icon={<ShieldIcon color={colors.primary} size={26} />}
+            label={t('home.about')}
+          />
+          <GridTile
+            href="/transparency"
+            icon={<ChartIcon color={colors.primary} size={26} />}
+            label={t('transparency.menu')}
+          />
+        </View>
+
+        {/* Staff login — subtle footer. */}
+        <Link href="/staff/login" asChild>
+          <Pressable style={local.staffBtn} accessibilityRole="button">
+            <LockIcon color={colors.muted} size={16} />
+            <Text style={local.staffText}>{t('home.staffLogin')}</Text>
+          </Pressable>
+        </Link>
       </ScrollView>
     </View>
+  );
+}
+
+// One tile in the 2×2 feature grid: icon in a tinted square + label. Column
+// layout (RN default) so the Link-cloned Pressable renders reliably.
+function GridTile({
+  href,
+  icon,
+  label,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <Link href={href} asChild>
+      <Pressable style={local.tile} accessibilityRole="button" accessibilityLabel={label}>
+        <View style={local.tileIcon}>{icon}</View>
+        <Text style={local.tileLabel}>{label}</Text>
+      </Pressable>
+    </Link>
   );
 }
 
@@ -247,16 +238,16 @@ const local = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  hero: { alignItems: 'center', marginTop: 12, marginBottom: 24 },
+  hero: { alignItems: 'center', marginTop: 4, marginBottom: 18 },
   // Raised medallion around the seal. Shadow lives here (no overflow clip).
   medallionShadow: {
-    width: 132,
-    height: 132,
-    borderRadius: 66,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     shadowColor: '#0A3559',
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -265,9 +256,9 @@ const local = StyleSheet.create({
   },
   // Clipped circle: holds the domed gradient + the seal, with a thin light ring.
   medallion: {
-    width: 132,
-    height: 132,
-    borderRadius: 66,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
@@ -279,26 +270,9 @@ const local = StyleSheet.create({
     fontSize: 15,
     color: colors.muted,
     textAlign: 'center',
-    marginTop: 6,
+    marginTop: 4,
     lineHeight: 21,
     paddingHorizontal: 8,
-  },
-  privacyChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.primaryTint,
-    borderRadius: 999,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-    marginTop: 18,
-  },
-  privacyText: {
-    flexShrink: 1,
-    fontSize: 13,
-    color: colors.primary,
-    fontWeight: '600',
-    lineHeight: 18,
   },
 
   primaryBtn: {
@@ -333,29 +307,51 @@ const local = StyleSheet.create({
   },
   accentText: { color: colors.secondaryOnLight, fontSize: 17, fontWeight: '700' },
 
-  menu: {
-    marginTop: 22,
+  // 2×2 feature grid.
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  tile: {
+    width: '48%',
+    minHeight: 108,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 14,
     backgroundColor: colors.background,
-    overflow: 'hidden',
-  },
-  row: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    justifyContent: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 10,
+    marginBottom: 14,
   },
-  rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  rowIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+  tileIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primaryTint,
+    marginBottom: 10,
   },
-  rowLabel: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
+  tileLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+
+  // Subtle staff-login footer.
+  staffBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  staffText: { fontSize: 15, fontWeight: '600', color: colors.muted },
 });

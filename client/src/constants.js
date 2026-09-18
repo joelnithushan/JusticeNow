@@ -56,6 +56,17 @@ export const AUDIT_ACTIONS = [
   'staff_login',
 ];
 
+// Case-note senders. MUST stay identical to server/constants.js NOTE_SENDERS.
+// 'staff' = a note written by an authenticated case worker; 'reporter' = a reply
+// posted by the anonymous reporter via their reference code on the two-way thread.
+export const NOTE_SENDERS = ['staff', 'reporter'];
+
+// Bounds for a reporter's reply message (trimmed length). MUST stay identical to
+// server/constants.js REPORTER_MESSAGE_MAX / REPORTER_MESSAGE_MIN — the server is
+// the authority; the client bound is UX-only fast feedback.
+export const REPORTER_MESSAGE_MAX = 2000;
+export const REPORTER_MESSAGE_MIN = 1;
+
 // The 25 administrative districts of Sri Lanka.
 export const DISTRICTS = [
   'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo',

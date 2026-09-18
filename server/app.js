@@ -22,6 +22,7 @@ const staffRoutes = require('./routes/staff');
 const analyticsRoutes = require('./routes/analytics');
 const auditRoutes = require('./routes/audit');
 const transparencyRoutes = require('./routes/transparency');
+const aiRoutes = require('./routes/ai');
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/transparency', transparencyRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Root Welcome Endpoint
 app.get('/', (req, res) => {

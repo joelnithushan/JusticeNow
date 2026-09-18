@@ -37,7 +37,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import ReporterTopBar from '../../components/ReporterTopBar';
 import SelectField, { type Option } from '../../components/SelectField';
@@ -88,6 +88,24 @@ function PinIconSmall({ color }: { color: string }) {
   );
 }
 
+// Small calendar / clock glyphs to signal the field opens a picker.
+function CalendarIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Rect x={4} y={5} width={16} height={16} rx={3} stroke={color} strokeWidth={1.8} />
+      <Path d="M4 9 h16 M8 3 v4 M16 3 v4" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+function ClockIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={12} r={8} stroke={color} strokeWidth={1.8} />
+      <Path d="M12 8 v4 l3 2" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 // A muted circle with a white × — the inline "clear" affordance for the date.
 function ClearIcon() {
   return (
@@ -108,6 +126,8 @@ export default function ReportCase() {
   // The time picker works on a Date; we store the chosen time back to the draft
   // as a display string (the column is text). Seeded to a sensible default.
   const [timeValue, setTimeValue] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -360,97 +380,115 @@ export default function ReportCase() {
         {/* ───────── Step 3 — Location & Time ───────── */}
         {step === 3 && (
           <View>
-            {/* Incident date — a single compact native picker (tap the pill to
-                open the calendar). "Add a date" reveals it; × removes it. */}
+            {/* Incident date — tap the field to reveal a full inline calendar
+                (defaults to today). × clears it. */}
             <Labelled label={t('report.incidentDate')} optional>
-              {draft.incidentDate ? (
-                <>
-                  <View style={local.pickerRow}>
-                    <DateTimePicker
-                      value={draft.incidentDate}
-                      mode="date"
-                      display="compact"
-                      maximumDate={new Date()}
-                      themeVariant="light"
-                      accentColor={colors.primary}
-                      onChange={(event, selectedDate) => {
-                        if (event.type === 'set' && selectedDate) {
-                          setField('incidentDate', selectedDate);
-                        }
-                      }}
-                    />
-                    <Pressable
-                      onPress={() => setField('incidentDate', null)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('report.wizard.clearDate')}
-                    >
-                      <ClearIcon />
-                    </Pressable>
-                  </View>
-                  <ToggleRow
-                    label={t('report.approximate')}
-                    value={draft.incidentDateApproximate}
-                    onValueChange={(v) => setField('incidentDateApproximate', v)}
-                  />
-                </>
-              ) : (
+              <View style={local.pickerRow}>
                 <Pressable
-                  style={theme.input}
-                  onPress={() => setField('incidentDate', new Date())}
+                  style={[theme.input, local.fieldFlex]}
+                  onPress={() => setShowDatePicker((v) => !v)}
                   accessibilityRole="button"
                 >
-                  <Text style={{ color: colors.muted }}>{t('report.wizard.selectDate')}</Text>
+                  <Text style={{ color: draft.incidentDate ? colors.text : colors.muted }}>
+                    {draft.incidentDate
+                      ? draft.incidentDate.toLocaleDateString()
+                      : t('report.wizard.selectDate')}
+                  </Text>
+                  <CalendarIcon color={colors.muted} />
                 </Pressable>
-              )}
+                {draft.incidentDate ? (
+                  <Pressable
+                    onPress={() => {
+                      setField('incidentDate', null);
+                      setShowDatePicker(false);
+                    }}
+                    style={local.clearBtn}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('report.wizard.clearDate')}
+                  >
+                    <ClearIcon />
+                  </Pressable>
+                ) : null}
+              </View>
+              {showDatePicker ? (
+                <View style={local.inlinePicker}>
+                  <DateTimePicker
+                    value={draft.incidentDate ?? new Date()}
+                    mode="date"
+                    display="inline"
+                    maximumDate={new Date()}
+                    themeVariant="light"
+                    accentColor={colors.primary}
+                    onChange={(event, selectedDate) => {
+                      if (event.type === 'set' && selectedDate) {
+                        setField('incidentDate', selectedDate);
+                      }
+                    }}
+                  />
+                </View>
+              ) : null}
+              {draft.incidentDate ? (
+                <ToggleRow
+                  label={t('report.approximate')}
+                  value={draft.incidentDateApproximate}
+                  onValueChange={(v) => setField('incidentDateApproximate', v)}
+                />
+              ) : null}
             </Labelled>
 
-            {/* Incident time — same compact-picker pattern. */}
+            {/* Incident time — tap the field to reveal a clock (defaults to now). */}
             <Labelled label={t('report.incidentTime')} optional>
-              {draft.incidentTime ? (
-                <>
-                  <View style={local.pickerRow}>
-                    <DateTimePicker
-                      value={timeValue}
-                      mode="time"
-                      display="compact"
-                      themeVariant="light"
-                      accentColor={colors.primary}
-                      onChange={(event, selected) => {
-                        if (event.type === 'set' && selected) {
-                          setTimeValue(selected);
-                          setField('incidentTime', formatTime(selected));
-                        }
-                      }}
-                    />
-                    <Pressable
-                      onPress={() => setField('incidentTime', '')}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('report.clearTime')}
-                    >
-                      <ClearIcon />
-                    </Pressable>
-                  </View>
-                  <ToggleRow
-                    label={t('report.approximate')}
-                    value={draft.incidentTimeApproximate}
-                    onValueChange={(v) => setField('incidentTimeApproximate', v)}
-                  />
-                </>
-              ) : (
+              <View style={local.pickerRow}>
                 <Pressable
-                  style={theme.input}
-                  onPress={() => {
-                    const now = new Date();
-                    setTimeValue(now);
-                    setField('incidentTime', formatTime(now));
-                  }}
+                  style={[theme.input, local.fieldFlex]}
+                  onPress={() => setShowTimePicker((v) => !v)}
                   accessibilityRole="button"
                 >
-                  <Text style={{ color: colors.muted }}>{t('report.selectTime')}</Text>
+                  <Text style={{ color: draft.incidentTime ? colors.text : colors.muted }}>
+                    {draft.incidentTime || t('report.selectTime')}
+                  </Text>
+                  <ClockIcon color={colors.muted} />
                 </Pressable>
-              )}
+                {draft.incidentTime ? (
+                  <Pressable
+                    onPress={() => {
+                      setField('incidentTime', '');
+                      setShowTimePicker(false);
+                    }}
+                    style={local.clearBtn}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('report.clearTime')}
+                  >
+                    <ClearIcon />
+                  </Pressable>
+                ) : null}
+              </View>
+              {showTimePicker ? (
+                <View style={local.inlinePicker}>
+                  <DateTimePicker
+                    value={timeValue}
+                    mode="time"
+                    display="spinner"
+                    themeVariant="light"
+                    accentColor={colors.primary}
+                    onChange={(event, selected) => {
+                      if (event.type === 'set' && selected) {
+                        setTimeValue(selected);
+                        setField('incidentTime', formatTime(selected));
+                      }
+                    }}
+                  />
+                </View>
+              ) : null}
+              {draft.incidentTime ? (
+                <ToggleRow
+                  label={t('report.approximate')}
+                  value={draft.incidentTimeApproximate}
+                  onValueChange={(v) => setField('incidentTimeApproximate', v)}
+                />
+              ) : null}
             </Labelled>
 
             <Labelled label={t('report.locationName')} optional>
@@ -1049,11 +1087,29 @@ const local = StyleSheet.create({
   radioDotInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
   radioLabel: { flex: 1, fontSize: 15, color: colors.text },
 
-  // Row holding a compact date/time picker pill + a clear (×) button.
+  // Row: a tappable date/time field (flex) + a clear (×) button.
   pickerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  // The tappable field shows the value on the left and a calendar/clock on the right.
+  fieldFlex: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  clearBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  // Container for the revealed inline calendar / clock.
+  inlinePicker: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 4,
+    alignItems: 'center',
+    backgroundColor: colors.background,
   },
   // "Pick on map" button under the location field.
   mapBtn: {

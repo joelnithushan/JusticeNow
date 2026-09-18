@@ -112,11 +112,14 @@ describe('GET /api/status/:reference_code — found case', () => {
     }
   });
 
-  it('includes reporter-visible notes oldest->newest with only note + created_at', async () => {
+  it('includes reporter-visible notes oldest->newest, each carrying a sender label', async () => {
     caseRow = foundCase;
+    // The two-way thread: a staff note and a reporter reply, both visible. The
+    // service now projects `sender` onto every note so the client can label
+    // "you" vs a case worker.
     caseNotes = [
-      { note: 'First visible update.', created_at: '2026-01-11T10:00:00.000Z' },
-      { note: 'Second visible update.', created_at: '2026-01-12T09:30:00.000Z' },
+      { note: 'First visible update.', created_at: '2026-01-11T10:00:00.000Z', sender: 'staff' },
+      { note: 'Thanks, here is more detail.', created_at: '2026-01-12T09:30:00.000Z', sender: 'reporter' },
     ];
 
     const res = await request(app).get('/api/status/JN-ABCD2345');
@@ -124,15 +127,34 @@ describe('GET /api/status/:reference_code — found case', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.data.notes)).toBe(true);
     expect(res.body.data.notes).toEqual([
-      { note: 'First visible update.', created_at: '2026-01-11T10:00:00.000Z' },
-      { note: 'Second visible update.', created_at: '2026-01-12T09:30:00.000Z' },
+      { note: 'First visible update.', created_at: '2026-01-11T10:00:00.000Z', sender: 'staff' },
+      { note: 'Thanks, here is more detail.', created_at: '2026-01-12T09:30:00.000Z', sender: 'reporter' },
     ]);
 
-    // A note must never carry an author_id (would identify staff, and hints at
-    // structure). Assert the shape is exactly { note, created_at }.
+    // Each note now carries EXACTLY { note, created_at, sender } — and still
+    // never an author_id, which would identify a staff member to the reporter.
     for (const note of res.body.data.notes) {
-      expect(Object.keys(note).sort()).toEqual(['created_at', 'note']);
+      expect(Object.keys(note).sort()).toEqual(['created_at', 'note', 'sender']);
       expect(note).not.toHaveProperty('author_id');
+      expect(['staff', 'reporter']).toContain(note.sender);
+    }
+  });
+
+  it('defaults a legacy note with no sender to "staff" (never leaks as reporter)', async () => {
+    caseRow = foundCase;
+    // A row written before the `sender` column existed comes back with sender
+    // absent/unknown. It must default to 'staff' — never be mislabelled as the
+    // reporter's own message.
+    caseNotes = [
+      { note: 'Legacy note before sender column.', created_at: '2026-01-11T10:00:00.000Z' },
+      { note: 'Odd value note.', created_at: '2026-01-11T11:00:00.000Z', sender: 'system' },
+    ];
+
+    const res = await request(app).get('/api/status/JN-ABCD2345');
+
+    expect(res.status).toBe(200);
+    for (const note of res.body.data.notes) {
+      expect(note.sender).toBe('staff');
     }
   });
 

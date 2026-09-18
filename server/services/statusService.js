@@ -63,11 +63,12 @@ async function getCaseByReferenceCode(referenceCode) {
 
   // Fetch ONLY reporter-visible notes. The is_reporter_visible = true filter is
   // the server-side authorisation boundary for internal notes — never rely on
-  // the client to hide them. We select just note + created_at so a note's
-  // author_id can never reach the reporter.
+  // the client to hide them. We select note + created_at + sender so the client
+  // can label each line ("you" vs a case worker) in the two-way thread; we still
+  // never select author_id, so no staff identity reaches the reporter.
   const { data: notes, error: notesError } = await supabase
     .from('case_notes')
-    .select('note, created_at')
+    .select('note, created_at, sender')
     .eq('case_id', caseRow.id)
     .eq('is_reporter_visible', true)
     .order('created_at', { ascending: true }); // oldest -> newest timeline
@@ -94,8 +95,82 @@ async function getCaseByReferenceCode(referenceCode) {
     status: caseRow.status,
     created_at: caseRow.created_at,
     updated_at: caseRow.updated_at,
-    notes: (notes || []).map((n) => ({ note: n.note, created_at: n.created_at })),
+    notes: (notes || []).map((n) => ({
+      note: n.note,
+      created_at: n.created_at,
+      // 'staff' | 'reporter'. Default defensively to 'staff' for any legacy row
+      // written before the column existed.
+      sender: n.sender === 'reporter' ? 'reporter' : 'staff',
+    })),
   };
 }
 
-module.exports = { getCaseByReferenceCode, SAFE_CASE_COLUMNS };
+/**
+ * Post a reporter's reply on their OWN case, identified only by the reference
+ * code. This is the reporter->staff half of the case thread.
+ *
+ * ANONYMITY: the message is stored as a case_notes row with sender='reporter',
+ * author_id=NULL and is_reporter_visible=true. NOTHING identifying is written —
+ * no IP, no session, no name. The reference code stays the only handle.
+ *
+ * NO-ORACLE: returns null when the code matches no case, so the controller can
+ * answer with the SAME generic negative response it uses for a failed lookup /
+ * rate-limit. A caller must not be able to tell "wrong code" from "throttled".
+ *
+ * The caller is responsible for validating `message` length BEFORE calling this
+ * (a bad message is a client error independent of whether the code exists, so it
+ * never leaks code existence).
+ *
+ * @param {string} referenceCode  the reporter's code (any case/whitespace)
+ * @param {string} message        the already-validated, trimmed reply text
+ * @returns {Promise<{note:string,created_at:string,sender:string}|null>}
+ * @throws on an unexpected database error (the controller maps it to a 500).
+ */
+async function addReporterMessage(referenceCode, message) {
+  const normalisedCode = (referenceCode || '').trim().toUpperCase();
+  if (!normalisedCode) {
+    return null;
+  }
+
+  // Resolve the case id from the code. Select ONLY the id — we need nothing else
+  // and must not pull case content into this write path.
+  const { data: caseRow, error: caseError } = await supabase
+    .from('case_reports')
+    .select('id')
+    .eq('reference_code', normalisedCode)
+    .maybeSingle();
+
+  if (caseError) {
+    // Never log the reference code. Surface as a server error (controller -> 500).
+    throw new Error(`Reporter message lookup failed: ${caseError.message}`);
+  }
+
+  // No such case: null -> the controller's generic negative response.
+  if (!caseRow) {
+    return null;
+  }
+
+  const { data: inserted, error: insertError } = await supabase
+    .from('case_notes')
+    .insert({
+      case_id: caseRow.id,
+      author_id: null, // no reporter identity, ever
+      note: message,
+      is_reporter_visible: true, // a reporter's own reply is always visible to them
+      sender: 'reporter',
+    })
+    .select('note, created_at, sender')
+    .single();
+
+  if (insertError) {
+    throw new Error(`Reporter message insert failed: ${insertError.message}`);
+  }
+
+  return {
+    note: inserted.note,
+    created_at: inserted.created_at,
+    sender: 'reporter',
+  };
+}
+
+module.exports = { getCaseByReferenceCode, addReporterMessage, SAFE_CASE_COLUMNS };
