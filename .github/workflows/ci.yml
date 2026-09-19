@@ -14,7 +14,7 @@ jobs:
     name: Lint + unit/integration tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Use Node from .nvmrc
         uses: actions/setup-node@v4
@@ -35,7 +35,7 @@ jobs:
     name: End-to-end (Playwright)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Use Node from .nvmrc
         uses: actions/setup-node@v4
