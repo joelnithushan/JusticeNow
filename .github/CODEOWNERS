@@ -1,0 +1,30 @@
+# CODEOWNERS — who must review changes before merge.
+#
+# WHY: JusticeNow holds anonymous human-rights case data. Mistakes in auth,
+# server APIs, or CI can leak internal notes, weaken org-scoping, or commit
+# secrets. Requiring a maintainer review on these paths is a deliberate
+# gate — not bureaucracy. GitHub will request a review from the listed
+# owners when a PR touches a matching path.
+#
+# Syntax: most-specific matching pattern wins. See
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default: every path in the repo
+* @joelnithushan
+
+# Backend API — case data, anonymity rules, and org-scoping live here
+/server/ @joelnithushan
+
+# CI, CODEOWNERS, and PR templates — supply-chain / process integrity
+/.github/ @joelnithushan
+
+# Staff authentication and request hardening
+/server/middleware/ @joelnithushan
+/server/services/auth.js @joelnithushan
+
+# Client/mobile auth context (staff sessions only — reporters never log in)
+/client/src/context/AuthContext.jsx @joelnithushan
+/mobile/src/context/AuthContext.tsx @joelnithushan
+
+# Security documentation (env hygiene and related notes)
+/docs/security/ @joelnithushan
