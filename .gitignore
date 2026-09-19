@@ -33,3 +33,35 @@ logs/
 .idea/
 *.swp
 *.swo
+
+# ---------------------------------------------------------------------------
+# JNOW-64 — additional ignores (append-only; do not remove lines above)
+# ---------------------------------------------------------------------------
+
+# Broader env variants (keep committed *.env.example files tracked)
+.env.*
+!.env.example
+!**/.env.example
+
+# Mobile / Expo / native build artifacts
+.expo/
+.expo-shared/
+*.keystore
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+ios/build/
+android/build/
+*.aab
+*.apk
+
+# Extra editor / OS junk
+Thumbs.db
+Desktop.ini
+*~
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
