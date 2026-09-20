@@ -62,7 +62,13 @@ handing over anything that identifies them.
    case.
 3. Legal aid attorneys and NGO advocacy officers receive the report in a **secure
    dashboard** and update its status.
-4. The reporter **checks progress at any time using the reference code alone**.
+4. The reporter **checks progress at any time using the reference code alone** — and can
+   **reply on the case thread** to add information or ask a question, still without an
+   account.
+
+Before (or instead of) filing, a reporter can also use **AI legal guidance**: describe a
+situation and get educational information about the likely case type, the Sri Lankan
+rights that may apply, and how to approach it — nothing is stored and no case is created.
 
 Case types covered: harassment, unlawful detention, land dispute, discrimination,
 official misconduct, and other.
@@ -91,8 +97,11 @@ Two decisions are deliberate and central to the product, not incidental:
 | Anonymous case reporting | Submit case type, date, district, description, and optional evidence |
 | Reference code issuing | A unique code is returned on submission — the reporter's only handle |
 | Case status tracking | Look up status and the update timeline using the reference code |
+| Anonymous two-way messaging | A reporter can reply on their own case using only the reference code; staff notes and reporter replies form one sender-labelled thread. No identity, IP or session is ever stored, and the reply endpoint is rate limited and oracle-proof like the status lookup |
+| AI legal guidance | Describe a situation in plain language and get **educational** guidance — likely case type, relevant Sri Lankan rights, suggested steps and rough costs — plus real legal-aid referrals from the directory. Nothing is stored; powered by the Anthropic Claude API server-side |
+| Voice (mobile) | Read the AI guidance aloud in any of the three languages, and speak the situation via the keyboard's dictation instead of typing |
 | Legal resource directory | Find NGOs and legal aid bodies by district and case type |
-| Case management dashboard | Staff triage reports, update status, and add case notes |
+| Case management dashboard | Staff triage reports, update status, add case notes, and see reporter replies badged in the thread |
 | Safety & discreet use | Quick-exit control, no cached case data, privacy reassurance throughout |
 | Multi-language | Tamil, English and Sinhala |
 
@@ -104,7 +113,9 @@ Two decisions are deliberate and central to the product, not incidental:
 | Routing | React Router |
 | Localisation | react-i18next — Tamil (`ta`), English (`en`), Sinhala (`si`) |
 | HTTP client | Axios |
+| Mobile | Expo React Native (read-aloud via `expo-speech`) |
 | Backend | Node.js + Express (REST API) |
+| AI guidance | Anthropic Claude API — **server-side only**, the key never reaches the client |
 | Database | PostgreSQL via Supabase |
 | File storage | Supabase Storage (evidence uploads) |
 | Authentication | Supabase Auth — **staff accounts only**; reporters never log in |
@@ -137,7 +148,7 @@ for running the app on a phone and producing the APK.
     constants.js        Case types and districts (mirrors the server)
 /mobile                 Expo React Native app (Android APK via EAS)
   app/                  expo-router screens (Home, 3-step report, success,
-                        status, directory, staff login/reports)
+                        status + case thread, guidance, directory, staff login/reports)
   components/           LanguageSwitcher, QuickExitButton
   src/                  api/client.ts, constants.ts, i18n (en/ta/si),
                         context/ReportFormContext.tsx, theme.ts
@@ -146,7 +157,7 @@ for running the app on a phone and producing the APK.
 /server                 Express API (port 5000)
   index.js              HTTP listener
   app.js                Express app (routes, CORS, error handling)
-  /routes               reports.js, status.js, organisations.js, staff.js, health.js
+  /routes               reports.js, status.js, ai.js, organisations.js, staff.js, health.js
   /controllers          request handlers
   /config               supabase.js — Supabase client (reads server/.env)
   /utils                referenceCode.js — reference code generator
@@ -155,6 +166,7 @@ for running the app on a phone and producing the APK.
 /docs
   schema.sql            Database schema — run this in the Supabase SQL Editor
                         (Sprint 0 planning documents also live here)
+  migrations/           Incremental SQL migrations applied after schema.sql
 TEST_CASES.md           Human-readable test case tables
 CLAUDE.md               Standing rules for AI coding agents in this repo
 ```
@@ -178,7 +190,10 @@ npm run install:all      # installs root + server + client dependencies
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Open **SQL Editor**, and run the contents of [`docs/schema.sql`](docs/schema.sql).
-3. Open **Storage** and create a **private** bucket named `evidence` (for uploads).
+3. Apply the incremental migrations in [`docs/migrations/`](docs/migrations) in order
+   (e.g. `003_case_notes_sender.sql`, which the two-way case thread depends on) if you
+   set up the schema before they existed.
+4. Open **Storage** and create a **private** bucket named `evidence` (for uploads).
 
 ### 3. Configure environment variables
 
@@ -193,10 +208,15 @@ cp server/.env.example server/.env
 SUPABASE_URL=your-project-url
 SUPABASE_KEY=your-anon-key
 PORT=5000
+
+# Optional — enables the AI Legal Guidance feature. Server-side only.
+ANTHROPIC_API_KEY=your-anthropic-key
+ANTHROPIC_MODEL=claude-haiku-4-5
 ```
 
 > ⚠️ Never commit `server/.env`. It is gitignored; only `server/.env.example` (with
-> placeholders) belongs in version control.
+> placeholders) belongs in version control. `ANTHROPIC_API_KEY` in particular must never
+> reach the client — guidance is generated server-side.
 
 ### 4. Run the app
 
