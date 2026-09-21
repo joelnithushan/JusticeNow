@@ -101,7 +101,7 @@ async function authenticateStaff(email, password) {
 
   const { data: staff, error } = await supabase
     .from('staff_users')
-    .select('id, name, email, role, organisation_id, password_hash, is_active')
+    .select('id, name, email, role, organisation_id, password_hash, is_active, mfa_enabled')
     .eq('email', normalisedEmail)
     .maybeSingle();
 
@@ -137,6 +137,14 @@ async function authenticateStaff(email, password) {
   // MESSAGE is designed to prevent.
   if (staff.is_active === false) {
     throw { status: 401, message: INVALID_CREDENTIALS_MESSAGE };
+  }
+
+  // Password is correct and the account is active — but if 2FA is on, the
+  // password alone is NOT a session. Signal the controller to mint a short-lived
+  // pending-MFA token and demand a code (see services/mfa.completeMfaLogin). We
+  // return only the id: no JWT, no staff profile, until the second factor passes.
+  if (staff.mfa_enabled === true) {
+    return { mfaRequired: true, staffId: staff.id };
   }
 
   const safeStaff = {
