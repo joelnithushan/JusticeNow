@@ -88,7 +88,51 @@ export interface StaffLoginResponse {
  * caller (AuthContext) stores the token and arms staffApi via setStaffToken().
  */
 export const loginStaff = (email: string, password: string) =>
-  api.post<StaffLoginResponse>('/staff/login', { email, password });
+  api.post<StaffLoginOrMfaResponse>('/staff/login', { email, password });
+
+/**
+ * Two-factor (TOTP) login shapes.
+ *
+ * When a staffer has 2FA enabled, POST /staff/login does NOT return a session
+ * token — it returns a short-lived `mfa_token` plus `mfa_required: true`, and
+ * the client must complete the second step with POST /staff/login/mfa. Because
+ * the two responses share the { success, data } envelope but carry different
+ * `data`, we type `data` as a UNION and the caller narrows on `mfa_required`.
+ *
+ * PRIVACY: `mfa_token` is a one-time server handle (not a session token) held in
+ * component state only and never persisted or logged — same leave-no-trace
+ * stance as the password. The 6-digit code is likewise never logged.
+ */
+export interface StaffMfaChallenge {
+  mfa_required: true;
+  mfa_token: string;
+}
+
+/**
+ * The password-login response is EITHER a full session (StaffLoginData) OR a 2FA
+ * challenge (StaffMfaChallenge). Callers must check `'mfa_required' in data`
+ * before reading `token`/`staff`.
+ */
+export interface StaffLoginOrMfaResponse {
+  success: boolean;
+  data: StaffLoginData | StaffMfaChallenge;
+}
+
+/**
+ * Complete the second (TOTP) step of login. Takes the short-lived `mfa_token`
+ * from the password step plus the `code` — a 6-digit authenticator code OR one
+ * of the staffer's backup codes (the server accepts either). On success the
+ * server mints the same full session (StaffLoginData) a non-2FA login returns.
+ *
+ * TOKENLESS `api` on purpose: like the password login this is what MINTS the
+ * session token; there is no session yet, so no Authorization header is sent.
+ * NEVER log the token, the mfa_token or the code.
+ */
+export const staffLoginMfa = (mfaToken: string, code: string) =>
+  api.post<StaffLoginResponse>('/staff/login/mfa', {
+    mfa_token: mfaToken,
+    code,
+  });
 
 /**
  * Staff login via a Supabase Google session. The screen runs the Supabase Auth
@@ -962,6 +1006,58 @@ export const changeMyPassword = ({
     current_password: currentPassword,
     new_password: newPassword,
   });
+
+/**
+ * The data returned when BEGINNING 2FA enrolment. `qr` is a ready-to-render
+ * data-URL PNG (e.g. "data:image/png;base64,…") of the otpauth secret, and
+ * `otpauth_url` is the same secret in text form as a fallback the staffer can
+ * copy into an authenticator by hand. Neither is a persisted secret on the
+ * client — they are shown once during setup and discarded when the screen
+ * closes. Never log either value.
+ */
+export interface MfaSetupData {
+  qr: string;
+  otpauth_url: string;
+}
+
+export interface MfaSetupResponse {
+  success: boolean;
+  data: MfaSetupData;
+}
+
+/**
+ * Staff: BEGIN 2FA enrolment for the caller's OWN account. Token-bearing
+ * staffApi (requireStaff) — this provisions a pending TOTP secret and returns
+ * the QR + otpauth URL to scan. Enrolment is not complete until activateMfa()
+ * succeeds with a valid code.
+ */
+export const setupMfa = () =>
+  staffApi.post<MfaSetupResponse>('/staff/me/mfa/setup');
+
+/**
+ * The data returned on successful 2FA ACTIVATION: one-time backup codes the
+ * staffer must save. These are shown ONCE and must NEVER be persisted to device
+ * storage or logged — they are the only fallback if the authenticator device is
+ * lost, and re-displaying or storing them would defeat their purpose.
+ */
+export interface MfaActivateData {
+  backup_codes: string[];
+}
+
+export interface MfaActivateResponse {
+  success: boolean;
+  data: MfaActivateData;
+}
+
+/**
+ * Staff: ACTIVATE 2FA for the caller's OWN account by proving they can produce a
+ * valid 6-digit code from the secret just set up. Token-bearing staffApi
+ * (requireStaff). On success 2FA is on and the server returns the backup codes
+ * ONCE. The server returns 400/401 on a wrong/expired code, which the screen
+ * surfaces generically. Never log the code or the returned backup codes.
+ */
+export const activateMfa = (code: string) =>
+  staffApi.post<MfaActivateResponse>('/staff/me/mfa/activate', { code });
 
 /** Health check — useful when debugging "is the server up?". */
 export const checkHealth = () => api.get('/health');

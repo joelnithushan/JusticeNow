@@ -12,6 +12,13 @@
 
 const { authenticateStaff, authenticateGoogle, verifyGoogleEmail } = require('../services/auth');
 const {
+  signMfaToken,
+  startEnrollment,
+  activateMfa: activateMfaService,
+  completeMfaLogin,
+  resetMfa: resetMfaService,
+} = require('../services/mfa');
+const {
   listStaff: listStaffService,
   createStaff: createStaffService,
   updateStaff: updateStaffService,
@@ -59,7 +66,20 @@ const login = async (req, res) => {
   }
 
   try {
-    const { token, staff } = await authenticateStaff(email, password);
+    const result = await authenticateStaff(email, password);
+
+    // 2FA is on for this account: the password is correct but is NOT yet a
+    // session. Hand back only a short-lived pending-MFA token; the client must
+    // POST a code to /login/mfa to finish. No audit here — the login isn't
+    // complete until the second factor passes.
+    if (result.mfaRequired) {
+      return res.json({
+        success: true,
+        data: { mfa_required: true, mfa_token: signMfaToken(result.staffId) },
+      });
+    }
+
+    const { token, staff } = result;
 
     // Best-effort audit: record the login without any PII. writeAudit never
     // throws into this path, so we don't await it as a hard dependency.
@@ -397,8 +417,85 @@ async function changeMyPassword(req, res) {
   }
 }
 
+/**
+ * POST /api/staff/login/mfa — second login step. PUBLIC (the caller holds only
+ * a pending-MFA token, not a session yet).
+ * Body: { mfa_token, code }  → { success, data: { token, staff } } | typed 401.
+ */
+const loginMfa = async (req, res) => {
+  if (req.isRateLimited) {
+    return res.status(429).json({
+      success: false,
+      message: 'Too many attempts. Please wait and try again.',
+    });
+  }
+  const { mfa_token: mfaToken, code } = req.body || {};
+  if (!mfaToken || !code) {
+    return res.status(400).json({ success: false, message: 'A code is required.' });
+  }
+  try {
+    const { token, staff } = await completeMfaLogin(mfaToken, code);
+    await writeAudit({ actorId: staff.id, action: 'staff_login' });
+    return res.json({ success: true, data: { token, staff } });
+  } catch (err) {
+    const status = err && err.status ? err.status : 500;
+    const message = err && err.message ? err.message : 'Could not process the login.';
+    return res.status(status).json({ success: false, message });
+  }
+};
+
+/**
+ * POST /api/staff/me/mfa/setup — begin 2FA enrollment for the CALLER. Guarded by
+ * requireStaff. Returns the QR + otpauth URL to add to an authenticator app.
+ */
+const setupMfa = async (req, res) => {
+  try {
+    const { qrDataUrl, otpauthUrl } = await startEnrollment(req.staff.id, req.staff.email);
+    return res.json({ success: true, data: { qr: qrDataUrl, otpauth_url: otpauthUrl } });
+  } catch (err) {
+    const status = err && err.status ? err.status : 500;
+    return res.status(status).json({ success: false, message: err.message || 'Could not start 2FA setup.' });
+  }
+};
+
+/**
+ * POST /api/staff/me/mfa/activate — finish enrollment by verifying a live code.
+ * Guarded by requireStaff. Returns the one-time backup codes.
+ * Body: { code }
+ */
+const activateMfa = async (req, res) => {
+  const { code } = req.body || {};
+  if (!code) {
+    return res.status(400).json({ success: false, message: 'A code is required.' });
+  }
+  try {
+    const { backupCodes } = await activateMfaService(req.staff.id, code);
+    return res.json({ success: true, data: { backup_codes: backupCodes } });
+  } catch (err) {
+    const status = err && err.status ? err.status : 500;
+    return res.status(status).json({ success: false, message: err.message || 'Could not enable 2FA.' });
+  }
+};
+
+/**
+ * POST /api/staff/:id/mfa/reset — ADMIN resets a colleague's 2FA (lost device).
+ * Guarded by requireStaff + requireRole('admin', 'org_admin') at the route. The
+ * target must re-enroll on next login.
+ */
+const resetMfa = async (req, res) => {
+  try {
+    await resetMfaService(req.params.id);
+    await writeAudit({ actorId: req.staff.id, action: 'staff_updated' });
+    return res.json({ success: true });
+  } catch (err) {
+    const status = err && err.status ? err.status : 500;
+    return res.status(status).json({ success: false, message: err.message || 'Could not reset 2FA.' });
+  }
+};
+
 module.exports = {
   login,
+  loginMfa,
   googleLogin,
   register,
   registerGoogle,
@@ -410,4 +507,7 @@ module.exports = {
   updateMe,
   updateMyAvatar,
   changeMyPassword,
+  setupMfa,
+  activateMfa,
+  resetMfa,
 };
