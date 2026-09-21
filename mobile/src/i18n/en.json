@@ -255,6 +255,22 @@
     "passwordRequired": "Enter your password.",
     "createAccount": "New here? Create an account"
   },
+  "mfa": {
+    "mfaTitle": "Two-factor authentication",
+    "mfaCodeLabel": "Authentication code",
+    "mfaCodePrompt": "Enter the 6-digit code from your authenticator app.",
+    "mfaVerify": "Verify",
+    "mfaVerifying": "Verifying…",
+    "mfaUseBackup": "Use a backup code instead",
+    "mfaSetupTitle": "Set up two-factor authentication",
+    "mfaSetupSteps": "Scan this QR code with an authenticator app (e.g. Google Authenticator), then enter the 6-digit code it shows.",
+    "mfaEnable": "Enable two-factor authentication",
+    "mfaEnabledMsg": "Two-factor authentication is on.",
+    "mfaBackupTitle": "Save your backup codes",
+    "mfaBackupHint": "Each code works once. Keep them somewhere safe — they're the only way in if you lose your device.",
+    "mfaBackupDone": "I've saved my codes",
+    "mfaFailed": "Could not verify the code. Please try again."
+  },
   "staffReports": {
     "title": "Incoming reports",
     "filterByType": "Filter by case type",

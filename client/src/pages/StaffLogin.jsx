@@ -21,7 +21,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { loginStaff, loginStaffGoogle } from '../api/client';
+import { loginStaff, loginStaffGoogle, staffLoginMfa } from '../api/client';
 import { supabase } from '../api/supabase';
 import { useAuth } from '../context/AuthContext';
 import './StaffLogin.css';
@@ -37,6 +37,15 @@ function StaffLogin() {
   const [submitting, setSubmitting] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
   const [error, setError] = useState('');
+
+  // Second-factor challenge state. When the password step returns
+  // mfa_required, we hold the server's short-lived mfa_token (a challenge
+  // handle, NOT a session) in memory and switch the form to a code-entry step.
+  // The mfa_token is never logged and never persisted — same leave-no-trace
+  // stance as the password.
+  const [mfaToken, setMfaToken] = useState(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaError, setMfaError] = useState('');
 
   // After the Google redirect, Supabase drops the session into the URL fragment
   // and detectSessionInUrl reads it. Exchange that session for OUR JWT here: the
@@ -103,12 +112,22 @@ function StaffLogin() {
 
     try {
       const res = await loginStaff(trimmedEmail, password);
-      const { token, staff } = res.data.data;
+      const data = res.data.data;
+      // Clear the password from state as soon as it has served its purpose.
+      setPassword('');
+      // 2FA on: the server has NOT minted a session yet — it returned only a
+      // short-lived mfa_token. Do NOT store anything; switch to the code-entry
+      // step and let the staffer finish the challenge.
+      if (data.mfa_required) {
+        setMfaToken(data.mfa_token);
+        setMfaCode('');
+        setMfaError('');
+        return;
+      }
+      const { token, staff } = data;
       // AuthContext.login() stores the session AND arms the staff axios instance
       // (setStaffToken) — we never wire the token manually here.
       login({ token, staff });
-      // Clear the password from state as soon as it has served its purpose.
-      setPassword('');
       navigate('/staff/reports', { replace: true });
     } catch (err) {
       // NEVER log err — it can echo the submitted email/credentials. Show the
@@ -128,6 +147,90 @@ function StaffLogin() {
   };
 
   const canSubmit = email.trim().length > 0 && password.length > 0 && !submitting;
+
+  // Second step: verify the 6-digit TOTP (or a backup code — the server accepts
+  // either value in `code`). On success the server mints the real session and
+  // we store it exactly like a normal login (same AuthContext.login path).
+  const handleMfaSubmit = async (e) => {
+    e.preventDefault();
+
+    const trimmedCode = mfaCode.trim();
+    if (!trimmedCode || submitting) return;
+
+    setSubmitting(true);
+    setMfaError('');
+
+    try {
+      const res = await staffLoginMfa(mfaToken, trimmedCode);
+      const { token, staff } = res.data.data;
+      // Clear the code and challenge handle now they have served their purpose.
+      setMfaCode('');
+      setMfaToken(null);
+      login({ token, staff });
+      navigate('/staff/reports', { replace: true });
+    } catch (err) {
+      // NEVER log err — it can echo the submitted code. Show a generic message
+      // (bad code vs. expired/used token look identical to the user, matching
+      // the no-oracle stance). A 401 leaves the code-entry step in place so the
+      // staffer can retry.
+      setMfaError(t('mfa.mfaFailed'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const canVerify = mfaCode.trim().length > 0 && !submitting;
+
+  // Second factor pending — render the code-entry step instead of the password
+  // form. We never showed/stored a session for this account yet.
+  if (mfaToken) {
+    return (
+      <div className="page staff-login">
+        <h1>{t('mfa.mfaTitle')}</h1>
+        <p className="tagline">{t('mfa.mfaCodePrompt')}</p>
+
+        <form onSubmit={handleMfaSubmit} noValidate>
+          <label htmlFor="staffMfaCode">{t('mfa.mfaCodeLabel')}</label>
+          <input
+            id="staffMfaCode"
+            type="text"
+            value={mfaCode}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            autoCapitalize="none"
+            autoCorrect="off"
+            autoFocus
+            disabled={submitting}
+            onChange={(e) => setMfaCode(e.target.value)}
+          />
+
+          {/* Generic failure — announced to screen readers. Never reveals
+              whether the code or the challenge token was the problem. */}
+          {mfaError && (
+            <p className="field-error" role="alert">{mfaError}</p>
+          )}
+
+          <button type="submit" className="btn btn-primary" disabled={!canVerify}>
+            {submitting ? t('mfa.mfaVerifying') : t('mfa.mfaVerify')}
+          </button>
+        </form>
+
+        {/* A backup code is just another value in `code` — same input, same
+            endpoint. This affordance only clarifies that for the user; it puts
+            the (already labelled) field back in focus. */}
+        <button
+          type="button"
+          className="btn btn-link"
+          onClick={() => {
+            setMfaError('');
+            document.getElementById('staffMfaCode')?.focus();
+          }}
+        >
+          {t('mfa.mfaUseBackup')}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="page staff-login">

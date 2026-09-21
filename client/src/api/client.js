@@ -131,6 +131,16 @@ export const loginStaff = (email, password) =>
   api.post('/staff/login', { email, password });
 
 /**
+ * Staff login — second (2FA) step. Uses the TOKENLESS reporter `api` on purpose:
+ * the first step returned an mfa_token (a short-lived challenge handle, NOT a
+ * session), so there is still no Bearer token to attach; this endpoint is what
+ * mints the real session on success. `code` may be a 6-digit TOTP OR a backup
+ * code — the server accepts either. Never log `mfaToken` or `code`.
+ */
+export const staffLoginMfa = (mfaToken, code) =>
+  api.post('/staff/login/mfa', { mfa_token: mfaToken, code });
+
+/**
  * Staff login via a Supabase Google session. The client completes the Supabase
  * Auth Google flow, then hands the resulting access token here; the server
  * verifies it and mints our JWT ONLY if the Google email is an active staff
@@ -307,6 +317,30 @@ export const changeMyPassword = ({ currentPassword, newPassword }) =>
     current_password: currentPassword,
     new_password: newPassword,
   });
+
+/**
+ * Staff: begin two-factor enrollment for the CALLER's own account. Uses the
+ * AUTHENTICATED staffApi (server guards this with requireStaff and scopes it to
+ * req.staff.id). Returns { qr, otpauth_url } — `qr` is a data-URL PNG to render
+ * and `otpauth_url` is the text fallback. Neither is a secret to persist.
+ */
+export const setupMfa = () => staffApi.post('/staff/me/mfa/setup');
+
+/**
+ * Staff: activate two-factor for the CALLER's own account by proving they can
+ * read a live code. Uses the AUTHENTICATED staffApi. Returns
+ * { backup_codes: [8 strings] } which the UI shows ONCE and never persists.
+ * Never log `code` or the returned codes.
+ */
+export const activateMfa = (code) => staffApi.post('/staff/me/mfa/activate', { code });
+
+/**
+ * ADMIN: reset (disable) another staff member's two-factor. Uses the token-
+ * bearing staffApi — POST /staff/:id/mfa/reset is admin-guarded on the server;
+ * the server is the real boundary.
+ */
+export const resetStaffMfa = (id) =>
+  staffApi.post(`/staff/${encodeURIComponent(id)}/mfa/reset`);
 
 /** Health check — useful when debugging "is the server up?". */
 export const checkHealth = () => api.get('/health');

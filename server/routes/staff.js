@@ -16,6 +16,7 @@ const express = require('express');
 const multer = require('multer');
 const {
   login,
+  loginMfa,
   googleLogin,
   register,
   registerGoogle,
@@ -27,6 +28,9 @@ const {
   updateMe,
   updateMyAvatar,
   changeMyPassword,
+  setupMfa,
+  activateMfa,
+  resetMfa,
 } = require('../controllers/staffController');
 const { requireStaff, requireRole } = require('../middleware/auth');
 const { createRateLimiter } = require('../middleware/rateLimit');
@@ -54,6 +58,11 @@ const avatarUpload = multer({
 // limiter runs first and, on breach, flags req.isRateLimited so the controller
 // returns a 429 (see login). Applied to /login ONLY, never to /me or admin.
 router.post('/login', loginRateLimiter, login);
+
+// POST /api/staff/login/mfa — PUBLIC second login step. The caller holds only a
+// short-lived pending-MFA token (not a session); this exchanges token + code for
+// the real JWT. Shares the login throttle so code-guessing is capped too.
+router.post('/login/mfa', loginRateLimiter, loginMfa);
 
 // POST /api/staff/google — PUBLIC. Exchanges a Supabase Google session for our
 // JWT, but ONLY if the Google-verified email is an active staff_users member.
@@ -87,6 +96,12 @@ router.post('/me/avatar', requireStaff, avatarUpload.single('avatar'), updateMyA
 // accounts only; refused for Google sessions).
 router.post('/me/password', requireStaff, changeMyPassword);
 
+// --- 2FA (TOTP) self-enrollment. Guarded requireStaff; operate on the caller. ---
+// POST /api/staff/me/mfa/setup — begin enrollment (returns a QR to scan).
+router.post('/me/mfa/setup', requireStaff, setupMfa);
+// POST /api/staff/me/mfa/activate — verify a live code and turn 2FA on.
+router.post('/me/mfa/activate', requireStaff, activateMfa);
+
 // --- Staff-account management. Guarded requireStaff + (admin OR org_admin).
 // A platform admin manages every account; an org_admin is scoped to their own
 // organisation (the service enforces the scope — the route only gates the role).
@@ -104,5 +119,9 @@ router.put('/:id', requireStaff, requireRole('admin', 'org_admin'), updateStaff)
 // DELETE /api/staff/:id — SOFT-delete (deactivate; never a DB DELETE — that
 // would strip the actor from the audit trail). Refuses self / last-admin.
 router.delete('/:id', requireStaff, requireRole('admin', 'org_admin'), deactivateStaff);
+
+// POST /api/staff/:id/mfa/reset — ADMIN resets a colleague's 2FA (lost device);
+// the target must re-enroll on next login. Admin/org-admin only.
+router.post('/:id/mfa/reset', requireStaff, requireRole('admin', 'org_admin'), resetMfa);
 
 module.exports = router;
