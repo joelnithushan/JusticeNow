@@ -20,6 +20,12 @@
  * bad password, so we simply display whatever message it gives (falling back to
  * a generic string) and never try to distinguish the two cases in the UI.
  *
+ * TWO-FACTOR (TOTP): if a staffer has 2FA enabled, the password step returns a
+ * one-time `mfa_token` (NOT a session) and the screen switches to a code-entry
+ * step. The session is minted only once the 6-digit code (or a backup code) is
+ * verified via staffLoginMfa, which stores it exactly like a normal login. The
+ * mfa_token and the code live in state only and are never logged or persisted.
+ *
  * All strings go through t(); all styling comes from theme tokens.
  */
 
@@ -46,7 +52,7 @@ import GradientBackground from '../../components/GradientBackground';
 import BrandLogo from '../../components/BrandLogo';
 import EyeIcon from '../../components/EyeIcon';
 import { useAuth } from '../../src/context/AuthContext';
-import { loginStaff, loginStaffGoogle } from '../../src/api/client';
+import { loginStaff, loginStaffGoogle, staffLoginMfa } from '../../src/api/client';
 import { supabase } from '../../src/api/supabase';
 import { colors, styles as theme } from '../../src/theme';
 
@@ -100,6 +106,18 @@ export default function StaffLogin() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
+  // Two-factor (TOTP) second step. When the password step returns a challenge we
+  // hold the short-lived `mfaToken` here (component state ONLY, never persisted
+  // or logged — same stance as the password) and switch the UI to the code-entry
+  // step. `mfaCode` is the 6-digit authenticator code OR a backup code; the same
+  // field/endpoint serves both, so the "use a backup code" affordance only
+  // relaxes the numeric keypad rather than changing where the value goes.
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaSubmitting, setMfaSubmitting] = useState(false);
+  const [mfaError, setMfaError] = useState<string | null>(null);
+  const [useBackupCode, setUseBackupCode] = useState(false);
+
   // Already authenticated → do not show login to a logged-in staffer. Redirect
   // straight into the guarded tabs. useRouter().replace inside render is safe
   // here because expo-router defers navigation until after mount.
@@ -131,12 +149,24 @@ export default function StaffLogin() {
 
     try {
       const res = await loginStaff(trimmedEmail, password);
-      const { token, staff } = res.data.data;
+      const data = res.data.data;
+      // Clear the password from state as soon as it has served its purpose,
+      // whichever branch we take below.
+      setPassword('');
+      if ('mfa_required' in data) {
+        // 2FA is enabled: the server withheld the session and issued a one-time
+        // handle. Switch to the code-entry step; the session is minted only once
+        // staffLoginMfa() succeeds. Never log the handle.
+        setMfaToken(data.mfa_token);
+        setMfaCode('');
+        setMfaError(null);
+        setUseBackupCode(false);
+        return;
+      }
+      const { token, staff } = data;
       // AuthContext.login() stores the session AND arms the staff axios instance
       // (setStaffToken) — we never wire the token manually here.
       login({ token, staff });
-      // Clear the password from state as soon as it has served its purpose.
-      setPassword('');
       router.replace('/staff/reports');
     } catch (err) {
       // NEVER log err — it can echo the submitted email/credentials. Show the
@@ -152,6 +182,41 @@ export default function StaffLogin() {
       setError(message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Complete the second (TOTP) step. Exchanges the one-time mfaToken + the
+  // entered code for the real session. On success it stores the session exactly
+  // like a normal login (AuthContext.login arms staffApi). The server returns a
+  // generic 401 for a bad/expired token or wrong code, so we show ONE generic
+  // message and never reveal which failed. Never log the token, code or error.
+  const onVerifyMfa = async () => {
+    if (mfaSubmitting || !mfaToken) return;
+    const code = mfaCode.trim();
+    if (code.length === 0) return;
+    setMfaSubmitting(true);
+    setMfaError(null);
+    try {
+      const res = await staffLoginMfa(mfaToken, code);
+      const { token, staff } = res.data.data;
+      // Clear the second factor from state the moment it has served its purpose.
+      setMfaCode('');
+      setMfaToken(null);
+      login({ token, staff });
+      router.replace('/staff/reports');
+    } catch (err) {
+      // NEVER log err — it can echo the submitted code/token. Show the server's
+      // generic message when present, else a generic fallback.
+      let message = t('mfa.mfaFailed');
+      if (axios.isAxiosError(err)) {
+        const serverMessage = err.response?.data?.message;
+        if (typeof serverMessage === 'string' && serverMessage.length > 0) {
+          message = serverMessage;
+        }
+      }
+      setMfaError(message);
+    } finally {
+      setMfaSubmitting(false);
     }
   };
 
@@ -216,11 +281,98 @@ export default function StaffLogin() {
           <BrandLogo size={68} variant="chip" accessibilityLabel={t('app.title')} />
         </View>
         <Text style={local.title} accessibilityRole="header">
-          {t('staffLogin.title')}
+          {mfaToken ? t('mfa.mfaTitle') : t('staffLogin.title')}
         </Text>
-        <Text style={local.subtitle}>{t('staffLogin.subtitle')}</Text>
+        <Text style={local.subtitle}>
+          {mfaToken ? t('mfa.mfaCodePrompt') : t('staffLogin.subtitle')}
+        </Text>
       </GradientBackground>
 
+      {mfaToken ? (
+        // ── Second step: TOTP / backup code entry ──
+        <ScrollView
+          style={local.scroll}
+          contentContainerStyle={local.body}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={theme.label} nativeID="mfaCodeLabel">
+            {t('mfa.mfaCodeLabel')}
+          </Text>
+          <TextInput
+            style={theme.input}
+            value={mfaCode}
+            onChangeText={(v) => {
+              // A TOTP code is digits only; a backup code may include letters and
+              // dashes, so only strip whitespace when in "authenticator" mode.
+              setMfaCode(useBackupCode ? v : v.replace(/[^0-9]/g, ''));
+              if (mfaError) setMfaError(null);
+            }}
+            placeholder={t('mfa.mfaCodePrompt')}
+            placeholderTextColor={colors.muted}
+            keyboardType={useBackupCode ? 'default' : 'number-pad'}
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="off"
+            textContentType="oneTimeCode"
+            maxLength={useBackupCode ? 32 : 6}
+            returnKeyType="go"
+            onSubmitEditing={onVerifyMfa}
+            editable={!mfaSubmitting}
+            autoFocus
+            accessibilityLabel={t('mfa.mfaCodeLabel')}
+            accessibilityLabelledBy="mfaCodeLabel"
+          />
+
+          {/* Generic failure — announced to screen readers. The server returns an
+              identical 401 for a bad/expired token vs. a wrong code, so we never
+              distinguish them here. */}
+          {mfaError ? (
+            <View style={local.errorBox} accessibilityRole="alert">
+              <Text style={local.errorText}>{mfaError}</Text>
+            </View>
+          ) : null}
+
+          <Pressable
+            onPress={onVerifyMfa}
+            disabled={mfaCode.trim().length === 0 || mfaSubmitting}
+            style={[
+              theme.btnPrimary,
+              (mfaCode.trim().length === 0 || mfaSubmitting) && theme.btnDisabled,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={
+              mfaSubmitting ? t('mfa.mfaVerifying') : t('mfa.mfaVerify')
+            }
+            accessibilityState={{
+              disabled: mfaCode.trim().length === 0 || mfaSubmitting,
+              busy: mfaSubmitting,
+            }}
+          >
+            {mfaSubmitting ? (
+              <ActivityIndicator color={colors.primaryText} />
+            ) : (
+              <Text style={theme.btnPrimaryText}>{t('mfa.mfaVerify')}</Text>
+            )}
+          </Pressable>
+
+          {/* "Use a backup code instead" — SAME field + endpoint; this only
+              switches the keypad/validation so a backup code can be typed. */}
+          <Pressable
+            onPress={() => {
+              setUseBackupCode((v) => !v);
+              setMfaCode('');
+              setMfaError(null);
+            }}
+            disabled={mfaSubmitting}
+            style={theme.btnLink}
+            accessibilityRole="button"
+            accessibilityLabel={t('mfa.mfaUseBackup')}
+          >
+            <Text style={theme.btnLinkText}>{t('mfa.mfaUseBackup')}</Text>
+          </Pressable>
+        </ScrollView>
+      ) : (
       <ScrollView
         style={local.scroll}
         contentContainerStyle={local.body}
@@ -364,6 +516,7 @@ export default function StaffLogin() {
           <Text style={theme.btnLinkText}>{t('staffLogin.createAccount')}</Text>
         </Pressable>
       </ScrollView>
+      )}
 
       {/* "Back to home" pinned to the bottom (with a back arrow) so it stays
           within easy thumb reach regardless of how tall the form scrolls. */}

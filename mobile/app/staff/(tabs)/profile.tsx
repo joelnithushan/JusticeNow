@@ -581,6 +581,22 @@ export default function StaffProfileTab() {
           </Text>
         )}
       </View>
+
+      {/* Two-factor authentication — opens the standalone enrolment flow. The
+          server is the authority on whether 2FA is on; this is just the entry
+          point to set it up. */}
+      <View style={local.passwordSection}>
+        <Text style={local.sectionTitle}>{t('mfa.mfaTitle')}</Text>
+        <Text style={theme.privacyNoteSmall}>{t('mfa.mfaSetupSteps')}</Text>
+        <Pressable
+          onPress={() => router.push('/staff/mfa-setup')}
+          style={theme.btnSecondary}
+          accessibilityRole="button"
+          accessibilityLabel={t('mfa.mfaEnable')}
+        >
+          <Text style={theme.btnSecondaryText}>{t('mfa.mfaEnable')}</Text>
+        </Pressable>
+      </View>
       </ScrollView>
     </View>
   );
