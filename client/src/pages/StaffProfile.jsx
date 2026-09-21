@@ -20,7 +20,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { updateMe, uploadAvatar, changeMyPassword } from '../api/client';
+import { updateMe, uploadAvatar, changeMyPassword, setupMfa, activateMfa } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../context/ProfileContext';
 import './StaffProfile.css';
@@ -70,6 +70,16 @@ function StaffProfile() {
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordMessage, setPasswordMessage] = useState('');
+
+  // Two-factor enrollment state. `mfaSetup` holds the server's { qr, otpauth_url }
+  // while enrolling; `mfaBackupCodes` holds the one-time backup codes returned on
+  // activation — shown ONCE and NEVER persisted anywhere (memory only, dropped on
+  // confirm). None of these values are logged.
+  const [mfaSetup, setMfaSetup] = useState(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaBusy, setMfaBusy] = useState(false);
+  const [mfaError, setMfaError] = useState('');
+  const [mfaBackupCodes, setMfaBackupCodes] = useState(null);
 
   // Seed the form when the profile arrives / changes (e.g. after a refresh).
   useEffect(() => {
@@ -165,6 +175,56 @@ function StaffProfile() {
       setPasswordBusy(false);
     }
   };
+
+  // Begin enrollment: ask the server for a QR + otpauth_url. Never log the
+  // response (the otpauth_url embeds the shared secret).
+  const handleMfaSetup = async () => {
+    if (mfaBusy) return;
+    setMfaBusy(true);
+    setMfaError('');
+    try {
+      const res = await setupMfa();
+      setMfaSetup(res.data.data);
+      setMfaCode('');
+    } catch (err) {
+      if (handle401(err)) return;
+      setMfaError(t('mfa.mfaFailed'));
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
+  // Activate: prove a live code, then show the one-time backup codes. On success
+  // we drop the setup payload (its secret is done with) and hold the backup
+  // codes in memory ONLY until the staffer confirms they've saved them.
+  const handleMfaActivate = async (e) => {
+    e.preventDefault();
+    if (mfaBusy) return;
+    const trimmedCode = mfaCode.trim();
+    if (!trimmedCode) return;
+
+    setMfaBusy(true);
+    setMfaError('');
+    try {
+      const res = await activateMfa(trimmedCode);
+      setMfaCode('');
+      setMfaSetup(null);
+      setMfaBackupCodes(res.data.data.backup_codes);
+      // Refresh so any mfa_enabled flag on the profile reflects the new state.
+      await refresh().catch(() => {});
+    } catch (err) {
+      if (handle401(err)) return;
+      // Generic message — never reveal whether the code was wrong vs. expired.
+      setMfaError(t('mfa.mfaFailed'));
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
+  // Confirm the codes are saved — discard them from memory (never persisted).
+  const handleMfaBackupDone = () => setMfaBackupCodes(null);
+
+  const isMfaEnabled = profile?.mfa_enabled === true;
 
   // First load, before the profile arrives.
   if (loading && !profile) {
@@ -384,6 +444,76 @@ function StaffProfile() {
           </form>
         ) : (
           <p className="tagline">{t('profile.googlePasswordNote')}</p>
+        )}
+      </section>
+
+      {/* Two-factor authentication enrollment. A staffer enables it here for
+          their OWN account: setup → scan QR → enter a code → save backup codes.
+          The QR/otpauth_url and the backup codes live in memory only and are
+          never written to storage (leave-no-trace). */}
+      <section className="profile-mfa">
+        <h2>{t('mfa.mfaSetupTitle')}</h2>
+
+        {isMfaEnabled ? (
+          <p className="profile-success" role="status">{t('mfa.mfaEnabledMsg')}</p>
+        ) : mfaBackupCodes ? (
+          // Step 3: show the one-time backup codes ONCE, with a save warning.
+          <div className="mfa-backup">
+            <h3>{t('mfa.mfaBackupTitle')}</h3>
+            <p className="privacy-note" role="alert">{t('mfa.mfaBackupHint')}</p>
+            <ul className="mfa-backup-codes">
+              {mfaBackupCodes.map((backupCode) => (
+                <li key={backupCode}>
+                  <code>{backupCode}</code>
+                </li>
+              ))}
+            </ul>
+            <button type="button" className="btn btn-primary" onClick={handleMfaBackupDone}>
+              {t('mfa.mfaBackupDone')}
+            </button>
+          </div>
+        ) : mfaSetup ? (
+          // Step 2: show the QR (+ otpauth_url fallback) and collect a code.
+          <form onSubmit={handleMfaActivate} noValidate>
+            <p className="tagline">{t('mfa.mfaSetupSteps')}</p>
+            {/* Decorative: the same secret is also offered as text below for
+                users who cannot scan. */}
+            <img className="mfa-qr" src={mfaSetup.qr} alt="" />
+            <p className="mfa-otpauth">
+              <code>{mfaSetup.otpauth_url}</code>
+            </p>
+
+            <label htmlFor="mfaSetupCode">{t('mfa.mfaCodeLabel')}</label>
+            <input
+              id="mfaSetupCode"
+              type="text"
+              value={mfaCode}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoCapitalize="none"
+              autoCorrect="off"
+              disabled={mfaBusy}
+              onChange={(e) => setMfaCode(e.target.value)}
+            />
+
+            {mfaError && <p className="field-error" role="alert">{mfaError}</p>}
+
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={mfaBusy || !mfaCode.trim()}
+            >
+              {mfaBusy ? t('mfa.mfaVerifying') : t('mfa.mfaEnable')}
+            </button>
+          </form>
+        ) : (
+          // Step 1: entry point.
+          <>
+            {mfaError && <p className="field-error" role="alert">{mfaError}</p>}
+            <button type="button" className="btn btn-primary" onClick={handleMfaSetup} disabled={mfaBusy}>
+              {mfaBusy ? t('profile.saving') : t('mfa.mfaEnable')}
+            </button>
+          </>
         )}
       </section>
     </div>

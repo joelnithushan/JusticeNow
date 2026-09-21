@@ -42,7 +42,7 @@ const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 // deliberately ABSENT — it must never leave the server.
 const PROFILE_COLUMNS =
   'id, name, email, role, organisation_id, nic, phone, designation, ' +
-  'bar_number, gender, date_of_birth, avatar_path, profile_completed';
+  'bar_number, gender, date_of_birth, avatar_path, profile_completed, mfa_enabled';
 
 /** A validation error the controller maps to a 400 (mirrors staffService). */
 class ValidationError extends Error {
@@ -109,6 +109,9 @@ function toProfile(row, orgName, authMethod) {
     // Whether this session may change a password (password accounts only). The
     // client uses it to show/hide the change-password form; the server re-checks.
     auth_method: authMethod,
+    // Whether 2FA is active — the client uses it to show the "on" state vs the
+    // enable-2FA prompt. The secret/backup codes are NEVER exposed here.
+    mfa_enabled: Boolean(row.mfa_enabled),
   };
 }
 
