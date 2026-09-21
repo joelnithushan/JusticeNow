@@ -116,3 +116,47 @@
   font-size: 1.15rem;
   margin-bottom: 0.25rem;
 }
+
+/* Two-factor enrollment section. */
+.profile-mfa {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.profile-mfa h2 {
+  font-size: 1.15rem;
+  margin-bottom: 0.25rem;
+}
+
+/* The enrollment QR — a scannable size, kept compact on narrow screens. */
+.mfa-qr {
+  display: block;
+  width: 180px;
+  height: 180px;
+  max-width: 100%;
+  margin: 0.75rem 0;
+}
+
+/* otpauth_url text fallback — wraps so it never overflows at 320px. */
+.mfa-otpauth code {
+  display: block;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  font-size: 0.8rem;
+}
+
+/* One-time backup codes — monospaced, easy to copy down by hand. */
+.mfa-backup-codes {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.mfa-backup-codes code {
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+}
