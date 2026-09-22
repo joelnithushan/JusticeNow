@@ -13,7 +13,10 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 import { Link, Redirect, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as Clipboard from 'expo-clipboard';
-import * as MediaLibrary from 'expo-media-library';
+// expo-media-library is a native module — not available in standard Expo Go.
+// We load it lazily so a missing native module does not crash the whole screen.
+let MediaLibrary: typeof import('expo-media-library') | null = null;
+try { MediaLibrary = require('expo-media-library'); } catch { MediaLibrary = null; }
 // The classic file API (cacheDirectory / writeAsStringAsync) lives under /legacy
 // in expo-file-system v57.
 import * as FileSystem from 'expo-file-system/legacy';
@@ -76,6 +79,10 @@ export default function ReportSuccess() {
   // code as an image; the QR encodes only the reference code (already on screen).
   const saveQr = async () => {
     if (saving || !qrRef.current) return;
+    if (!MediaLibrary) {
+      Alert.alert('Not available', 'Saving to gallery requires a full build of the app.');
+      return;
+    }
     setSaving(true);
     try {
       const perm = await MediaLibrary.requestPermissionsAsync();
