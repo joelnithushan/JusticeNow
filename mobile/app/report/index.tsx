@@ -261,7 +261,7 @@ export default function ReportCase() {
     value: c,
     label: t(`caseTypes.${c}`),
   }));
-  const districtOptions: Option[] = DISTRICTS.map((d) => ({ value: d, label: d }));
+  const districtOptions: Option[] = DISTRICTS.map((d) => ({ value: d, label: t(`districts.${d}`, d) }));
 
   return (
     <View style={local.screen}>
