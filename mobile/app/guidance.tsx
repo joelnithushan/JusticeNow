@@ -61,7 +61,7 @@ export default function Guidance() {
   // Whether the guidance is currently being read aloud (expo-speech).
   const [speaking, setSpeaking] = useState(false);
 
-  const districtOptions: Option[] = DISTRICTS.map((d) => ({ value: d, label: d }));
+  const districtOptions: Option[] = DISTRICTS.map((d) => ({ value: d, label: t(`districts.${d}`, d) }));
 
   // Always stop any in-flight speech when leaving the screen — nothing should
   // keep reading a case aloud after the user navigates away or Quick-Exits.

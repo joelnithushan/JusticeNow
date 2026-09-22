@@ -652,5 +652,32 @@
     "handledTitle": "How this case is handled",
     "feesTitle": "Approximate fees",
     "feesNote": "Fees vary widely. Many legal-aid organisations below help for free or low cost."
+  },
+  "districts": {
+    "Ampara": "Ampara",
+    "Anuradhapura": "Anuradhapura",
+    "Badulla": "Badulla",
+    "Batticaloa": "Batticaloa",
+    "Colombo": "Colombo",
+    "Galle": "Galle",
+    "Gampaha": "Gampaha",
+    "Hambantota": "Hambantota",
+    "Jaffna": "Jaffna",
+    "Kalutara": "Kalutara",
+    "Kandy": "Kandy",
+    "Kegalle": "Kegalle",
+    "Kilinochchi": "Kilinochchi",
+    "Kurunegala": "Kurunegala",
+    "Mannar": "Mannar",
+    "Matale": "Matale",
+    "Matara": "Matara",
+    "Monaragala": "Monaragala",
+    "Mullaitivu": "Mullaitivu",
+    "Nuwara Eliya": "Nuwara Eliya",
+    "Polonnaruwa": "Polonnaruwa",
+    "Puttalam": "Puttalam",
+    "Ratnapura": "Ratnapura",
+    "Trincomalee": "Trincomalee",
+    "Vavuniya": "Vavuniya"
   }
 }
