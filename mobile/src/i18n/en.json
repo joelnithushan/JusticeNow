@@ -91,7 +91,10 @@
       "descriptionTooShort": "Please write at least 20 characters.",
       "dateInFuture": "The date cannot be in the future.",
       "evidenceTooBig": "The file must be 5 MB or smaller.",
-      "evidenceType": "Only JPG, PNG, WebP or PDF files are allowed."
+      "evidenceType": "Only JPG, PNG, WebP, PDF or M4A audio files are allowed.",
+      "recordAudio": "Record Voice",
+      "stopRecording": "Stop Recording",
+      "recordingActive": "Recording…"
     },
     "anonymousBanner": "You can submit this report without revealing your identity.",
     "stepOf": "{{current}} of {{total}}",
