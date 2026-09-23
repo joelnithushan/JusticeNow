@@ -8,16 +8,32 @@
  * and only that text is returned to the form (same data model as typing a place
  * name by hand). The map is centred on Sri Lanka and never shows or stores the
  * reporter's own location. This keeps the incident location coarse and safe.
+ *
+ * NOTE: react-native-maps is a native module and requires a custom dev build or
+ * production build. In standard Expo Go it is unavailable — a fallback UI is
+ * shown instead so the rest of the app is not affected.
  */
 
 import React, { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import { DISTRICTS } from '../src/constants';
 import { colors } from '../src/theme';
+
+// react-native-maps requires a native build — gracefully degrade in Expo Go.
+let MapView: any = null;
+let Marker: any = null;
+let mapsAvailable = false;
+try {
+  const RNMaps = require('react-native-maps');
+  MapView = RNMaps.default;
+  Marker = RNMaps.Marker;
+  mapsAvailable = true;
+} catch {
+  mapsAvailable = false;
+}
 
 type Coord = { latitude: number; longitude: number };
 export type PickedLocation = { placeName: string; district: string | null };
@@ -79,20 +95,35 @@ export default function LocationPickerModal({
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={close}>
       <View style={styles.container}>
-        <MapView
-          style={StyleSheet.absoluteFill}
-          initialRegion={SL_REGION}
-          onPress={(e) => setCoord(e.nativeEvent.coordinate)}
-        >
-          {coord ? (
-            <Marker
-              coordinate={coord}
-              draggable
-              pinColor={colors.primary}
-              onDragEnd={(e) => setCoord(e.nativeEvent.coordinate)}
-            />
-          ) : null}
-        </MapView>
+        {mapsAvailable ? (
+          <MapView
+            style={StyleSheet.absoluteFill}
+            initialRegion={SL_REGION}
+            onPress={(e: any) => setCoord(e.nativeEvent.coordinate)}
+          >
+            {coord ? (
+              <Marker
+                coordinate={coord}
+                draggable
+                pinColor={colors.primary}
+                onDragEnd={(e: any) => setCoord(e.nativeEvent.coordinate)}
+              />
+            ) : null}
+          </MapView>
+        ) : (
+          /* Fallback when running in standard Expo Go (native maps unavailable) */
+          <View style={styles.fallback}>
+            <Text style={styles.fallbackIcon}>🗺️</Text>
+            <Text style={styles.fallbackTitle}>Map not available</Text>
+            <Text style={styles.fallbackText}>
+              The interactive map requires a full build of the app.{'\n'}
+              You can still type the location manually in the form.
+            </Text>
+            <Pressable onPress={close} style={styles.useBtn} accessibilityRole="button">
+              <Text style={styles.useText}>Go back</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Instruction pill at the top. */}
         <View style={[styles.hintWrap, { top: insets.top + 12 }]} pointerEvents="none">
@@ -173,4 +204,26 @@ const styles = StyleSheet.create({
   },
   useBtnDisabled: { backgroundColor: colors.primaryTint },
   useText: { fontSize: 16, fontWeight: '700', color: colors.primaryText },
+  // Fallback styles for when react-native-maps is unavailable (Expo Go)
+  fallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    gap: 16,
+  },
+  fallbackIcon: { fontSize: 56 },
+  fallbackTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  fallbackText: {
+    fontSize: 15,
+    color: colors.text,
+    textAlign: 'center',
+    opacity: 0.7,
+    lineHeight: 22,
+  },
 });

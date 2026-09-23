@@ -50,7 +50,7 @@ export default function Directory() {
   // empty-string value acts as "clear" (SelectField.onChange gives a string).
   const districtOptions: Option[] = [
     { value: '', label: t('directory.allDistricts') },
-    ...DISTRICTS.map((d) => ({ value: d, label: d })),
+    ...DISTRICTS.map((d) => ({ value: d, label: t(`districts.${d}`, d) })),
   ];
   const caseTypeOptions: Option[] = [
     { value: '', label: t('directory.allCaseTypes') },
