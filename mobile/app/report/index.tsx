@@ -261,7 +261,7 @@ export default function ReportCase() {
     value: c,
     label: t(`caseTypes.${c}`),
   }));
-  const districtOptions: Option[] = DISTRICTS.map((d) => ({ value: d, label: d }));
+  const districtOptions: Option[] = DISTRICTS.map((d) => ({ value: d, label: t(`districts.${d}`, d) }));
 
   return (
     <View style={local.screen}>
@@ -694,7 +694,7 @@ export default function ReportCase() {
                 }
               />
               <ReviewRow label={t('report.locationName')} value={draft.locationName || t('report.notProvided')} />
-              <ReviewRow label={t('report.districtOptional')} value={draft.district || t('report.notProvided')} />
+              <ReviewRow label={t('report.districtOptional')} value={draft.district ? t(`districts.${draft.district}`, draft.district) : t('report.notProvided')} />
             </ReviewSection>
 
             <ReviewSection title={t('report.steps.evidence')} onEdit={() => goToStep(4)}>
