@@ -652,5 +652,32 @@
     "handledTitle": "මෙම නඩුව හසුරුවන ආකාරය",
     "feesTitle": "ආසන්න ගාස්තු",
     "feesNote": "ගාස්තු බෙහෙවින් වෙනස් වේ. පහත බොහෝ නීති ආධාර ආයතන නොමිලේ හෝ අඩු වියදමකින් උදව් කරයි."
+  },
+  "districts": {
+    "Ampara": "අම්පාර",
+    "Anuradhapura": "අනුරාධපුරය",
+    "Badulla": "බදුල්ල",
+    "Batticaloa": "මඩකලපුව",
+    "Colombo": "කොළඹ",
+    "Galle": "ගාල්ල",
+    "Gampaha": "ගම්පහ",
+    "Hambantota": "හම්බන්තොට",
+    "Jaffna": "යාල්පාණය",
+    "Kalutara": "කළුතර",
+    "Kandy": "මහනුවර",
+    "Kegalle": "කෑගල්ල",
+    "Kilinochchi": "කිලිනොච්චිය",
+    "Kurunegala": "කුරුණෑගල",
+    "Mannar": "මන්නාරම",
+    "Matale": "මාතලේ",
+    "Matara": "මාතර",
+    "Monaragala": "මොනරාගල",
+    "Mullaitivu": "මුලතිව්",
+    "Nuwara Eliya": "නුවරඑළිය",
+    "Polonnaruwa": "පොළොන්නරුව",
+    "Puttalam": "පුත්තලම",
+    "Ratnapura": "රත්නපුර",
+    "Trincomalee": "ත්‍රිකුණාමලය",
+    "Vavuniya": "වවුනියාව"
   }
 }
