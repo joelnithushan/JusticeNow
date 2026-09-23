@@ -183,6 +183,7 @@ async function stripEvidenceMetadata(buffer, mimetype, name = '') {
     if (is('png', '.png')) return stripPng(buffer);
     if (is('webp', '.webp')) return stripWebp(buffer);
     if (is('pdf', '.pdf')) return await stripPdf(buffer);
+    if (is('m4a', 'audio', '.m4a')) return buffer; // No metadata stripping for audio
   } catch {
     // Best-effort: a parse failure must not block a legitimate report.
     return buffer;
