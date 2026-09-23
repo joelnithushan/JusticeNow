@@ -12,6 +12,7 @@
     "axios": "^1.20.0",
     "babel-preset-expo": "~57.0.12",
     "expo": "~57.0.24",
+    "expo-audio": "^57.0.5",
     "expo-build-properties": "~57.0.21",
     "expo-camera": "~57.0.5",
     "expo-clipboard": "~57.0.2",
