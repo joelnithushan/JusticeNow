@@ -371,7 +371,11 @@ function StaffProfile() {
         <dt>{t('profile.email')}</dt>
         <dd>{profile.email}</dd>
         <dt>{t('profile.role')}</dt>
-        <dd>{t(`roles.${profile.role}`)}</dd>
+        <dd>
+          {t(`roles.${profile.role}`)}
+          {' — '}
+          <span className="role-desc">{t(`roleDescription.${profile.role}`)}</span>
+        </dd>
         <dt>{t('profile.organisation')}</dt>
         <dd>{profile.organisation_name || '—'}</dd>
       </dl>

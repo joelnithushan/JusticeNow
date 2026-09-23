@@ -315,7 +315,14 @@
   "roles": {
     "officer": "[uncertain] නිලධාරී",
     "attorney": "[uncertain] නීතිඥ",
+    "org_admin": "ආයතන පරිපාලක",
     "admin": "[uncertain] පරිපාලක"
+  },
+  "roleDescription": {
+    "officer": "රාජ්‍ය නොවන සංවිධාන උද්කෝෂණ නිලධාරියා",
+    "attorney": "නීති ආධාර නීතිඥයා",
+    "org_admin": "සංවිධාන කළමනාකරු",
+    "admin": "වේදිකා පරිපාලක"
   },
   "adminStaff": {
     "listTitle": "[uncertain] කාර්ය මණ්ඩලය",

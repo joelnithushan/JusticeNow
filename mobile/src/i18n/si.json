@@ -438,6 +438,12 @@
     "admin": "[uncertain] පරිපාලක",
     "org_admin": "ආයතන පරිපාලක"
   },
+  "roleDescription": {
+    "officer": "රාජ්‍ය නොවන සංවිධාන උද්කෝෂණ නිලධාරියා",
+    "attorney": "නීති ආධාර නීතිඥයා",
+    "org_admin": "සංවිධාන කළමනාකරු",
+    "admin": "වේදිකා පරිපාලක"
+  },
   "adminStaff": {
     "listTitle": "[uncertain] කාර්ය මණ්ඩලය",
     "editorTitle": "[uncertain] කාර්ය මණ්ඩල සාමාජිකයා",

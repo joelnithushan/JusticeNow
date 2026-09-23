@@ -438,6 +438,12 @@
     "admin": "Admin",
     "org_admin": "Organisation admin"
   },
+  "roleDescription": {
+    "officer": "NGO advocacy officer",
+    "attorney": "Legal-aid attorney",
+    "org_admin": "Per-organisation manager",
+    "admin": "Platform administrator"
+  },
   "adminStaff": {
     "listTitle": "Staff",
     "editorTitle": "Staff member",

@@ -438,6 +438,12 @@
     "admin": "[uncertain] நிர்வாகி",
     "org_admin": "அமைப்பு நிர்வாகி"
   },
+  "roleDescription": {
+    "officer": "NGO வக்காலத்து அலுவலர்",
+    "attorney": "சட்ட உதவி வழக்கறிஞர்",
+    "org_admin": "நிறுவன மேலாளர்",
+    "admin": "தள நிர்வாகி"
+  },
   "adminStaff": {
     "listTitle": "[uncertain] ஊழியர்கள்",
     "editorTitle": "[uncertain] ஊழியர்",

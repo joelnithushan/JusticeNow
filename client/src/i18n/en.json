@@ -315,7 +315,14 @@
   "roles": {
     "officer": "Officer",
     "attorney": "Attorney",
+    "org_admin": "Organisation admin",
     "admin": "Admin"
+  },
+  "roleDescription": {
+    "officer": "NGO advocacy officer",
+    "attorney": "Legal-aid attorney",
+    "org_admin": "Per-organisation manager",
+    "admin": "Platform administrator"
   },
   "adminStaff": {
     "listTitle": "Staff",

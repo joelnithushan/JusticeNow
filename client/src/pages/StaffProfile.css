@@ -9,6 +9,13 @@
   margin-bottom: 1rem;
 }
 
+/* Descriptive role text next to the short role label (e.g. "Officer — NGO
+   advocacy officer") so staff can tell their role apart at a glance. */
+.staff-profile .role-desc {
+  color: var(--color-muted, #6b7280);
+  font-weight: 400;
+}
+
 /* Avatar + change-photo control */
 .profile-avatar-row {
   display: flex;

@@ -429,7 +429,10 @@ export default function StaffProfileTab() {
       <ReadOnly label={t('profile.email')} value={profile.email} />
       <ReadOnly
         label={t('profile.role')}
-        value={t(`roles.${profile.role}`, { defaultValue: profile.role })}
+        value={`${t(`roles.${profile.role}`, { defaultValue: profile.role })} — ${t(
+          `roleDescription.${profile.role}`,
+          { defaultValue: '' },
+        )}`.replace(/ — $/, '')}
       />
       <ReadOnly
         label={t('profile.organisation')}
