@@ -6,7 +6,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~57.0.15",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@react-native-community/datetimepicker": "9.1.0",
+    "@react-native-community/datetimepicker": "9.2.1",
     "@react-native-picker/picker": "2.11.4",
     "@supabase/supabase-js": "^2.116.0",
     "axios": "^1.20.0",
@@ -30,20 +30,20 @@
     "expo-status-bar": "~57.0.1",
     "expo-web-browser": "~57.0.3",
     "i18next": "^26.4.2",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "react-i18next": "^17.0.14",
-    "react-native": "0.86.3",
-    "react-native-maps": "1.27.2",
-    "react-native-qrcode-svg": "^6.3.24",
-    "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "~4.26.0",
-    "react-native-svg": "15.15.4",
+    "react-native": "0.87.1",
+    "react-native-maps": "1.29.8",
+    "react-native-qrcode-svg": "^6.3.25",
+    "react-native-safe-area-context": "~5.10.0",
+    "react-native-screens": "~4.28.0",
+    "react-native-svg": "15.15.5",
     "react-native-url-polyfill": "^4.0.0",
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
-    "@types/react": "~19.2.4",
+    "@types/react": "~19.3.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
