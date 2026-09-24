@@ -91,7 +91,10 @@
       "descriptionTooShort": "කරුණාකර අවම වශයෙන් අකුරු 20ක් ලියන්න.",
       "dateInFuture": "දිනය අනාගතයේ විය නොහැක.",
       "evidenceTooBig": "ගොනුව 5 MB හෝ ඊට අඩු විය යුතුය.",
-      "evidenceType": "JPG, PNG, WebP හෝ PDF ගොනු පමණක් අවසර ඇත."
+      "evidenceType": "JPG, PNG, WebP, PDF හෝ M4A හඬ ගොනු පමණක් අවසර ඇත.",
+      "recordAudio": "හඬ පටිගත කරන්න",
+      "stopRecording": "පටිගත කිරීම නවත්වන්න",
+      "recordingActive": "පටිගත වෙමින් පවතී…"
     },
     "anonymousBanner": "ඔබගේ අනන්‍යතාව හෙළි නොකර මෙම වාර්තාව ඉදිරිපත් කළ හැක.",
     "stepOf": "{{total}} න් {{current}}",
