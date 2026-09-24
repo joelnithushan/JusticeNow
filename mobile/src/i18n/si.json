@@ -94,7 +94,10 @@
       "evidenceType": "JPG, PNG, WebP, PDF හෝ M4A හඬ ගොනු පමණක් අවසර ඇත.",
       "recordAudio": "හඬ පටිගත කරන්න",
       "stopRecording": "පටිගත කිරීම නවත්වන්න",
-      "recordingActive": "පටිගත වෙමින් පවතී…"
+      "recordingActive": "පටිගත වෙමින් පවතී…",
+      "micPermissionRequired": "පටිගත කිරීමට මයික්‍රෝෆෝනය සඳහා අවසර අවශ්‍යයි.",
+      "recordStartFailed": "පටිගත කිරීම ආරම්භ කළ නොහැක. නැවත උත්සාහ කරන්න.",
+      "recordStopFailed": "පටිගත කිරීම නැවැත්විය නොහැක. නැවත උත්සාහ කරන්න."
     },
     "anonymousBanner": "ඔබගේ අනන්‍යතාව හෙළි නොකර මෙම වාර්තාව ඉදිරිපත් කළ හැක.",
     "stepOf": "{{total}} න් {{current}}",
