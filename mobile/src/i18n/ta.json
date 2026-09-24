@@ -91,7 +91,10 @@
       "descriptionTooShort": "குறைந்தது 20 எழுத்துகள் எழுதவும்.",
       "dateInFuture": "தேதி எதிர்காலத்தில் இருக்க முடியாது.",
       "evidenceTooBig": "கோப்பு 5 MB அல்லது அதற்கு குறைவாக இருக்க வேண்டும்.",
-      "evidenceType": "JPG, PNG, WebP அல்லது PDF கோப்புகள் மட்டுமே அனுமதிக்கப்படும்."
+      "evidenceType": "JPG, PNG, WebP, PDF அல்லது M4A ஆடியோ கோப்புகள் மட்டுமே அனுமதிக்கப்படும்.",
+      "recordAudio": "குரல் பதிவு செய்",
+      "stopRecording": "பதிவை நிறுத்து",
+      "recordingActive": "பதிவாகிறது…"
     },
     "anonymousBanner": "உங்கள் அடையாளத்தை வெளிப்படுத்தாமல் இந்த அறிக்கையை சமர்ப்பிக்கலாம்.",
     "stepOf": "{{total}} இல் {{current}}",
