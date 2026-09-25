@@ -38,8 +38,8 @@ import { useTranslation } from 'react-i18next';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { useAudioRecorder, useAudioRecorderState, RecordingPresets, requestRecordingPermissionsAsync } from 'expo-audio';
-import * as FileSystem from 'expo-file-system';
+import { useAudioRecorder, useAudioRecorderState, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import ReporterTopBar from '../../components/ReporterTopBar';
 import SelectField, { type Option } from '../../components/SelectField';
@@ -146,6 +146,10 @@ export default function ReportCase() {
         setErrors((e) => ({ ...e, evidence: t('report.wizard.micPermissionRequired') }));
         return;
       }
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+      });
       await audioRecorder.prepareToRecordAsync();
       audioRecorder.record();
     } catch (err) {
@@ -577,7 +581,7 @@ export default function ReportCase() {
             <Labelled label={t('report.evidencePrompt')} optional>
               <Text style={theme.privacyNoteSmall}>{t('report.privacyNoteEvidence')}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                <Pressable style={theme.btnSecondary} onPress={pickEvidence}>
+                <Pressable style={[theme.btnSecondary, { flex: 1, marginTop: 0 }]} onPress={pickEvidence}>
                   <Text style={theme.btnSecondaryText}>
                     {draft.evidenceFile
                       ? t('report.wizard.changeFile')
@@ -585,11 +589,11 @@ export default function ReportCase() {
                   </Text>
                 </Pressable>
                 {!audioState.isRecording ? (
-                  <Pressable style={theme.btnSecondary} onPress={startRecording}>
+                  <Pressable style={[theme.btnSecondary, { flex: 1, marginTop: 0 }]} onPress={startRecording}>
                     <Text style={theme.btnSecondaryText}>{t('report.wizard.recordAudio')}</Text>
                   </Pressable>
                 ) : (
-                  <Pressable style={[theme.btnSecondary, { borderColor: '#d32f2f' }]} onPress={stopRecording}>
+                  <Pressable style={[theme.btnSecondary, { flex: 1, marginTop: 0, borderColor: '#d32f2f', borderWidth: 1 }]} onPress={stopRecording}>
                     <Text style={[theme.btnSecondaryText, { color: '#d32f2f' }]}>
                       {t('report.wizard.stopRecording')}
                     </Text>
