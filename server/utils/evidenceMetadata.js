@@ -134,6 +134,73 @@ function stripWebp(buf) {
   return Buffer.concat([header, body]);
 }
 
+/**
+ * M4A / MP4 audio (ISO-BMFF): neutralise the identifying metadata a phone writes
+ * into a voice recording. The dangerous fields are the creation/modification
+ * timestamps in `mvhd`/`tkhd` (exact record time) and the `udta`/`meta` boxes
+ * (which can hold GPS location `©xyz`, the date, and device/encoder tags).
+ *
+ * WHY IN-PLACE (no size changes): an MP4's sample table (`stco`/`co64`) stores
+ * ABSOLUTE byte offsets to the audio data. If we removed a box and shifted the
+ * file, those offsets would point at the wrong bytes and the clip would not play.
+ * So instead we edit within the existing byte layout, keeping every box the same
+ * size: timestamps are zeroed to the 1904 epoch, and each `udta`/`meta` box is
+ * turned into a `free` padding box (which players ignore) with its payload wiped.
+ * Nothing moves, so the audio stays byte-for-byte valid.
+ */
+function stripM4a(buf) {
+  // Must look like ISO-BMFF: the first box should be 'ftyp'. If not, leave it be.
+  if (buf.length < 16 || buf.toString('latin1', 4, 8) !== 'ftyp') return buf;
+
+  const out = Buffer.from(buf); // edit a copy; never mutate the caller's bytes
+
+  // Zero the creation_time + modification_time that follow version(1)+flags(3).
+  // v0 stores them as 32-bit, v1 as 64-bit. Zero == 1904-01-01, a neutral value.
+  const zeroTimestamps = (payloadStart, boxEnd) => {
+    if (payloadStart + 4 > boxEnd) return;
+    const version = out[payloadStart];
+    const p = payloadStart + 4;
+    const width = version === 1 ? 8 : 4;
+    if (p + width * 2 <= boxEnd) out.fill(0, p, p + width * 2);
+  };
+
+  // Walk the boxes in [start, end); recurse only into the containers that hold
+  // our targets so we never touch media payloads (e.g. mdat).
+  const walk = (start, end) => {
+    let pos = start;
+    while (pos + 8 <= end) {
+      let size = out.readUInt32BE(pos);
+      const type = out.toString('latin1', pos + 4, pos + 8);
+      let headerSize = 8;
+      if (size === 1) {
+        if (pos + 16 > end) break;
+        // 64-bit size. JS numbers hold this exactly for any real evidence file.
+        size = out.readUInt32BE(pos + 8) * 2 ** 32 + out.readUInt32BE(pos + 12);
+        headerSize = 16;
+      } else if (size === 0) {
+        size = end - pos; // runs to the end of the parent
+      }
+      const boxEnd = pos + size;
+      if (size < headerSize || boxEnd > end) break;
+      const payloadStart = pos + headerSize;
+
+      if (type === 'moov' || type === 'trak') {
+        walk(payloadStart, boxEnd); // descend to reach mvhd/tkhd/udta/meta
+      } else if (type === 'mvhd' || type === 'tkhd') {
+        zeroTimestamps(payloadStart, boxEnd);
+      } else if (type === 'udta' || type === 'meta') {
+        // Re-label as free padding and wipe the payload (GPS/date/device tags).
+        out.write('free', pos + 4, 'latin1');
+        out.fill(0, payloadStart, boxEnd);
+      }
+      pos = boxEnd;
+    }
+  };
+
+  walk(0, out.length);
+  return out;
+}
+
 /** PDF: strip document metadata via pdf-lib IF it is installed (optional dep). */
 async function stripPdf(buf) {
   let PDFDocument;
@@ -183,7 +250,8 @@ async function stripEvidenceMetadata(buffer, mimetype, name = '') {
     if (is('png', '.png')) return stripPng(buffer);
     if (is('webp', '.webp')) return stripWebp(buffer);
     if (is('pdf', '.pdf')) return await stripPdf(buffer);
-    if (is('m4a', 'audio', '.m4a')) return buffer; // No metadata stripping for audio
+    // Voice reports (M4A/MP4 audio): strip record-time + location/device tags.
+    if (is('m4a', 'audio', '.m4a', '.mp4')) return stripM4a(buffer);
   } catch {
     // Best-effort: a parse failure must not block a legitimate report.
     return buffer;
@@ -197,4 +265,5 @@ module.exports = {
   stripJpeg,
   stripPng,
   stripWebp,
+  stripM4a,
 };

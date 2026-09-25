@@ -94,7 +94,10 @@
       "evidenceType": "Only JPG, PNG, WebP, PDF or M4A audio files are allowed.",
       "recordAudio": "Record Voice",
       "stopRecording": "Stop Recording",
-      "recordingActive": "Recording…"
+      "recordingActive": "Recording…",
+      "micPermissionRequired": "Microphone permission is required to record.",
+      "recordStartFailed": "Could not start recording. Please try again.",
+      "recordStopFailed": "Could not stop recording. Please try again."
     },
     "anonymousBanner": "You can submit this report without revealing your identity.",
     "stepOf": "{{current}} of {{total}}",
