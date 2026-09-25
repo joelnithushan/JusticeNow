@@ -143,13 +143,13 @@ export default function ReportCase() {
       setErrors((e) => ({ ...e, evidence: '' }));
       const { granted } = await requestRecordingPermissionsAsync();
       if (!granted) {
-        setErrors((e) => ({ ...e, evidence: 'Microphone permission is required.' }));
+        setErrors((e) => ({ ...e, evidence: t('report.wizard.micPermissionRequired') }));
         return;
       }
       await audioRecorder.prepareToRecordAsync();
       audioRecorder.record();
     } catch (err) {
-      setErrors((e) => ({ ...e, evidence: 'Could not start recording.' }));
+      setErrors((e) => ({ ...e, evidence: t('report.wizard.recordStartFailed') }));
     }
   };
 
@@ -174,7 +174,7 @@ export default function ReportCase() {
         });
       }
     } catch (err) {
-      setErrors((e) => ({ ...e, evidence: 'Could not stop recording.' }));
+      setErrors((e) => ({ ...e, evidence: t('report.wizard.recordStopFailed') }));
     }
   };
 

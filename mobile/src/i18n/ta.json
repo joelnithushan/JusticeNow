@@ -94,7 +94,10 @@
       "evidenceType": "JPG, PNG, WebP, PDF அல்லது M4A ஆடியோ கோப்புகள் மட்டுமே அனுமதிக்கப்படும்.",
       "recordAudio": "குரல் பதிவு செய்",
       "stopRecording": "பதிவை நிறுத்து",
-      "recordingActive": "பதிவாகிறது…"
+      "recordingActive": "பதிவாகிறது…",
+      "micPermissionRequired": "பதிவு செய்ய மைக்ரோஃபோன் அனுமதி தேவை.",
+      "recordStartFailed": "பதிவைத் தொடங்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+      "recordStopFailed": "பதிவை நிறுத்த முடியவில்லை. மீண்டும் முயற்சிக்கவும்."
     },
     "anonymousBanner": "உங்கள் அடையாளத்தை வெளிப்படுத்தாமல் இந்த அறிக்கையை சமர்ப்பிக்கலாம்.",
     "stepOf": "{{total}} இல் {{current}}",
