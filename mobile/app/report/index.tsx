@@ -38,6 +38,8 @@ import { useTranslation } from 'react-i18next';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import { useAudioRecorder, useAudioRecorderState, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import ReporterTopBar from '../../components/ReporterTopBar';
 import SelectField, { type Option } from '../../components/SelectField';
@@ -150,6 +152,53 @@ export default function ReportCase() {
   const [confirmed, setConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const audioState = useAudioRecorderState(audioRecorder);
+
+  const startRecording = async () => {
+    try {
+      setErrors((e) => ({ ...e, evidence: '' }));
+      const { granted } = await requestRecordingPermissionsAsync();
+      if (!granted) {
+        setErrors((e) => ({ ...e, evidence: t('report.wizard.micPermissionRequired') }));
+        return;
+      }
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+      });
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+    } catch (err) {
+      setErrors((e) => ({ ...e, evidence: t('report.wizard.recordStartFailed') }));
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      await audioRecorder.stop();
+      if (audioRecorder.uri) {
+        const fileInfo = await FileSystem.getInfoAsync(audioRecorder.uri);
+        const size = fileInfo.exists ? fileInfo.size : 0;
+
+        if (size > MAX_EVIDENCE_BYTES) {
+          setErrors((e) => ({ ...e, evidence: t('report.wizard.evidenceTooBig') }));
+          return;
+        }
+
+        setField('evidenceFile', {
+          uri: audioRecorder.uri,
+          name: 'voice_report.m4a',
+          mimeType: 'audio/m4a',
+          size,
+          lastModified: Date.now(),
+        });
+      }
+    } catch (err) {
+      setErrors((e) => ({ ...e, evidence: t('report.wizard.recordStopFailed') }));
+    }
+  };
 
   // ---- Per-step validation. Only the minimum is enforced. ----
   const validateStep = (s: number): boolean => {
@@ -288,7 +337,7 @@ export default function ReportCase() {
     value: c,
     label: t(`caseTypes.${c}`),
   }));
-  const districtOptions: Option[] = DISTRICTS.map((d) => ({ value: d, label: d }));
+  const districtOptions: Option[] = DISTRICTS.map((d) => ({ value: d, label: t(`districts.${d}`, d) }));
 
   return (
     <View style={local.screen}>
@@ -592,13 +641,31 @@ export default function ReportCase() {
           <View>
             <Labelled label={t('report.evidencePrompt')} optional>
               <Text style={theme.privacyNoteSmall}>{t('report.privacyNoteEvidence')}</Text>
-              <Pressable style={theme.btnSecondary} onPress={pickEvidence}>
-                <Text style={theme.btnSecondaryText}>
-                  {draft.evidenceFile
-                    ? t('report.wizard.changeFile')
-                    : t('report.wizard.chooseFile')}
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                <Pressable style={[theme.btnSecondary, { flex: 1, marginTop: 0 }]} onPress={pickEvidence}>
+                  <Text style={theme.btnSecondaryText}>
+                    {draft.evidenceFile
+                      ? t('report.wizard.changeFile')
+                      : t('report.wizard.chooseFile')}
+                  </Text>
+                </Pressable>
+                {!audioState.isRecording ? (
+                  <Pressable style={[theme.btnSecondary, { flex: 1, marginTop: 0 }]} onPress={startRecording}>
+                    <Text style={theme.btnSecondaryText}>{t('report.wizard.recordAudio')}</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable style={[theme.btnSecondary, { flex: 1, marginTop: 0, borderColor: '#d32f2f', borderWidth: 1 }]} onPress={stopRecording}>
+                    <Text style={[theme.btnSecondaryText, { color: '#d32f2f' }]}>
+                      {t('report.wizard.stopRecording')}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+              {audioState.isRecording && (
+                <Text style={[theme.privacyNoteSmall, { color: '#d32f2f', marginTop: 8 }]}>
+                  {t('report.wizard.recordingActive')} {Math.floor(audioState.durationMillis / 1000)}s
                 </Text>
-              </Pressable>
+              )}
               {draft.evidenceFile ? (
                 <View style={local.fileRow}>
                   <Text style={local.fileName} numberOfLines={1}>
@@ -755,7 +822,7 @@ export default function ReportCase() {
                 }
               />
               <ReviewRow label={t('report.locationName')} value={draft.locationName || t('report.notProvided')} />
-              <ReviewRow label={t('report.district')} value={draft.district || t('report.notProvided')} />
+              <ReviewRow label={t('report.districtOptional')} value={draft.district ? t(`districts.${draft.district}`, draft.district) : t('report.notProvided')} />
             </ReviewSection>
 
             <ReviewSection title={t('report.steps.evidence')} onEdit={() => goToStep(4)}>

@@ -218,7 +218,7 @@ export default function AdminOrganisationEditor() {
 
   const title = isNew ? t('adminOrg.new') : t('adminOrg.edit');
 
-  const districtOptions: Option[] = DISTRICTS.map((d) => ({ value: d, label: d }));
+  const districtOptions: Option[] = DISTRICTS.map((d) => ({ value: d, label: t(`districts.${d}`, d) }));
 
   return (
     <View style={[local.screen, { paddingTop: insets.top }]}>

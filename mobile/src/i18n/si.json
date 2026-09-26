@@ -112,7 +112,13 @@
       "descriptionTooShort": "කරුණාකර අවම වශයෙන් අකුරු 20ක් ලියන්න.",
       "dateInFuture": "දිනය අනාගතයේ විය නොහැක.",
       "evidenceTooBig": "ගොනුව 5 MB හෝ ඊට අඩු විය යුතුය.",
-      "evidenceType": "JPG, PNG, WebP හෝ PDF ගොනු පමණක් අවසර ඇත."
+      "evidenceType": "JPG, PNG, WebP, PDF හෝ M4A හඬ ගොනු පමණක් අවසර ඇත.",
+      "recordAudio": "හඬ පටිගත කරන්න",
+      "stopRecording": "පටිගත කිරීම නවත්වන්න",
+      "recordingActive": "පටිගත වෙමින් පවතී…",
+      "micPermissionRequired": "පටිගත කිරීමට මයික්‍රෝෆෝනය සඳහා අවසර අවශ්‍යයි.",
+      "recordStartFailed": "පටිගත කිරීම ආරම්භ කළ නොහැක. නැවත උත්සාහ කරන්න.",
+      "recordStopFailed": "පටිගත කිරීම නැවැත්විය නොහැක. නැවත උත්සාහ කරන්න."
     },
     "anonymousBanner": "ඔබගේ අනන්‍යතාව හෙළි නොකර මෙම වාර්තාව ඉදිරිපත් කළ හැක.",
     "stepOf": "{{total}} න් {{current}}",
@@ -739,5 +745,32 @@
     "handledTitle": "මෙම නඩුව හසුරුවන ආකාරය",
     "feesTitle": "ආසන්න ගාස්තු",
     "feesNote": "ගාස්තු බෙහෙවින් වෙනස් වේ. පහත බොහෝ නීති ආධාර ආයතන නොමිලේ හෝ අඩු වියදමකින් උදව් කරයි."
+  },
+  "districts": {
+    "Ampara": "අම්පාර",
+    "Anuradhapura": "අනුරාධපුරය",
+    "Badulla": "බදුල්ල",
+    "Batticaloa": "මඩකලපුව",
+    "Colombo": "කොළඹ",
+    "Galle": "ගාල්ල",
+    "Gampaha": "ගම්පහ",
+    "Hambantota": "හම්බන්තොට",
+    "Jaffna": "යාල්පාණය",
+    "Kalutara": "කළුතර",
+    "Kandy": "මහනුවර",
+    "Kegalle": "කෑගල්ල",
+    "Kilinochchi": "කිලිනොච්චිය",
+    "Kurunegala": "කුරුණෑගල",
+    "Mannar": "මන්නාරම",
+    "Matale": "මාතලේ",
+    "Matara": "මාතර",
+    "Monaragala": "මොනරාගල",
+    "Mullaitivu": "මුලතිව්",
+    "Nuwara Eliya": "නුවරඑළිය",
+    "Polonnaruwa": "පොළොන්නරුව",
+    "Puttalam": "පුත්තලම",
+    "Ratnapura": "රත්නපුර",
+    "Trincomalee": "ත්‍රිකුණාමලය",
+    "Vavuniya": "වවුනියාව"
   }
 }

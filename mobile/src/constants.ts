@@ -146,6 +146,7 @@ export const ALLOWED_EVIDENCE_MIME = [
   'image/png',
   'image/webp',
   'application/pdf',
+  'audio/m4a',
 ];
 
 // Minimum length of the description, mirrored on the server-side check.
