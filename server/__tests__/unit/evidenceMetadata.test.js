@@ -115,6 +115,55 @@ describe('stripEvidenceMetadata — PDF (document info)', () => {
   });
 });
 
+describe('stripEvidenceMetadata — M4A/MP4 audio (record time + GPS/tags)', () => {
+  const u32be = (n) => {
+    const b = Buffer.alloc(4);
+    b.writeUInt32BE(n >>> 0);
+    return b;
+  };
+  // An ISO-BMFF box: [size:uint32][type:4][payload].
+  const box = (type, payload) => Buffer.concat([u32be(8 + payload.length), latin(type), payload]);
+
+  it('zeroes mvhd timestamps and wipes the udta GPS/tag box, without shifting bytes', async () => {
+    // mvhd (v0): version+flags, then nonzero creation + modification times.
+    const mvhd = box(
+      'mvhd',
+      Buffer.concat([
+        Buffer.from([0x00, 0x00, 0x00, 0x00]),
+        Buffer.from([0xaa, 0xbb, 0xcc, 0xdd]), // creation_time (exact record time)
+        Buffer.from([0x11, 0x22, 0x33, 0x44]), // modification_time
+        u32be(1000), // timescale (must survive)
+      ]),
+    );
+    // udta with a ©xyz location atom carrying fake GPS coordinates.
+    const xyz = box('©xyz', latin('SECRET_GPS_+06.90+079.85/'));
+    const udta = box('udta', xyz);
+    const moov = box('moov', Buffer.concat([mvhd, udta]));
+    const ftyp = box('ftyp', Buffer.concat([latin('M4A '), u32be(0), latin('M4A ')]));
+    const m4a = Buffer.concat([ftyp, moov]);
+
+    const out = await stripEvidenceMetadata(m4a, 'audio/m4a', 'voice_report.m4a');
+    const text = out.toString('latin1');
+
+    // Same length → the audio sample offsets (stco/co64) stay valid.
+    expect(out.length).toBe(m4a.length);
+    expect(text).toContain('ftyp'); // still an MP4 container
+    // The record-time bytes are gone (zeroed to the 1904 epoch).
+    expect(out.includes(Buffer.from([0xaa, 0xbb, 0xcc, 0xdd]))).toBe(false);
+    expect(out.includes(Buffer.from([0x11, 0x22, 0x33, 0x44]))).toBe(false);
+    // The GPS location and the udta box itself are gone; it's now free padding.
+    expect(text).not.toContain('SECRET_GPS');
+    expect(text).not.toContain('udta');
+    expect(text).toContain('free');
+  });
+
+  it('leaves a non-MP4 buffer untouched (best-effort)', async () => {
+    const buf = Buffer.from('not-really-audio-bytes');
+    const out = await stripEvidenceMetadata(buf, 'audio/m4a', 'x.m4a');
+    expect(out).toEqual(buf);
+  });
+});
+
 describe('stripEvidenceMetadata — passthrough', () => {
   it('returns the original bytes for an unrecognised type', async () => {
     const buf = Buffer.from('not-an-image');

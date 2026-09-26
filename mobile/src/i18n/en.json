@@ -112,7 +112,13 @@
       "descriptionTooShort": "Please write at least 20 characters.",
       "dateInFuture": "The date cannot be in the future.",
       "evidenceTooBig": "The file must be 5 MB or smaller.",
-      "evidenceType": "Only JPG, PNG, WebP or PDF files are allowed."
+      "evidenceType": "Only JPG, PNG, WebP, PDF or M4A audio files are allowed.",
+      "recordAudio": "Record Voice",
+      "stopRecording": "Stop Recording",
+      "recordingActive": "Recording…",
+      "micPermissionRequired": "Microphone permission is required to record.",
+      "recordStartFailed": "Could not start recording. Please try again.",
+      "recordStopFailed": "Could not stop recording. Please try again."
     },
     "anonymousBanner": "You can submit this report without revealing your identity.",
     "stepOf": "{{current}} of {{total}}",
@@ -739,5 +745,32 @@
     "handledTitle": "How this case is handled",
     "feesTitle": "Approximate fees",
     "feesNote": "Fees vary widely. Many legal-aid organisations below help for free or low cost."
+  },
+  "districts": {
+    "Ampara": "Ampara",
+    "Anuradhapura": "Anuradhapura",
+    "Badulla": "Badulla",
+    "Batticaloa": "Batticaloa",
+    "Colombo": "Colombo",
+    "Galle": "Galle",
+    "Gampaha": "Gampaha",
+    "Hambantota": "Hambantota",
+    "Jaffna": "Jaffna",
+    "Kalutara": "Kalutara",
+    "Kandy": "Kandy",
+    "Kegalle": "Kegalle",
+    "Kilinochchi": "Kilinochchi",
+    "Kurunegala": "Kurunegala",
+    "Mannar": "Mannar",
+    "Matale": "Matale",
+    "Matara": "Matara",
+    "Monaragala": "Monaragala",
+    "Mullaitivu": "Mullaitivu",
+    "Nuwara Eliya": "Nuwara Eliya",
+    "Polonnaruwa": "Polonnaruwa",
+    "Puttalam": "Puttalam",
+    "Ratnapura": "Ratnapura",
+    "Trincomalee": "Trincomalee",
+    "Vavuniya": "Vavuniya"
   }
 }

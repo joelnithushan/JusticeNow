@@ -46,7 +46,7 @@ export default function Preferences() {
   // already has an active language from device detection.
   const [language, setLanguage] = useState<string | null>(null);
 
-  const districtOptions: Option[] = DISTRICTS.map((d) => ({ value: d, label: d }));
+  const districtOptions: Option[] = DISTRICTS.map((d) => ({ value: d, label: t(`districts.${d}`, d) }));
 
   const canContinue = !!language;
 
