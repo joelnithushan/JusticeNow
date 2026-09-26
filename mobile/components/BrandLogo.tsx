@@ -20,10 +20,12 @@ type Props = {
   size?: number;
   /** "plain" for light backgrounds; "chip" wraps it in a white circle for dark ones. */
   variant?: 'plain' | 'chip';
+  /** Recolour the (single-colour) mark — e.g. white on the navy app bar. Plain variant only. */
+  tintColor?: string;
   accessibilityLabel?: string;
 };
 
-export default function BrandLogo({ size = 64, variant = 'plain', accessibilityLabel = 'JusticeNow' }: Props) {
+export default function BrandLogo({ size = 64, variant = 'plain', tintColor, accessibilityLabel = 'JusticeNow' }: Props) {
   if (variant === 'chip') {
     // Inner artwork is inset from the circle edge so the seal breathes inside
     // the badge rather than touching the rim.
@@ -51,6 +53,7 @@ export default function BrandLogo({ size = 64, variant = 'plain', accessibilityL
     <Image
       source={SEAL}
       style={{ width: size, height: size }}
+      tintColor={tintColor}
       resizeMode="contain"
       accessibilityRole="image"
       accessibilityLabel={accessibilityLabel}

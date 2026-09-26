@@ -101,7 +101,7 @@ async function authenticateStaff(email, password) {
 
   const { data: staff, error } = await supabase
     .from('staff_users')
-    .select('id, name, email, role, organisation_id, password_hash, is_active, mfa_enabled')
+    .select('id, name, email, role, organisation_id, password_hash, is_active, mfa_enabled, mfa_method, access_status')
     .eq('email', normalisedEmail)
     .maybeSingle();
 
@@ -129,13 +129,12 @@ async function authenticateStaff(email, password) {
     throw { status: 401, message: INVALID_CREDENTIALS_MESSAGE };
   }
 
-  // A deactivated account must be indistinguishable from a wrong password: we
-  // run the bcrypt.compare FIRST (so timing does not leak "this email is real"),
-  // then reject an inactive staff member with the SAME generic 401. Surfacing a
-  // distinct "account disabled" message would be a login oracle — it would let
-  // an attacker confirm which emails exist, exactly what INVALID_CREDENTIALS_
-  // MESSAGE is designed to prevent.
-  if (staff.is_active === false) {
+  // A deactivated OR rejected account must be indistinguishable from a wrong
+  // password: we run the bcrypt.compare FIRST (so timing does not leak "this email
+  // is real"), then reject with the SAME generic 401 (no login oracle). Onboarding
+  // and pending accounts CAN log in — they need to finish onboarding / see their
+  // approval status; case access is gated separately (requireApproved).
+  if (staff.is_active === false || staff.access_status === 'rejected') {
     throw { status: 401, message: INVALID_CREDENTIALS_MESSAGE };
   }
 
@@ -144,7 +143,9 @@ async function authenticateStaff(email, password) {
   // pending-MFA token and demand a code (see services/mfa.completeMfaLogin). We
   // return only the id: no JWT, no staff profile, until the second factor passes.
   if (staff.mfa_enabled === true) {
-    return { mfaRequired: true, staffId: staff.id };
+    // Tell the controller WHICH second factor to drive: a TOTP account just asks
+    // for the app code, but an 'email' account needs a fresh code emailed now.
+    return { mfaRequired: true, staffId: staff.id, mfaMethod: staff.mfa_method || 'totp' };
   }
 
   const safeStaff = {
@@ -153,6 +154,7 @@ async function authenticateStaff(email, password) {
     email: staff.email,
     role: staff.role,
     organisation_id: staff.organisation_id,
+    access_status: staff.access_status,
   };
 
   // 'password' method: this session was proven by a password, so /me may allow

@@ -9,12 +9,14 @@
  */
 
 const express = require('express');
-const { requireStaff } = require('../middleware/auth');
+const { requireStaff, requireApproved } = require('../middleware/auth');
 const { getAnalytics } = require('../controllers/analyticsController');
 
 const router = express.Router();
 
 // GET /api/analytics — aggregate counts by status/type/district + monthly volume.
-router.get('/', requireStaff, getAnalytics);
+// requireMfaEnrolled: analytics is case-derived data, so non-admins must have 2FA
+// enabled (admins exempt) — same mandatory-2FA policy as /api/reports.
+router.get('/', requireStaff, requireApproved, getAnalytics);
 
 module.exports = router;

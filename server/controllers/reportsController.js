@@ -64,9 +64,9 @@ const createReport = async (req, res) => {
       return s.split(',').map((x) => x.trim()).filter(Boolean);
     };
 
-    // ---- Validation. MANDATORY per spec: reporter type, category, description.
-    // Everything else is optional (data minimisation). District/location are NOT
-    // forced. Controlled fields are validated ONLY when present. ----
+    // ---- Validation. MANDATORY per spec: reporter type, category, description,
+    // district. Everything else is optional (data minimisation). Controlled
+    // fields are validated ONLY when present. ----
     const errors = [];
 
     // reporter_type is mandatory in the mobile UI, but we DEFAULT it server-side
@@ -88,9 +88,14 @@ const createReport = async (req, res) => {
       errors.push('description is required and cannot be empty.');
     }
 
-    // District is now OPTIONAL; validate only if provided.
+    // District is MANDATORY. The schema stores it NOT NULL and staff need it to
+    // route a case to the right local organisation. A blank district used to
+    // slip past validation and then fail at the DB insert, silently losing the
+    // report — so we reject it here with a clear message instead.
     const trimmedDistrict = str(b.district);
-    if (trimmedDistrict && !DISTRICTS.includes(trimmedDistrict)) {
+    if (!trimmedDistrict) {
+      errors.push('district is required.');
+    } else if (!DISTRICTS.includes(trimmedDistrict)) {
       errors.push('district must be a valid Sri Lankan district.');
     }
 
@@ -175,7 +180,7 @@ const createReport = async (req, res) => {
         incident_date_approximate: bool(b.incident_date_approximate),
         incident_time: optStr(b.incident_time),
         incident_time_approximate: bool(b.incident_time_approximate),
-        district: trimmedDistrict || null,
+        district: trimmedDistrict,
         location_name: optStr(b.location_name),
         evidence_path: evidencePath,
         evidence_description: optStr(b.evidence_description),
