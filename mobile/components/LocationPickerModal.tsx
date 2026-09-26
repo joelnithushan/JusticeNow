@@ -10,10 +10,19 @@
  * reporter's own location. This keeps the incident location coarse and safe.
  */
 
-import React, { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Keyboard,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, type Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import { DISTRICTS } from '../src/constants';
@@ -41,8 +50,53 @@ export default function LocationPickerModal({
 }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const mapRef = useRef<MapView>(null);
   const [coord, setCoord] = useState<Coord | null>(null);
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+
+  // Forward-geocode a typed place name (e.g. "Jaffna Bus Stand") to a coordinate
+  // and drop the pin there. We use OpenStreetMap's Nominatim because it resolves
+  // named landmarks/POIs (which Apple's geocoder does not), biased to Sri Lanka
+  // (countrycodes=lk). Only the place NAME is sent — never any reporter identity —
+  // and on confirm we still keep just the coarse reverse-geocoded name + district,
+  // matching the rest of this screen's privacy model.
+  const search = async () => {
+    const q = query.trim();
+    if (!q || searching) return;
+    Keyboard.dismiss();
+    setSearching(true);
+    setNotFound(false);
+    try {
+      const url =
+        'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=lk&q=' +
+        encodeURIComponent(q);
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'JusticeNow/1.0 (anonymous incident reporting)' },
+      });
+      const hits = (await res.json()) as Array<{ lat: string; lon: string }>;
+      const hit = hits[0];
+      if (!hit) {
+        setNotFound(true);
+        return;
+      }
+      const next = { latitude: parseFloat(hit.lat), longitude: parseFloat(hit.lon) };
+      setCoord(next);
+      // Zoom in close enough to confirm the spot the search resolved to.
+      mapRef.current?.animateToRegion(
+        { ...next, latitudeDelta: 0.02, longitudeDelta: 0.02 } as Region,
+        500,
+      );
+    } catch {
+      // Search is best-effort; on any failure just prompt the reporter to retry
+      // (or fall back to tapping the map). We never surface the raw error.
+      setNotFound(true);
+    } finally {
+      setSearching(false);
+    }
+  };
 
   const confirm = async () => {
     if (!coord || busy) return;
@@ -73,6 +127,8 @@ export default function LocationPickerModal({
 
   const close = () => {
     setCoord(null);
+    setQuery('');
+    setNotFound(false);
     onClose();
   };
 
@@ -80,9 +136,13 @@ export default function LocationPickerModal({
     <Modal visible={visible} animationType="slide" onRequestClose={close}>
       <View style={styles.container}>
         <MapView
+          ref={mapRef}
           style={StyleSheet.absoluteFill}
           initialRegion={SL_REGION}
-          onPress={(e) => setCoord(e.nativeEvent.coordinate)}
+          onPress={(e) => {
+            setCoord(e.nativeEvent.coordinate);
+            setNotFound(false);
+          }}
         >
           {coord ? (
             <Marker
@@ -94,9 +154,42 @@ export default function LocationPickerModal({
           ) : null}
         </MapView>
 
-        {/* Instruction pill at the top. */}
-        <View style={[styles.hintWrap, { top: insets.top + 12 }]} pointerEvents="none">
-          <Text style={styles.hint}>{t('report.mapPrompt')}</Text>
+        {/* Search + instruction, anchored at the top. */}
+        <View style={[styles.topWrap, { top: insets.top + 12 }]}>
+          <View style={styles.searchRow}>
+            <TextInput
+              style={styles.searchInput}
+              value={query}
+              onChangeText={(v) => {
+                setQuery(v);
+                setNotFound(false);
+              }}
+              placeholder={t('report.mapSearchPlaceholder')}
+              placeholderTextColor={colors.muted}
+              returnKeyType="search"
+              onSubmitEditing={search}
+              autoCorrect={false}
+              accessibilityLabel={t('report.mapSearchPlaceholder')}
+            />
+            <Pressable
+              onPress={search}
+              disabled={!query.trim() || searching}
+              style={[styles.searchBtn, (!query.trim() || searching) && styles.searchBtnDisabled]}
+              accessibilityRole="button"
+              accessibilityLabel={t('report.mapSearch')}
+            >
+              {searching ? (
+                <ActivityIndicator color={colors.primaryText} />
+              ) : (
+                <Text style={styles.searchBtnText}>{t('report.mapSearch')}</Text>
+              )}
+            </Pressable>
+          </View>
+          <View style={styles.hintWrap} pointerEvents="none">
+            <Text style={styles.hint}>
+              {notFound ? t('report.mapNoResults') : t('report.mapPrompt')}
+            </Text>
+          </View>
         </View>
 
         {/* Bottom action bar: Cancel + Use this location. */}
@@ -124,10 +217,45 @@ export default function LocationPickerModal({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  hintWrap: {
+  topWrap: {
     position: 'absolute',
     left: 16,
     right: 16,
+    gap: 10,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 48,
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    color: colors.text,
+    // Lift the pill-shaped bar off the map.
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  searchBtn: {
+    minWidth: 84,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+  },
+  searchBtnDisabled: { backgroundColor: colors.primaryTint },
+  searchBtnText: { fontSize: 15, fontWeight: '700', color: colors.primaryText },
+  hintWrap: {
     alignItems: 'center',
   },
   hint: {

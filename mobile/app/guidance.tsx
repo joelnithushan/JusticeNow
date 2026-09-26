@@ -48,6 +48,14 @@ const SPEECH_LOCALES: Record<string, string> = {
   si: 'si-LK',
 };
 
+// The three languages the guidance can be re-generated + read aloud in. Labelled
+// in their own script (matching LanguageSwitcher) so a user finds theirs easily.
+const GUIDANCE_LANGS: { code: string; label: string }[] = [
+  { code: 'en', label: 'English' },
+  { code: 'ta', label: 'தமிழ்' },
+  { code: 'si', label: 'සිංහල' },
+];
+
 export default function Guidance() {
   const { t, i18n } = useTranslation();
   const { district: savedDistrict } = usePreferences();
@@ -60,6 +68,11 @@ export default function Guidance() {
   const [orgs, setOrgs] = useState<Organisation[]>([]);
   // Whether the guidance is currently being read aloud (expo-speech).
   const [speaking, setSpeaking] = useState(false);
+  // The language the CURRENT guidance text is in — drives both the active toggle
+  // chip and the read-aloud voice. Defaults to the app language.
+  const [guidanceLang, setGuidanceLang] = useState<string>(i18n.language);
+  // True while re-generating the guidance in a newly picked language.
+  const [switchingLang, setSwitchingLang] = useState<string | null>(null);
 
   const districtOptions: Option[] = DISTRICTS.map((d) => ({ value: d, label: d }));
 
@@ -98,11 +111,38 @@ export default function Guidance() {
     }
     setSpeaking(true);
     Speech.speak(buildSpokenGuidance(guidance), {
-      language: SPEECH_LOCALES[i18n.language] ?? 'en-US',
+      // Read in the language the guidance TEXT is actually in (set by the toggle),
+      // not the app language — otherwise a Tamil voice would read English text.
+      language: SPEECH_LOCALES[guidanceLang] ?? 'en-US',
       onDone: () => setSpeaking(false),
       onStopped: () => setSpeaking(false),
       onError: () => setSpeaking(false),
     });
+  };
+
+  // Re-generate the SAME scenario's guidance in another language, then it can be
+  // read aloud in that language. No-op if it's already the current language or a
+  // switch is in flight. Stops any read-aloud first.
+  const switchLanguage = async (lang: string) => {
+    if (lang === guidanceLang || switchingLang || loading) return;
+    Speech.stop();
+    setSpeaking(false);
+    setSwitchingLang(lang);
+    setError(null);
+    try {
+      const res = await fetchLegalGuidance(scenario.trim(), district ?? undefined, lang);
+      setGuidance(res.data.data.guidance);
+      setOrgs(res.data.data.organisations || []);
+      setGuidanceLang(lang);
+    } catch (err) {
+      let message = t('guidance.failed');
+      if (axios.isAxiosError(err) && typeof err.response?.data?.message === 'string') {
+        message = err.response.data.message;
+      }
+      setError(message);
+    } finally {
+      setSwitchingLang(null);
+    }
   };
 
   const ask = async () => {
@@ -119,9 +159,10 @@ export default function Guidance() {
     Speech.stop();
     setSpeaking(false);
     try {
-      const res = await fetchLegalGuidance(scenario.trim(), district ?? undefined);
+      const res = await fetchLegalGuidance(scenario.trim(), district ?? undefined, i18n.language);
       setGuidance(res.data.data.guidance);
       setOrgs(res.data.data.organisations || []);
+      setGuidanceLang(i18n.language); // the result is in the app language
     } catch (err) {
       // Never log err — it can echo the scenario.
       let message = t('guidance.failed');
@@ -208,11 +249,41 @@ export default function Guidance() {
               <Text style={local.disclaimerText}>{t('guidance.disclaimer')}</Text>
             </View>
 
+            {/* Language toggle: re-generate + read the guidance in English/Tamil/
+                Sinhala. The active chip marks the language the text is currently in. */}
+            <Text style={local.audioLangLabel}>{t('guidance.audioLanguage')}</Text>
+            <View style={local.langRow}>
+              {GUIDANCE_LANGS.map(({ code, label }) => {
+                const active = guidanceLang === code;
+                const busy = switchingLang === code;
+                return (
+                  <Pressable
+                    key={code}
+                    onPress={() => switchLanguage(code)}
+                    disabled={switchingLang !== null || loading}
+                    style={[local.langChip, active && local.langChipActive]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active, disabled: switchingLang !== null }}
+                    accessibilityLabel={label}
+                  >
+                    {busy ? (
+                      <ActivityIndicator color={active ? colors.primaryText : colors.primary} size="small" />
+                    ) : (
+                      <Text style={[local.langChipText, active && local.langChipTextActive]}>
+                        {label}
+                      </Text>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+
             {/* Read-aloud: reads the whole guidance in the chosen language, for
                 low-literacy users or hands-free listening. Fully on-device. */}
             <Pressable
               onPress={toggleSpeak}
-              style={local.listenBtn}
+              disabled={switchingLang !== null}
+              style={[local.listenBtn, switchingLang !== null && theme.btnDisabled]}
               accessibilityRole="button"
               accessibilityLabel={speaking ? t('guidance.stopListening') : t('guidance.listen')}
               accessibilityState={{ selected: speaking }}
@@ -386,6 +457,30 @@ const local = StyleSheet.create({
     marginBottom: 18,
   },
   disclaimerText: { fontSize: 13, color: colors.secondaryOnLight, fontWeight: '600', lineHeight: 19 },
+
+  // Language toggle (EN / TA / SI) for the guidance text + read-aloud.
+  audioLangLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.muted,
+    marginBottom: 8,
+  },
+  langRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  langChip: {
+    flex: 1,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  langChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  langChipText: { fontSize: 14, fontWeight: '700', color: colors.primary },
+  langChipTextActive: { color: colors.primaryText },
 
   // Read-aloud toggle.
   listenBtn: {

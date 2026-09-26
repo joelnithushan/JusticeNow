@@ -7,6 +7,7 @@
  */
 
 const { verifyToken } = require('../services/auth');
+const supabase = require('../config/supabase');
 
 /**
  * Require a valid staff session.
@@ -67,4 +68,88 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { requireStaff, requireRole };
+/**
+ * Mandatory two-factor gate for CASE DATA. Must be used AFTER requireStaff.
+ *
+ * Policy (product decision): every staff member handling case data must have 2FA
+ * enabled first — the system admin ('admin') is the ONLY exemption (they bootstrap
+ * the org and manage accounts). For everyone else we look up the CURRENT
+ * mfa_enabled flag (not the token — a staffer may enrol mid-session, and a stale
+ * token must not keep them locked out or wrongly let them in) and, if 2FA is off,
+ * refuse with a 403 carrying `code: 'MFA_REQUIRED'` so the client can route them
+ * to enrolment. This is the real security boundary; the client redirect is only UX.
+ */
+async function requireMfaEnrolled(req, res, next) {
+  // System admin is exempt from the mandatory-2FA gate.
+  if (req.staff && req.staff.role === 'admin') {
+    return next();
+  }
+  try {
+    const { data, error } = await supabase
+      .from('staff_users')
+      .select('mfa_enabled')
+      .eq('id', req.staff.id)
+      .maybeSingle();
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        message: 'Could not verify your security settings. Please try again.',
+      });
+    }
+    if (data && data.mfa_enabled === true) {
+      return next();
+    }
+    return res.status(403).json({
+      success: false,
+      code: 'MFA_REQUIRED',
+      message: 'Enable two-factor authentication to access case data.',
+    });
+  } catch {
+    return res.status(500).json({
+      success: false,
+      message: 'Could not verify your security settings. Please try again.',
+    });
+  }
+}
+
+/**
+ * Require the account to be APPROVED by an admin before it can touch case data.
+ * Must be used AFTER requireStaff. The onboarding lifecycle is
+ * onboarding → pending → approved: only 'approved' accounts get case access. The
+ * system admin ('admin') is exempt (they are the approver and are provisioned
+ * approved). Looked up fresh each request so a just-approved account works
+ * immediately and a just-revoked one is cut off at once.
+ */
+async function requireApproved(req, res, next) {
+  if (req.staff && req.staff.role === 'admin') {
+    return next();
+  }
+  try {
+    const { data, error } = await supabase
+      .from('staff_users')
+      .select('access_status')
+      .eq('id', req.staff.id)
+      .maybeSingle();
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        message: 'Could not verify your account status. Please try again.',
+      });
+    }
+    if (data && data.access_status === 'approved') {
+      return next();
+    }
+    return res.status(403).json({
+      success: false,
+      code: 'NOT_APPROVED',
+      message: 'Your account is awaiting admin approval.',
+    });
+  } catch {
+    return res.status(500).json({
+      success: false,
+      message: 'Could not verify your account status. Please try again.',
+    });
+  }
+}
+
+module.exports = { requireStaff, requireRole, requireMfaEnrolled, requireApproved };

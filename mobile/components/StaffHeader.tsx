@@ -10,6 +10,8 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
+import BrandLogo from './BrandLogo';
 import { colors } from '../src/theme';
 
 type Props = {
@@ -17,16 +19,43 @@ type Props = {
   subtitle?: string;
   /** Small count pill shown next to the title (e.g. number of cases). */
   badge?: string;
+  /** When provided, renders a back button on the left (e.g. for pushed screens). */
+  onBack?: () => void;
+  backLabel?: string;
   /** When provided, renders a sign-out button on the right. */
   onSignOut?: () => void;
   signOutLabel?: string;
 };
 
-export default function StaffHeader({ title, subtitle, badge, onSignOut, signOutLabel }: Props) {
+export default function StaffHeader({
+  title,
+  subtitle,
+  badge,
+  onBack,
+  backLabel,
+  onSignOut,
+  signOutLabel,
+}: Props) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-      <View style={styles.main}>
+      {/* Optional back control (top-left), then the brand mark — consistent with the
+          reporter app bar. Tab roots pass no onBack, so they show no back. */}
+      {onBack ? (
+        <Pressable
+          onPress={onBack}
+          style={styles.back}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={backLabel || 'Back'}
+        >
+          <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+            <Path d="M15 6 l-6 6 l6 6" stroke={colors.primaryText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
+        </Pressable>
+      ) : null}
+      <BrandLogo size={30} tintColor={colors.primaryText} accessibilityLabel="JusticeNow" />
+      <View style={[styles.main, styles.mainWithLogo]}>
         <View style={styles.titleRow}>
           <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
             {title}
@@ -66,7 +95,18 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     backgroundColor: colors.primary,
   },
+  back: {
+    marginRight: 10,
+    marginLeft: -4,
+    height: 34,
+    width: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
   main: { flex: 1, marginRight: 12 },
+  mainWithLogo: { marginLeft: 10 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   title: { fontSize: 24, fontWeight: '800', color: colors.primaryText, flexShrink: 1 },
   badge: {

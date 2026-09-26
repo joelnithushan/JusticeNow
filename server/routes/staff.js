@@ -17,6 +17,12 @@ const multer = require('multer');
 const {
   login,
   loginMfa,
+  resendMfa,
+  forgotPassword,
+  resetPassword,
+  getStaffDetail,
+  approveStaff,
+  rejectStaff,
   googleLogin,
   register,
   registerGoogle,
@@ -63,6 +69,20 @@ router.post('/login', loginRateLimiter, login);
 // short-lived pending-MFA token (not a session); this exchanges token + code for
 // the real JWT. Shares the login throttle so code-guessing is capped too.
 router.post('/login/mfa', loginRateLimiter, loginMfa);
+
+// POST /api/staff/login/mfa/resend — PUBLIC. Re-sends an emailed 2FA code to an
+// email-method account mid-login. Shares the login throttle so it cannot be used
+// to flood a staffer's inbox. Only meaningful after the password step.
+router.post('/login/mfa/resend', loginRateLimiter, resendMfa);
+
+// POST /api/staff/password/forgot — PUBLIC. Emails a reset code to an active
+// password account. Rate-limited (guessing/inbox-flood) and NO ORACLE: identical
+// generic response whether or not the email is registered.
+router.post('/password/forgot', loginRateLimiter, forgotPassword);
+
+// POST /api/staff/password/reset — PUBLIC. Verifies the emailed code and sets the
+// new password. Rate-limited; generic failure for wrong email OR wrong/expired code.
+router.post('/password/reset', loginRateLimiter, resetPassword);
 
 // POST /api/staff/google — PUBLIC. Exchanges a Supabase Google session for our
 // JWT, but ONLY if the Google-verified email is an active staff_users member.
@@ -112,6 +132,14 @@ router.get('/', requireStaff, requireRole('admin', 'org_admin'), listStaff);
 
 // POST /api/staff — create (bcrypt-hashes the password server-side).
 router.post('/', requireStaff, requireRole('admin', 'org_admin'), createStaff);
+
+// GET /api/staff/:id — ADMIN detail for approval (submitted profile + 2FA status).
+router.get('/:id', requireStaff, requireRole('admin', 'org_admin'), getStaffDetail);
+
+// POST /api/staff/:id/approve | /reject — ADMIN approval decision for a pending
+// (or onboarding) account. Approve grants case access; reject blocks login.
+router.post('/:id/approve', requireStaff, requireRole('admin', 'org_admin'), approveStaff);
+router.post('/:id/reject', requireStaff, requireRole('admin', 'org_admin'), rejectStaff);
 
 // PUT /api/staff/:id — update (partial; may rehash password, toggle active).
 router.put('/:id', requireStaff, requireRole('admin', 'org_admin'), updateStaff);

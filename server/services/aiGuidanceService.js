@@ -58,6 +58,20 @@ RULES:
 Keep arrays to at most 5 concise items each. Use the reader's language if the
 scenario is written in Tamil or Sinhala.`;
 
+// Human-readable names for the supported output languages. Keys match the app's
+// i18n language codes so the client can request a specific language for read-aloud.
+const LANGUAGE_NAMES = { en: 'English', ta: 'Tamil', si: 'Sinhala' };
+
+// When the client asks for a specific output language (so the guidance can be
+// re-generated + read aloud in en/ta/si), append an explicit instruction. The
+// JSON keys and the "category" enum value MUST stay English; only the human-facing
+// string VALUES are translated.
+function languageInstruction(language) {
+  const name = LANGUAGE_NAMES[language];
+  if (!name) return '';
+  return `\n\nIMPORTANT: Write ALL human-facing string values (summary, how_handled, applicable_laws, steps, approximate_fees, safety_note) entirely in ${name}, regardless of the language the scenario is written in. Keep the JSON keys and the "category" value in English exactly as specified.`;
+}
+
 /**
  * Is the AI guidance feature configured (API key present)?
  * @returns {boolean}
@@ -70,13 +84,23 @@ function isConfigured() {
  * Generate structured legal guidance for a scenario.
  *
  * @param {string} scenario  the user's plain-language description
+ * @param {string} [language]  desired output language: 'en' | 'ta' | 'si'. When
+ *        given, all string values are generated in that language (for re-generate
+ *        + read-aloud in the chosen language). Omitted → the model uses the
+ *        scenario's own language, as before.
  * @returns {Promise<{category:string,summary:string,applicable_laws:string[],steps:string[],safety_note:string}>}
  * @throws {{ status:number, message:string }} on config/upstream/parse failure.
  */
-async function getGuidance(scenario) {
+async function getGuidance(scenario, language) {
   if (!isConfigured()) {
     throw { status: 503, message: 'AI guidance is not configured on the server.' };
   }
+  const system = SYSTEM_PROMPT + languageInstruction(language);
+
+  // Tamil and Sinhala use FAR more tokens per word than English, so the same JSON
+  // needs a much higher ceiling — at 900 the response was truncated mid-string and
+  // failed to parse (guidance came back empty for ta/si). Give non-English plenty.
+  const maxTokens = language && language !== 'en' ? 3000 : 1200;
 
   let response;
   try {
@@ -89,9 +113,9 @@ async function getGuidance(scenario) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 900,
+        max_tokens: maxTokens,
         temperature: 0.2,
-        system: SYSTEM_PROMPT, // Anthropic takes the system prompt at top level
+        system, // system prompt (+ optional language instruction) at top level
         messages: [{ role: 'user', content: scenario }],
       }),
     });

@@ -22,7 +22,6 @@ import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import BrandSplash from '../components/BrandSplash';
 import BrandLogo from '../components/BrandLogo';
-import GradientBackground from '../components/GradientBackground';
 import { useOnboarding } from '../src/context/OnboardingContext';
 import { usePreferences } from '../src/context/PreferencesContext';
 import { colors, styles as shared } from '../src/theme';
@@ -68,12 +67,20 @@ function ShieldIcon({ color, size = 20 }: IconProps) {
     </Svg>
   );
 }
-function ScalesIcon({ color, size = 20 }: IconProps) {
+// AI legal guidance: a chat bubble with a sparkle — signals an AI assistant.
+function AIChatIcon({ color, size = 20 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 3 v18 M7 21 h10" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
-      <Path d="M5 7 h14 M12 5 l7 2 M12 5 L5 7" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M5 7 l-2.5 5 h5 Z M19 7 l-2.5 5 h5 Z" stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
+      <Path
+        d="M4 5 h16 a1 1 0 0 1 1 1 v9 a1 1 0 0 1 -1 1 H10 l-4 4 v-4 H4 a1 1 0 0 1 -1 -1 V6 a1 1 0 0 1 1 -1 Z"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M12 7.5 l0.9 2.1 l2.1 0.9 l-2.1 0.9 l-0.9 2.1 l-0.9 -2.1 l-2.1 -0.9 l2.1 -0.9 Z"
+        fill={color}
+      />
     </Svg>
   );
 }
@@ -91,6 +98,13 @@ function LockIcon({ color, size = 20 }: IconProps) {
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Rect x={5} y={10} width={14} height={10} rx={2.5} stroke={color} strokeWidth={1.8} />
       <Path d="M8 10 V7.5 a4 4 0 0 1 8 0 V10" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+function ChevronIcon({ color, size = 20 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M9 6 l6 6 l-6 6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
@@ -115,66 +129,65 @@ export default function Home() {
 
   return (
     <View style={local.screen}>
-      {/* Blue app-bar header: brand wordmark + the language switcher (dark variant). */}
+      {/* Blue app-bar header: brand mark + wordmark, and the language switcher. The
+          pillar mark is a single-colour PNG, so we tint it white to read on navy. */}
       <View style={[local.header, { paddingTop: insets.top + 8 }]}>
-        <Text style={local.headerWordmark}>{t('app.title')}</Text>
+        <View style={local.headerBrand}>
+          <BrandLogo size={30} tintColor={colors.primaryText} accessibilityLabel={t('app.title')} />
+          <Text style={local.headerWordmark}>{t('app.title')}</Text>
+        </View>
         <View style={local.headerSpacer} />
         <LanguageSwitcher onDark />
       </View>
 
       <ScrollView contentContainerStyle={local.page} showsVerticalScrollIndicator={false}>
-        {/* Compact hero: brand seal + tagline. */}
+        {/* Hero: left-aligned headline + tagline. */}
         <View style={local.hero}>
-          <View style={local.medallionShadow}>
-            <View style={local.medallion}>
-              <GradientBackground
-                id="home-logo-medallion"
-                from="#FBFDFF"
-                to="#DCE9F5"
-                style={local.medallionFill}
-              />
-              <BrandLogo size={68} accessibilityLabel={t('app.title')} />
-            </View>
-          </View>
+          <Text style={local.headline}>{t('home.headline')}</Text>
           <Text style={local.tagline}>{t('app.tagline')}</Text>
         </View>
 
-        {/* Primary actions — full-width. */}
+        {/* Primary action — full-width navy slab, icon + label left, chevron right. */}
         <Link href="/report" asChild>
           <Pressable style={local.primaryBtn} accessibilityRole="button">
             <DocIcon color={colors.primaryText} />
             <Text style={local.primaryText}>{t('home.reportCase')}</Text>
+            <View style={local.btnSpacer} />
+            <ChevronIcon color={colors.primaryText} size={22} />
           </Pressable>
         </Link>
 
-        {/* "Check status" — the ONE permitted orange accent (outline). */}
+        {/* "Check status" — outlined navy button. */}
         <Link href="/status" asChild>
-          <Pressable style={local.accentBtn} accessibilityRole="button">
-            <SearchIcon color={colors.secondaryOnLight} />
-            <Text style={local.accentText}>{t('home.checkStatus')}</Text>
+          <Pressable style={local.outlineBtn} accessibilityRole="button">
+            <SearchIcon color={colors.primary} />
+            <Text style={local.outlineText}>{t('home.checkStatus')}</Text>
+            <View style={local.btnSpacer} />
+            <ChevronIcon color={colors.primary} size={22} />
           </Pressable>
         </Link>
 
-        {/* Secondary destinations as a 2×2 grid of tiles. */}
-        <View style={local.grid}>
+        {/* Explore: secondary destinations as a vertical list of rows. */}
+        <Text style={local.sectionLabel}>{t('home.explore')}</Text>
+        <View style={local.list}>
           <GridTile
             href="/guidance"
-            icon={<ScalesIcon color={colors.primary} size={26} />}
+            icon={<AIChatIcon color={colors.primary} size={24} />}
             label={t('guidance.menu')}
           />
           <GridTile
             href="/directory"
-            icon={<DirectoryIcon color={colors.primary} size={26} />}
+            icon={<DirectoryIcon color={colors.primary} size={22} />}
             label={t('home.directory')}
           />
           <GridTile
             href="/about"
-            icon={<ShieldIcon color={colors.primary} size={26} />}
+            icon={<ShieldIcon color={colors.primary} size={22} />}
             label={t('home.about')}
           />
           <GridTile
             href="/transparency"
-            icon={<ChartIcon color={colors.primary} size={26} />}
+            icon={<ChartIcon color={colors.primary} size={22} />}
             label={t('transparency.menu')}
           />
         </View>
@@ -191,8 +204,8 @@ export default function Home() {
   );
 }
 
-// One tile in the 2×2 feature grid: icon in a tinted square + label. Column
-// layout (RN default) so the Link-cloned Pressable renders reliably.
+// One row in the Explore list: a tinted icon square (left), the label, and a
+// trailing chevron — a full-width tappable row.
 function GridTile({
   href,
   icon,
@@ -207,6 +220,7 @@ function GridTile({
       <Pressable style={local.tile} accessibilityRole="button" accessibilityLabel={label}>
         <View style={local.tileIcon}>{icon}</View>
         <Text style={local.tileLabel}>{label}</Text>
+        <ChevronIcon color={colors.muted} size={20} />
       </Pressable>
     </Link>
   );
@@ -222,6 +236,7 @@ const local = StyleSheet.create({
     paddingBottom: 12,
     backgroundColor: colors.primary,
   },
+  headerBrand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerWordmark: {
     fontSize: 20,
     fontWeight: '800',
@@ -233,55 +248,34 @@ const local = StyleSheet.create({
   page: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 28,
     paddingBottom: 32,
     backgroundColor: colors.background,
   },
 
-  hero: { alignItems: 'center', marginTop: 4, marginBottom: 18 },
-  // Raised medallion around the seal. Shadow lives here (no overflow clip).
-  medallionShadow: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
+  // Left-aligned hero: bold headline + supporting tagline.
+  hero: { marginBottom: 26 },
+  headline: {
+    fontSize: 40,
+    lineHeight: 46,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.5,
     marginBottom: 12,
-    shadowColor: '#0A3559',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
   },
-  // Clipped circle: holds the domed gradient + the seal, with a thin light ring.
-  medallion: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(10,53,89,0.10)',
-  },
-  medallionFill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   tagline: {
-    fontSize: 15,
+    fontSize: 17,
     color: colors.muted,
-    textAlign: 'center',
-    marginTop: 4,
-    lineHeight: 21,
-    paddingHorizontal: 8,
+    lineHeight: 24,
   },
 
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
+    gap: 12,
     backgroundColor: colors.primary,
-    paddingVertical: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
     borderRadius: 14,
     marginTop: 4,
     // subtle depth
@@ -291,57 +285,62 @@ const local = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
-  primaryText: { color: colors.primaryText, fontSize: 17, fontWeight: '700' },
+  primaryText: { color: colors.primaryText, fontSize: 18, fontWeight: '700' },
 
-  accentBtn: {
+  outlineBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: colors.secondaryTint,
-    borderWidth: 1.5,
-    borderColor: colors.secondary,
-    paddingVertical: 15,
-    borderRadius: 14,
-    marginTop: 12,
-  },
-  accentText: { color: colors.secondaryOnLight, fontSize: 17, fontWeight: '700' },
-
-  // 2×2 feature grid.
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: 20,
-  },
-  tile: {
-    width: '48%',
-    minHeight: 108,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
+    gap: 12,
     backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 10,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    paddingVertical: 17,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    marginTop: 14,
+  },
+  outlineText: { color: colors.primary, fontSize: 18, fontWeight: '700' },
+
+  // Pushes the trailing chevron to the right edge of the buttons.
+  btnSpacer: { flex: 1 },
+
+  sectionLabel: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+    marginTop: 30,
     marginBottom: 14,
   },
-  tileIcon: {
-    width: 48,
-    height: 48,
+
+  // Vertical Explore list.
+  list: {
+    gap: 10,
+  },
+  tile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 12,
+    backgroundColor: colors.background,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  tileIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primaryTint,
-    marginBottom: 10,
   },
   tileLabel: {
-    fontSize: 14,
+    flex: 1,
+    fontSize: 16,
     fontWeight: '700',
     color: colors.text,
-    textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 21,
   },
 
   // Subtle staff-login footer.
