@@ -48,7 +48,8 @@ export default function RootLayout() {
             <PreferencesProvider>
               <ReportFormProvider>
                 <StatusBar style="light" />
-                {/* Headers are hidden: each screen renders its own title. */}
+                {/* Headers are hidden: each screen renders its own app bar (with a
+                    back control on the left). */}
                 <Stack
                   screenOptions={{
                     headerShown: false,

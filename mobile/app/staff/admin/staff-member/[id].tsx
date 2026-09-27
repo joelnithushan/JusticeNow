@@ -38,6 +38,10 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import SelectField, { type Option } from '../../../../components/SelectField';
+
+// Sri Lankan shape checks (server re-validates + derives gender/DOB from the NIC).
+const NIC_RE = /^(\d{9}[VvXx]|\d{12})$/;
+const LK_MOBILE_RE = /^(?:\+94|0094|94|0)?7[0-8]\d{7}$/;
 import ErrorState from '../../../../components/ErrorState';
 import BackButton from '../../../../components/BackButton';
 import {
@@ -68,6 +72,13 @@ export default function AdminStaffEditor() {
   const [organisationId, setOrganisationId] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [isActive, setIsActive] = useState(true);
+  // Role-aware Sri Lankan details — collected on CREATE (admin-made accounts come
+  // out ready + approved). gender + DOB are derived from the NIC server-side.
+  const [nic, setNic] = useState('');
+  const [phone, setPhone] = useState('');
+  const [designation, setDesignation] = useState('');
+  const [barNumber, setBarNumber] = useState('');
+  const [department, setDepartment] = useState('');
 
   // Org options for the SelectField, loaded from the admin org list.
   const [orgs, setOrgs] = useState<AdminOrganisation[]>([]);
@@ -138,6 +149,18 @@ export default function AdminStaffEditor() {
     if (!organisationId) next.organisation = t('adminStaff.organisationRequired');
     // On CREATE the password is required; on EDIT a blank field means unchanged.
     if (isNew && !password) next.password = t('adminStaff.passwordRequired');
+    // Role-aware Sri Lankan details are required on CREATE only.
+    if (isNew) {
+      const nicTrim = nic.trim();
+      if (!nicTrim) next.nic = t('staffRegister.errors.nicRequired');
+      else if (!NIC_RE.test(nicTrim)) next.nic = t('staffRegister.errors.nicInvalid');
+      const phoneTrim = phone.trim().replace(/[\s-]/g, '');
+      if (!phoneTrim) next.phone = t('staffRegister.errors.phoneRequired');
+      else if (!LK_MOBILE_RE.test(phoneTrim)) next.phone = t('staffRegister.errors.phoneInvalid');
+      if (!designation.trim()) next.designation = t('staffRegister.errors.designationRequired');
+      if (role === 'attorney' && !barNumber.trim()) next.barNumber = t('staffRegister.errors.barNumberRequired');
+      if (role === 'officer' && !department.trim()) next.department = t('staffRegister.errors.departmentRequired');
+    }
     setFieldErrors(next);
     if (Object.keys(next).length > 0) return;
     if (!role || !organisationId) return; // narrowed above; keeps payload type honest
@@ -155,6 +178,14 @@ export default function AdminStaffEditor() {
     // Only send a password when one was typed (create: always; edit: to change).
     if (password) {
       payload.password = password;
+    }
+    // Send the role-aware SL details on create (the server requires them there).
+    if (isNew) {
+      payload.nic = nic.trim();
+      payload.phone = phone.trim();
+      payload.designation = designation.trim();
+      if (role === 'attorney') payload.bar_number = barNumber.trim();
+      if (role === 'officer') payload.department = department.trim();
     }
 
     try {
@@ -187,6 +218,11 @@ export default function AdminStaffEditor() {
     organisationId,
     password,
     isActive,
+    nic,
+    phone,
+    designation,
+    barNumber,
+    department,
     isNew,
     id,
     router,
@@ -384,6 +420,84 @@ export default function AdminStaffEditor() {
           <Text style={local.hint}>
             {isNew ? t('adminStaff.passwordHint') : t('adminStaff.newPasswordHint')}
           </Text>
+
+          {/* Role-aware Sri Lankan details — CREATE only (admin-made accounts come
+              out ready + approved; gender + DOB are derived from the NIC). */}
+          {isNew ? (
+            <>
+              <Text style={theme.label}>{t('staffRegister.nic')}</Text>
+              <TextInput
+                style={[theme.input, fieldErrors.nic ? local.inputError : null]}
+                value={nic}
+                onChangeText={(v) => { setNic(v.toUpperCase()); clearErr('nic'); }}
+                placeholder={t('staffRegister.nicPlaceholder')}
+                placeholderTextColor={colors.muted}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={12}
+                editable={!saving}
+                accessibilityLabel={t('staffRegister.nic')}
+              />
+              {fieldErrors.nic ? <Text style={theme.fieldError}>{fieldErrors.nic}</Text> : null}
+
+              <Text style={theme.label}>{t('staffRegister.phone')}</Text>
+              <TextInput
+                style={[theme.input, fieldErrors.phone ? local.inputError : null]}
+                value={phone}
+                onChangeText={(v) => { setPhone(v); clearErr('phone'); }}
+                placeholder={t('staffRegister.phonePlaceholder')}
+                placeholderTextColor={colors.muted}
+                keyboardType="phone-pad"
+                editable={!saving}
+                accessibilityLabel={t('staffRegister.phone')}
+              />
+              {fieldErrors.phone ? <Text style={theme.fieldError}>{fieldErrors.phone}</Text> : null}
+
+              <Text style={theme.label}>{t('staffRegister.designation')}</Text>
+              <TextInput
+                style={[theme.input, fieldErrors.designation ? local.inputError : null]}
+                value={designation}
+                onChangeText={(v) => { setDesignation(v); clearErr('designation'); }}
+                placeholder={t('staffRegister.designationPlaceholder')}
+                placeholderTextColor={colors.muted}
+                editable={!saving}
+                accessibilityLabel={t('staffRegister.designation')}
+              />
+              {fieldErrors.designation ? <Text style={theme.fieldError}>{fieldErrors.designation}</Text> : null}
+
+              {role === 'attorney' ? (
+                <>
+                  <Text style={theme.label}>{t('staffRegister.barNumber')}</Text>
+                  <TextInput
+                    style={[theme.input, fieldErrors.barNumber ? local.inputError : null]}
+                    value={barNumber}
+                    onChangeText={(v) => { setBarNumber(v); clearErr('barNumber'); }}
+                    placeholder={t('staffRegister.barNumberPlaceholder')}
+                    placeholderTextColor={colors.muted}
+                    editable={!saving}
+                    accessibilityLabel={t('staffRegister.barNumber')}
+                  />
+                  {fieldErrors.barNumber ? <Text style={theme.fieldError}>{fieldErrors.barNumber}</Text> : null}
+                </>
+              ) : null}
+
+              {role === 'officer' ? (
+                <>
+                  <Text style={theme.label}>{t('staffRegister.department')}</Text>
+                  <TextInput
+                    style={[theme.input, fieldErrors.department ? local.inputError : null]}
+                    value={department}
+                    onChangeText={(v) => { setDepartment(v); clearErr('department'); }}
+                    placeholder={t('staffRegister.departmentPlaceholder')}
+                    placeholderTextColor={colors.muted}
+                    editable={!saving}
+                    accessibilityLabel={t('staffRegister.department')}
+                  />
+                  {fieldErrors.department ? <Text style={theme.fieldError}>{fieldErrors.department}</Text> : null}
+                </>
+              ) : null}
+            </>
+          ) : null}
 
           {/* Active toggle — edit only */}
           {isNew ? null : (

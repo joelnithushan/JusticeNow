@@ -75,6 +75,24 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
+// Turn a stored time label (e.g. "6:30 PM" or "18:30") back into a Date so the
+// picker reopens on the time the reporter already chose, not on "now". If the
+// label can't be parsed we keep the current picker value rather than jumping to
+// a confident-but-wrong time.
+function parseTime(label: string, fallback: Date): Date {
+  const m = label.trim().match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])?$/);
+  if (!m) return fallback;
+  let hours = parseInt(m[1], 10);
+  const minutes = parseInt(m[2], 10);
+  const meridiem = m[3]?.toUpperCase();
+  if (meridiem === 'PM' && hours < 12) hours += 12;
+  if (meridiem === 'AM' && hours === 12) hours = 0;
+  if (hours > 23 || minutes > 59) return fallback;
+  const d = new Date(fallback);
+  d.setHours(hours, minutes, 0, 0);
+  return d;
+}
+
 // A small map-pin for the "Pick on map" button.
 function PinIconSmall({ color }: { color: string }) {
   return (
@@ -192,6 +210,11 @@ export default function ReportCase() {
     if (s === 2) {
       if (!draft.description.trim()) next.description = t('report.errors.descriptionRequired');
     }
+    // District is mandatory: staff use it to route the case to a local
+    // organisation, and the server/database now require it too.
+    if (s === 3) {
+      if (!draft.district) next.district = t('report.errors.districtRequired');
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -267,6 +290,10 @@ export default function ReportCase() {
     }
     if (!validateStep(2)) {
       setStep(2);
+      return;
+    }
+    if (!validateStep(3)) {
+      setStep(3);
       return;
     }
     setSubmitting(true);
@@ -428,14 +455,27 @@ export default function ReportCase() {
 
         {/* ───────── Step 3 — Location & Time ───────── */}
         {step === 3 && (
-          <View>
-            {/* Incident date — tap the field to reveal a full inline calendar
+          // Tapping anywhere on the step that isn't the picker itself (or another
+          // control) collapses the inline date/time pickers — the spinner has no
+          // built-in "done", so an outside tap is how the reporter dismisses it.
+          // accessible={false} keeps this wrapper invisible to screen readers.
+          <Pressable
+            accessible={false}
+            onPress={() => {
+              setShowDatePicker(false);
+              setShowTimePicker(false);
+            }}
+          >
+            {/* Incident date — tap the field to reveal a compact date wheel
                 (defaults to today). × clears it. */}
             <Labelled label={t('report.incidentDate')} optional>
               <View style={local.pickerRow}>
                 <Pressable
                   style={[theme.input, local.fieldFlex]}
-                  onPress={() => setShowDatePicker((v) => !v)}
+                  onPress={() => {
+                    setShowTimePicker(false); // one picker open at a time
+                    setShowDatePicker((v) => !v);
+                  }}
                   accessibilityRole="button"
                 >
                   <Text style={{ color: draft.incidentDate ? colors.text : colors.muted }}>
@@ -465,14 +505,19 @@ export default function ReportCase() {
                   <DateTimePicker
                     value={draft.incidentDate ?? new Date()}
                     mode="date"
-                    display="inline"
+                    // A spinner wheel, not the full "inline" calendar grid, which was
+                    // far too tall. Consistent with the time wheel below and dismissed
+                    // by tapping outside (handled by the wrapping Pressable).
+                    display="spinner"
                     maximumDate={new Date()}
                     themeVariant="light"
                     accentColor={colors.primary}
-                    onChange={(event, selectedDate) => {
-                      if (event.type === 'set' && selectedDate) {
-                        setField('incidentDate', selectedDate);
-                      }
+                    // v9 renamed `onChange` → `onValueChange` (the old prop logs a
+                    // deprecation warning). The wheel emits on every roll, so we just
+                    // mirror the value into the draft and leave dismissal to the
+                    // outside-tap handler.
+                    onValueChange={(_event, selectedDate) => {
+                      if (selectedDate) setField('incidentDate', selectedDate);
                     }}
                   />
                 </View>
@@ -491,7 +536,15 @@ export default function ReportCase() {
               <View style={local.pickerRow}>
                 <Pressable
                   style={[theme.input, local.fieldFlex]}
-                  onPress={() => setShowTimePicker((v) => !v)}
+                  onPress={() => {
+                    setShowDatePicker(false); // one picker open at a time
+                    // Seed the clock with the time already chosen (if any) so
+                    // reopening the picker shows that time, not a stale default.
+                    if (!showTimePicker && draft.incidentTime) {
+                      setTimeValue(parseTime(draft.incidentTime, timeValue));
+                    }
+                    setShowTimePicker((v) => !v);
+                  }}
                   accessibilityRole="button"
                 >
                   <Text style={{ color: draft.incidentTime ? colors.text : colors.muted }}>
@@ -522,8 +575,11 @@ export default function ReportCase() {
                     display="spinner"
                     themeVariant="light"
                     accentColor={colors.primary}
-                    onChange={(event, selected) => {
-                      if (event.type === 'set' && selected) {
+                    // v9 renamed `onChange` → `onValueChange`. The spinner stays open
+                    // so the reporter can keep rolling to the exact time; we just
+                    // mirror each change into the draft.
+                    onValueChange={(_event, selected) => {
+                      if (selected) {
                         setTimeValue(selected);
                         setField('incidentTime', formatTime(selected));
                       }
@@ -563,16 +619,21 @@ export default function ReportCase() {
 
             <View style={local.selectWrap}>
               <SelectField
-                label={t('report.districtOptional')}
+                label={t('report.district')}
+                required
                 placeholder={t('report.districtPlaceholder')}
                 value={draft.district || null}
                 options={districtOptions}
-                onChange={(v) => setField('district', v)}
-                sheetTitle={t('report.districtOptional')}
+                onChange={(v) => {
+                  setField('district', v);
+                  setErrors((e) => ({ ...e, district: '' }));
+                }}
+                sheetTitle={t('report.district')}
               />
+              {errors.district ? <Text style={theme.fieldError}>{errors.district}</Text> : null}
               <Text style={theme.privacyNoteSmall}>{t('report.privacyNoteDistrict')}</Text>
             </View>
-          </View>
+          </Pressable>
         )}
 
         {/* ───────── Step 4 — Evidence & Safety ───────── */}
@@ -822,7 +883,7 @@ export default function ReportCase() {
         )}
 
         {/* Wizard navigation. Next on steps 1–4; step 5 has its own Submit. The
-            header arrow handles going back — there is no text "Back" link. */}
+            header back arrow steps to the previous step (see onBack → goBack). */}
         {step < TOTAL_STEPS ? (
           <Pressable style={theme.btnPrimary} onPress={goNext} accessibilityRole="button">
             <Text style={theme.btnPrimaryText}>{t('report.wizard.next')}</Text>
