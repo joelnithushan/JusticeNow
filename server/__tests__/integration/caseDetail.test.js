@@ -78,6 +78,11 @@ const fetchMock = vi.fn(async (url, options = {}) => {
     return json(noteRows);
   }
 
+  // --- requireApproved gate: caller must be 'approved' for case access ---
+  if (target.includes('/rest/v1/staff_users') && target.includes('access_status')) {
+    return json({ access_status: 'approved' });
+  }
+
   // --- staff_users (author-name lookup, id=in.(...)) ---
   if (target.includes('/rest/v1/staff_users')) {
     return json(staffRows);

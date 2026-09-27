@@ -43,6 +43,11 @@ export default function StaffAdminTab() {
 
   const items: { key: string; label: string; href: string }[] = [
     {
+      key: 'approvals',
+      label: t('admin.approvals'),
+      href: '/staff/admin/approvals',
+    },
+    {
       key: 'organisations',
       label: t('admin.organisations'),
       href: '/staff/admin/organisations',

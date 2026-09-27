@@ -106,6 +106,11 @@ export const loginStaff = (email: string, password: string) =>
 export interface StaffMfaChallenge {
   mfa_required: true;
   mfa_token: string;
+  // Which second factor to prompt for: 'totp' (authenticator app) or 'email' (a
+  // code the server has just emailed). The screen shows the matching prompt and,
+  // for 'email', a "resend code" affordance. Optional for backward-compat with a
+  // server that predates the email method (treated as 'totp').
+  mfa_method?: 'totp' | 'email';
 }
 
 /**
@@ -135,6 +140,32 @@ export const staffLoginMfa = (mfaToken: string, code: string) =>
   });
 
 /**
+ * Re-send an emailed 2FA code mid-login (email-method accounts only). Takes the
+ * short-lived `mfa_token` from the password step; the server issues a fresh code
+ * and emails it. TOKENLESS `api` — there is no session yet. Never log the token.
+ */
+export const resendMfaCode = (mfaToken: string) =>
+  api.post<{ success: boolean }>('/staff/login/mfa/resend', {
+    mfa_token: mfaToken,
+  });
+
+/**
+ * Request a password-reset code (email/password accounts). Tokenless `api` — no
+ * session. The server ALWAYS responds the same way (no oracle); a code is only
+ * emailed to a genuine active password account.
+ */
+export const requestPasswordReset = (email: string) =>
+  api.post<{ success: boolean; message: string }>('/staff/password/forgot', { email });
+
+/** Complete a password reset with the emailed code + a new password. Tokenless. */
+export const resetStaffPassword = (email: string, code: string, newPassword: string) =>
+  api.post<{ success: boolean; message: string }>('/staff/password/reset', {
+    email,
+    code,
+    new_password: newPassword,
+  });
+
+/**
  * Staff login via a Supabase Google session. The screen runs the Supabase Auth
  * Google flow and passes the resulting access token here; the server verifies it
  * and mints our JWT ONLY if the Google email is an active staff member. Tokenless
@@ -154,6 +185,12 @@ export interface RegisterStaffInput {
   password: string;
   role: string; // 'org_admin' | 'attorney' | 'officer' (never 'admin')
   organisationId: string;
+  // Role-aware Sri Lankan profile details, collected at registration.
+  nic: string;
+  phone: string;
+  designation: string;
+  barNumber?: string; // attorney only
+  department?: string; // officer only
 }
 
 /**
@@ -169,6 +206,11 @@ export const registerStaff = (input: RegisterStaffInput) =>
     password: input.password,
     role: input.role,
     organisation_id: input.organisationId,
+    nic: input.nic,
+    phone: input.phone,
+    designation: input.designation,
+    bar_number: input.barNumber,
+    department: input.department,
   });
 
 /**
@@ -177,17 +219,15 @@ export const registerStaff = (input: RegisterStaffInput) =>
  * server takes the email from the Google-verified identity and creates the same
  * PENDING (inactive) account. Tokenless `api`.
  */
-export const registerStaffGoogle = (input: {
-  accessToken: string;
-  name: string;
-  role: string;
-  organisationId: string;
-}) =>
+/**
+ * Google self-service signup. Creates a MINIMAL onboarding account (name + the
+ * Google-verified email); the role, organisation and all profile details are
+ * chosen afterwards on the profile page. Tokenless `api`.
+ */
+export const registerStaffGoogle = (input: { accessToken: string; name: string }) =>
   api.post<RegisterResponse>('/staff/register/google', {
     access_token: input.accessToken,
     name: input.name,
-    role: input.role,
-    organisation_id: input.organisationId,
   });
 
 export { staffApi };
@@ -526,8 +566,8 @@ export interface GuidanceResponse {
  * server (which calls the AI); it is never stored. Optional district focuses the
  * org referrals.
  */
-export const fetchLegalGuidance = (scenario: string, district?: string) =>
-  api.post<GuidanceResponse>('/ai/guidance', { scenario, district });
+export const fetchLegalGuidance = (scenario: string, district?: string, language?: string) =>
+  api.post<GuidanceResponse>('/ai/guidance', { scenario, district, language });
 
 /**
  * The ADMIN view of an organisation: the public Organisation fields PLUS the
@@ -615,7 +655,26 @@ export interface StaffMember {
   organisation_id: string;
   organisation_name: string | null;
   is_active: boolean;
+  access_status: string; // onboarding | pending | approved | rejected
+  mfa_enabled: boolean;
   created_at: string;
+}
+
+/** Full detail an admin sees for approval — submitted profile + 2FA status. */
+export interface StaffMemberDetail extends StaffMember {
+  mfa_method: string | null;
+  nic: string | null;
+  phone: string | null;
+  designation: string | null;
+  bar_number: string | null;
+  department: string | null;
+  gender: string | null;
+  date_of_birth: string | null;
+  profile_completed: boolean;
+}
+export interface StaffMemberDetailResponse {
+  success: boolean;
+  data: StaffMemberDetail;
 }
 
 export interface StaffListResponse {
@@ -646,6 +705,12 @@ export interface StaffInput {
   organisation_id?: string;
   password?: string;
   is_active?: boolean;
+  // Role-aware Sri Lankan details (required by the server on create).
+  nic?: string;
+  phone?: string;
+  designation?: string;
+  bar_number?: string;
+  department?: string;
 }
 
 /**
@@ -680,6 +745,18 @@ export const updateStaff = (id: string, input: StaffInput) =>
  */
 export const deactivateStaff = (id: string) =>
   staffApi.delete<StaffResponse>(`/staff/${encodeURIComponent(id)}`);
+
+/** ADMIN: full detail for ONE staff account (approval view). */
+export const fetchStaffMember = (id: string) =>
+  staffApi.get<StaffMemberDetailResponse>(`/staff/${encodeURIComponent(id)}`);
+
+/** ADMIN: grant case access to a pending/onboarding account. */
+export const approveStaffMember = (id: string) =>
+  staffApi.post<StaffResponse>(`/staff/${encodeURIComponent(id)}/approve`);
+
+/** ADMIN: deny access (blocks login). */
+export const rejectStaffMember = (id: string) =>
+  staffApi.post<StaffResponse>(`/staff/${encodeURIComponent(id)}/reject`);
 
 /**
  * A single note in the STAFF case-detail timeline. Unlike the anonymous
@@ -915,11 +992,16 @@ export interface StaffProfile {
   phone: string | null;
   designation: string | null;
   bar_number: string | null;
+  department: string | null;
   gender: string | null;
   date_of_birth: string | null;
   avatar_url: string | null;
   profile_completed: boolean;
   auth_method: string;
+  /** Whether 2FA is active. Drives the profile "on" state and the mandatory-2FA gate. */
+  mfa_enabled: boolean;
+  /** Onboarding lifecycle: 'onboarding' | 'pending' | 'approved' | 'rejected'. */
+  access_status: string;
 }
 
 export interface StaffProfileResponse {
@@ -939,6 +1021,11 @@ export interface StaffProfileInput {
   phone?: string;
   designation?: string;
   bar_number?: string;
+  department?: string;
+  // Set ONCE during onboarding (mainly for Google sign-ups that have no role yet);
+  // the server locks them after the first save.
+  role?: string;
+  organisation_id?: string;
 }
 
 /** Staff: fetch the caller's OWN profile. Token-bearing staffApi (requireStaff). */
@@ -1008,16 +1095,17 @@ export const changeMyPassword = ({
   });
 
 /**
- * The data returned when BEGINNING 2FA enrolment. `qr` is a ready-to-render
- * data-URL PNG (e.g. "data:image/png;base64,…") of the otpauth secret, and
- * `otpauth_url` is the same secret in text form as a fallback the staffer can
- * copy into an authenticator by hand. Neither is a persisted secret on the
- * client — they are shown once during setup and discarded when the screen
- * closes. Never log either value.
+ * The data returned when BEGINNING 2FA enrolment. `method` echoes the chosen
+ * factor. For 'totp', `qr` is a ready-to-render data-URL PNG of the otpauth
+ * secret and `otpauth_url` is the same secret in text form (a copy-by-hand
+ * fallback). For 'email', both are null — a code is emailed instead of scanned.
+ * Nothing here is persisted on the client: it is shown once during setup and
+ * discarded when the screen closes. Never log any value.
  */
 export interface MfaSetupData {
-  qr: string;
-  otpauth_url: string;
+  method: 'totp' | 'email';
+  qr: string | null;
+  otpauth_url: string | null;
 }
 
 export interface MfaSetupResponse {
@@ -1027,12 +1115,13 @@ export interface MfaSetupResponse {
 
 /**
  * Staff: BEGIN 2FA enrolment for the caller's OWN account. Token-bearing
- * staffApi (requireStaff) — this provisions a pending TOTP secret and returns
- * the QR + otpauth URL to scan. Enrolment is not complete until activateMfa()
- * succeeds with a valid code.
+ * staffApi (requireStaff). `method` picks the factor: 'totp' (authenticator app,
+ * the default) returns a QR to scan; 'email' emails a one-time code to prove the
+ * address. Enrolment is not complete until activateMfa() succeeds with a valid
+ * code.
  */
-export const setupMfa = () =>
-  staffApi.post<MfaSetupResponse>('/staff/me/mfa/setup');
+export const setupMfa = (method: 'totp' | 'email' = 'totp') =>
+  staffApi.post<MfaSetupResponse>('/staff/me/mfa/setup', { method });
 
 /**
  * The data returned on successful 2FA ACTIVATION: one-time backup codes the

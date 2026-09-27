@@ -12,7 +12,7 @@ const {
   changeCaseStatus,
   assignCase,
 } = require('../controllers/reportsController');
-const { requireStaff } = require('../middleware/auth');
+const { requireStaff, requireApproved } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -32,7 +32,7 @@ router.post('/', upload.single('evidence'), createReport);
 // GUARDED: listing cases is staff-only (see CLAUDE.md authorization matrix —
 // "List cases" is NEVER anonymous). requireStaff rejects missing/invalid tokens
 // with 401 before the controller runs.
-router.get('/', requireStaff, listReports);
+router.get('/', requireStaff, requireApproved, listReports);
 
 // --- Staff case-detail sub-routes (U7). ALL guarded by requireStaff --------
 // The full case view and every mutation on a case are staff-only (see CLAUDE.md
@@ -40,15 +40,15 @@ router.get('/', requireStaff, listReports);
 // before any controller runs.
 
 // GET /api/reports/:id — full case + notes + signed evidence URL + transitions.
-router.get('/:id', requireStaff, getCase);
+router.get('/:id', requireStaff, requireApproved, getCase);
 
 // POST /api/reports/:id/notes — add an internal or reporter-visible note.
-router.post('/:id/notes', requireStaff, addCaseNote);
+router.post('/:id/notes', requireStaff, requireApproved, addCaseNote);
 
 // PATCH /api/reports/:id/status — move through the status state machine.
-router.patch('/:id/status', requireStaff, changeCaseStatus);
+router.patch('/:id/status', requireStaff, requireApproved, changeCaseStatus);
 
 // PATCH /api/reports/:id/assign — assign or unassign the case to an org.
-router.patch('/:id/assign', requireStaff, assignCase);
+router.patch('/:id/assign', requireStaff, requireApproved, assignCase);
 
 module.exports = router;

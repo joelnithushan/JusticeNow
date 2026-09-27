@@ -17,6 +17,8 @@ const {
   activateMfa: activateMfaService,
   completeMfaLogin,
   resetMfa: resetMfaService,
+  issueEmailOtp,
+  resendEmailOtp,
 } = require('../services/mfa');
 const {
   listStaff: listStaffService,
@@ -24,6 +26,9 @@ const {
   updateStaff: updateStaffService,
   deactivateStaff: deactivateStaffService,
   registerStaff: registerStaffService,
+  maybeSubmitForApproval,
+  getStaffDetail: getStaffDetailService,
+  setApprovalStatus: setApprovalStatusService,
 } = require('../services/staffService');
 const {
   getOwnProfile: getOwnProfileService,
@@ -32,6 +37,10 @@ const {
   changeOwnPassword: changeOwnPasswordService,
 } = require('../services/profileService');
 const { writeAudit } = require('../services/audit');
+const {
+  requestReset: requestPasswordResetService,
+  resetPassword: resetPasswordService,
+} = require('../services/passwordResetService');
 
 /**
  * POST /api/staff/login — authenticate a staff member.
@@ -73,9 +82,29 @@ const login = async (req, res) => {
     // POST a code to /login/mfa to finish. No audit here — the login isn't
     // complete until the second factor passes.
     if (result.mfaRequired) {
+      // For an email-method account we must SEND the code now, before responding,
+      // so the staffer has it in their inbox by the time the code screen appears.
+      // A send failure is a hard stop — without the email they cannot continue.
+      if (result.mfaMethod === 'email') {
+        try {
+          await issueEmailOtp(result.staffId);
+        } catch (mailErr) {
+          const status = mailErr && mailErr.status ? mailErr.status : 500;
+          const message =
+            mailErr && mailErr.message
+              ? mailErr.message
+              : 'Could not send the code. Please try again.';
+          return res.status(status).json({ success: false, message });
+        }
+      }
+      // Tell the client which factor to prompt for (app code vs emailed code).
       return res.json({
         success: true,
-        data: { mfa_required: true, mfa_token: signMfaToken(result.staffId) },
+        data: {
+          mfa_required: true,
+          mfa_method: result.mfaMethod,
+          mfa_token: signMfaToken(result.staffId),
+        },
       });
     }
 
@@ -184,13 +213,32 @@ const registerGoogle = async (req, res) => {
       message: 'Too many attempts. Please wait and try again.',
     });
   }
-  const { access_token: accessToken, name, role, organisation_id: organisationId } =
-    req.body || {};
+  const {
+    access_token: accessToken,
+    name,
+    role,
+    organisation_id: organisationId,
+    nic,
+    phone,
+    designation,
+    bar_number: barNumber,
+    department,
+  } = req.body || {};
   try {
     // The email MUST come from Google's verified identity, not the request body.
     const email = await verifyGoogleEmail(accessToken);
     const staff = await registerStaffService(
-      { name, email, role, organisation_id: organisationId },
+      {
+        name,
+        email,
+        role,
+        organisation_id: organisationId,
+        nic,
+        phone,
+        designation,
+        bar_number: barNumber,
+        department,
+      },
       { google: true },
     );
     await writeAudit({
@@ -446,15 +494,54 @@ const loginMfa = async (req, res) => {
 
 /**
  * POST /api/staff/me/mfa/setup — begin 2FA enrollment for the CALLER. Guarded by
- * requireStaff. Returns the QR + otpauth URL to add to an authenticator app.
+ * requireStaff.
+ *
+ * Body: { method?: 'totp' | 'email' }  (defaults to 'totp')
+ *  - 'totp'  → returns { method, qr, otpauth_url } to add to an authenticator app.
+ *  - 'email' → emails a code and returns { method } (nothing to scan).
  */
 const setupMfa = async (req, res) => {
+  // Anything other than an explicit 'email' falls back to the authenticator app.
+  const method = req.body && req.body.method === 'email' ? 'email' : 'totp';
   try {
-    const { qrDataUrl, otpauthUrl } = await startEnrollment(req.staff.id, req.staff.email);
-    return res.json({ success: true, data: { qr: qrDataUrl, otpauth_url: otpauthUrl } });
+    const result = await startEnrollment(req.staff.id, req.staff.email, method);
+    return res.json({
+      success: true,
+      data: {
+        method: result.method,
+        qr: result.qrDataUrl || null,
+        otpauth_url: result.otpauthUrl || null,
+      },
+    });
   } catch (err) {
     const status = err && err.status ? err.status : 500;
     return res.status(status).json({ success: false, message: err.message || 'Could not start 2FA setup.' });
+  }
+};
+
+/**
+ * POST /api/staff/login/mfa/resend — re-send an email 2FA code mid-login. PUBLIC
+ * (the caller holds only the short-lived pending-MFA token). Rate-limited like
+ * the other login steps so it cannot be used to spam a staffer's inbox.
+ * Body: { mfa_token }
+ */
+const resendMfa = async (req, res) => {
+  if (req.isRateLimited) {
+    return res.status(429).json({
+      success: false,
+      message: 'Too many attempts. Please wait and try again.',
+    });
+  }
+  const { mfa_token: mfaToken } = req.body || {};
+  if (!mfaToken) {
+    return res.status(400).json({ success: false, message: 'Your login session expired. Please sign in again.' });
+  }
+  try {
+    await resendEmailOtp(mfaToken);
+    return res.json({ success: true });
+  } catch (err) {
+    const status = err && err.status ? err.status : 500;
+    return res.status(status).json({ success: false, message: err.message || 'Could not send the code.' });
   }
 };
 
@@ -470,7 +557,10 @@ const activateMfa = async (req, res) => {
   }
   try {
     const { backupCodes } = await activateMfaService(req.staff.id, code);
-    return res.json({ success: true, data: { backup_codes: backupCodes } });
+    // If the profile is already complete, enabling 2FA is the last step → auto-submit
+    // the account for admin approval (onboarding → pending).
+    const accessStatus = await maybeSubmitForApproval(req.staff.id);
+    return res.json({ success: true, data: { backup_codes: backupCodes, access_status: accessStatus } });
   } catch (err) {
     const status = err && err.status ? err.status : 500;
     return res.status(status).json({ success: false, message: err.message || 'Could not enable 2FA.' });
@@ -493,9 +583,100 @@ const resetMfa = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/staff/password/forgot — PUBLIC, rate-limited. Body: { email }.
+ * Always returns the SAME generic success (no oracle): only a genuine active
+ * password account is actually emailed a reset code (see passwordResetService).
+ */
+async function forgotPassword(req, res) {
+  if (req.isRateLimited) {
+    return res.status(429).json({
+      success: false,
+      message: 'Too many requests. Please wait a moment and try again.',
+    });
+  }
+  const { email } = req.body || {};
+  try {
+    await requestPasswordResetService(email);
+  } catch {
+    // Never surface internal failures — that would be an oracle. Fall through to
+    // the identical generic response below.
+  }
+  // Identical response whether or not the email maps to an account.
+  return res.json({
+    success: true,
+    message: 'If an account exists for that email, a reset code has been sent.',
+  });
+}
+
+/**
+ * POST /api/staff/password/reset — PUBLIC, rate-limited.
+ * Body: { email, code, new_password }. Verifies the emailed code and sets the new
+ * password. Generic failure for a wrong email OR wrong/expired code (no oracle).
+ */
+async function resetPassword(req, res) {
+  if (req.isRateLimited) {
+    return res.status(429).json({
+      success: false,
+      message: 'Too many attempts. Please wait and try again.',
+    });
+  }
+  const { email, code, new_password: newPassword } = req.body || {};
+  try {
+    await resetPasswordService(email, code, newPassword);
+    return res.json({ success: true, message: 'Your password has been reset. Please sign in.' });
+  } catch (err) {
+    const status = err && err.status ? err.status : 500;
+    const message =
+      err && err.message ? err.message : 'Could not reset your password. Please try again.';
+    return res.status(status).json({ success: false, message });
+  }
+}
+
+/**
+ * GET /api/staff/:id — ADMIN detail view for approval (submitted profile + 2FA
+ * status). Guarded by requireRole('admin','org_admin') on the route.
+ */
+async function getStaffDetail(req, res) {
+  try {
+    const data = await getStaffDetailService(req.params.id);
+    return res.json({ success: true, data });
+  } catch (err) {
+    return respondServiceError(res, err, 'Could not load the staff account.');
+  }
+}
+
+/** POST /api/staff/:id/approve — ADMIN grants case access (onboarding/pending → approved). */
+async function approveStaff(req, res) {
+  try {
+    const data = await setApprovalStatusService(req.params.id, 'approved');
+    await writeAudit({ actorId: req.staff.id, action: 'staff_updated', detail: { staff_id: req.params.id, approval: 'approved' } });
+    return res.json({ success: true, data });
+  } catch (err) {
+    return respondServiceError(res, err, 'Could not approve the account.');
+  }
+}
+
+/** POST /api/staff/:id/reject — ADMIN denies access (→ rejected, cannot log in). */
+async function rejectStaff(req, res) {
+  try {
+    const data = await setApprovalStatusService(req.params.id, 'rejected');
+    await writeAudit({ actorId: req.staff.id, action: 'staff_updated', detail: { staff_id: req.params.id, approval: 'rejected' } });
+    return res.json({ success: true, data });
+  } catch (err) {
+    return respondServiceError(res, err, 'Could not reject the account.');
+  }
+}
+
 module.exports = {
   login,
   loginMfa,
+  resendMfa,
+  forgotPassword,
+  resetPassword,
+  getStaffDetail,
+  approveStaff,
+  rejectStaff,
   googleLogin,
   register,
   registerGoogle,

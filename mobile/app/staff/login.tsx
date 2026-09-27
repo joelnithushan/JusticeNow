@@ -32,6 +32,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -39,7 +40,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -52,7 +53,7 @@ import GradientBackground from '../../components/GradientBackground';
 import BrandLogo from '../../components/BrandLogo';
 import EyeIcon from '../../components/EyeIcon';
 import { useAuth } from '../../src/context/AuthContext';
-import { loginStaff, loginStaffGoogle, staffLoginMfa } from '../../src/api/client';
+import { loginStaff, loginStaffGoogle, staffLoginMfa, resendMfaCode } from '../../src/api/client';
 import { supabase } from '../../src/api/supabase';
 import { colors, styles as theme } from '../../src/theme';
 
@@ -117,17 +118,32 @@ export default function StaffLogin() {
   const [mfaSubmitting, setMfaSubmitting] = useState(false);
   const [mfaError, setMfaError] = useState<string | null>(null);
   const [useBackupCode, setUseBackupCode] = useState(false);
+  // Which second factor this account uses. 'email' swaps the prompt wording and
+  // shows a "resend code" affordance; 'totp' asks for the authenticator code.
+  const [mfaMethod, setMfaMethod] = useState<'totp' | 'email'>('totp');
+  const [resending, setResending] = useState(false);
+  // A brief non-error confirmation (e.g. "a new code is on its way").
+  const [mfaNotice, setMfaNotice] = useState<string | null>(null);
 
-  // Already authenticated → do not show login to a logged-in staffer. Redirect
-  // straight into the guarded tabs. useRouter().replace inside render is safe
-  // here because expo-router defers navigation until after mount.
+  // Whether the entered value is treated as an email/authenticator code (digits)
+  // vs a backup code (free-form). Email codes are digits, same as TOTP.
+  const isEmail = mfaMethod === 'email';
+
+  // Already authenticated → do not show login to a logged-in staffer. Use the
+  // <Redirect> component (not router.replace) so navigation is declarative and
+  // never fires a setState on the navigator DURING this component's render.
   if (isAuthenticated) {
-    router.replace('/staff/reports');
-    return null;
+    return <Redirect href="/staff/reports" />;
   }
 
   const trimmedEmail = email.trim();
   const canSubmit = trimmedEmail.length > 0 && password.length > 0 && !submitting;
+
+  // Open the self-service reset flow (email code → new password). The request
+  // step is a no-oracle endpoint, so it never reveals whether an email exists.
+  const onForgotPassword = () => {
+    router.push('/staff/forgot-password');
+  };
 
   const onSubmit = async () => {
     // Validate the SHAPE of the input first and show any problem under the
@@ -158,8 +174,10 @@ export default function StaffLogin() {
         // handle. Switch to the code-entry step; the session is minted only once
         // staffLoginMfa() succeeds. Never log the handle.
         setMfaToken(data.mfa_token);
+        setMfaMethod(data.mfa_method === 'email' ? 'email' : 'totp');
         setMfaCode('');
         setMfaError(null);
+        setMfaNotice(null);
         setUseBackupCode(false);
         return;
       }
@@ -220,6 +238,31 @@ export default function StaffLogin() {
     }
   };
 
+  // Re-send the emailed code (email-method accounts only). Uses the same one-time
+  // mfaToken; the server issues a fresh code and emails it. We show a brief notice
+  // on success and a generic message on failure — never log the token or error.
+  const onResendCode = async () => {
+    if (resending || !mfaToken) return;
+    setResending(true);
+    setMfaError(null);
+    setMfaNotice(null);
+    try {
+      await resendMfaCode(mfaToken);
+      setMfaNotice(t('mfa.mfaResendSent'));
+    } catch (err) {
+      let message = t('mfa.mfaResendFailed');
+      if (axios.isAxiosError(err)) {
+        const serverMessage = err.response?.data?.message;
+        if (typeof serverMessage === 'string' && serverMessage.length > 0) {
+          message = serverMessage;
+        }
+      }
+      setMfaError(message);
+    } finally {
+      setResending(false);
+    }
+  };
+
   // Sign in with Google via Supabase Auth. We ask Supabase for the provider URL
   // (skipBrowserRedirect), open it in the system auth browser, then read the
   // access token from the redirect URL fragment and exchange it for OUR JWT via
@@ -270,23 +313,23 @@ export default function StaffLogin() {
     <View style={local.screen}>
       <StatusBar style="light" />
 
-      {/* Professional staff header: brand mark on the navy→teal gradient, matching
-          the preferences screen so the app feels consistent across surfaces. */}
-      <GradientBackground
-        id="staff-login-header"
-        style={[local.header, { paddingTop: insets.top + 20 }]}
-      >
-        {/* Logo centred horizontally, with a raised 3D badge (see BrandLogo). */}
-        <View style={local.logoWrap}>
-          <BrandLogo size={68} variant="chip" accessibilityLabel={t('app.title')} />
-        </View>
-        <Text style={local.title} accessibilityRole="header">
-          {mfaToken ? t('mfa.mfaTitle') : t('staffLogin.title')}
-        </Text>
-        <Text style={local.subtitle}>
-          {mfaToken ? t('mfa.mfaCodePrompt') : t('staffLogin.subtitle')}
-        </Text>
-      </GradientBackground>
+      {/* Top app bar: back + brand mark + wordmark on the navy bar. The screen
+          title now sits as a big left-aligned headline in the body below. */}
+      <View style={[local.appbar, { paddingTop: insets.top + 10 }]}>
+        <Pressable
+          onPress={() => router.replace('/')}
+          style={local.appbarBack}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+        >
+          <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+            <Path d="M15 6 l-6 6 l6 6" stroke={colors.primaryText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
+        </Pressable>
+        <BrandLogo size={30} tintColor={colors.primaryText} accessibilityLabel={t('app.title')} />
+        <Text style={local.appbarWordmark}>{t('app.title')}</Text>
+      </View>
 
       {mfaToken ? (
         // ── Second step: TOTP / backup code entry ──
@@ -296,19 +339,29 @@ export default function StaffLogin() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <Text style={local.headline} accessibilityRole="header">{t('mfa.mfaTitle')}</Text>
+          <Text style={local.bodySubtitle}>
+            {isEmail ? t('mfa.mfaEmailCodePrompt') : t('mfa.mfaCodePrompt')}
+          </Text>
+
           <Text style={theme.label} nativeID="mfaCodeLabel">
-            {t('mfa.mfaCodeLabel')}
+            {isEmail && !useBackupCode ? t('mfa.mfaEmailCodeLabel') : t('mfa.mfaCodeLabel')}
           </Text>
           <TextInput
             style={theme.input}
             value={mfaCode}
             onChangeText={(v) => {
-              // A TOTP code is digits only; a backup code may include letters and
-              // dashes, so only strip whitespace when in "authenticator" mode.
+              // An emailed / TOTP code is digits only; a backup code may include
+              // letters and dashes, so only strip whitespace when in "code" mode.
               setMfaCode(useBackupCode ? v : v.replace(/[^0-9]/g, ''));
               if (mfaError) setMfaError(null);
+              if (mfaNotice) setMfaNotice(null);
             }}
-            placeholder={t('mfa.mfaCodePrompt')}
+            placeholder={
+              isEmail && !useBackupCode
+                ? t('mfa.mfaEmailCodePrompt')
+                : t('mfa.mfaCodePrompt')
+            }
             placeholderTextColor={colors.muted}
             keyboardType={useBackupCode ? 'default' : 'number-pad'}
             autoCapitalize="none"
@@ -330,6 +383,13 @@ export default function StaffLogin() {
           {mfaError ? (
             <View style={local.errorBox} accessibilityRole="alert">
               <Text style={local.errorText}>{mfaError}</Text>
+            </View>
+          ) : null}
+
+          {/* Brief, non-error confirmation after a successful resend. */}
+          {mfaNotice ? (
+            <View style={local.noticeBox} accessibilityRole="alert">
+              <Text style={local.noticeText}>{mfaNotice}</Text>
             </View>
           ) : null}
 
@@ -356,6 +416,23 @@ export default function StaffLogin() {
             )}
           </Pressable>
 
+          {/* Email-method only: resend the code if it didn't arrive. Hidden while
+              entering a backup code (there is nothing to resend for those). */}
+          {isEmail && !useBackupCode ? (
+            <Pressable
+              onPress={onResendCode}
+              disabled={resending || mfaSubmitting}
+              style={theme.btnLink}
+              accessibilityRole="button"
+              accessibilityLabel={resending ? t('mfa.mfaResending') : t('mfa.mfaResend')}
+              accessibilityState={{ disabled: resending || mfaSubmitting, busy: resending }}
+            >
+              <Text style={theme.btnLinkText}>
+                {resending ? t('mfa.mfaResending') : t('mfa.mfaResend')}
+              </Text>
+            </Pressable>
+          ) : null}
+
           {/* "Use a backup code instead" — SAME field + endpoint; this only
               switches the keypad/validation so a backup code can be typed. */}
           <Pressable
@@ -363,6 +440,7 @@ export default function StaffLogin() {
               setUseBackupCode((v) => !v);
               setMfaCode('');
               setMfaError(null);
+              setMfaNotice(null);
             }}
             disabled={mfaSubmitting}
             style={theme.btnLink}
@@ -379,6 +457,9 @@ export default function StaffLogin() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <Text style={local.headline} accessibilityRole="header">{t('staffLogin.title')}</Text>
+        <Text style={local.bodySubtitle}>{t('staffLogin.subtitle')}</Text>
+
         <Text style={theme.label} nativeID="staffEmailLabel">
           {t('staffLogin.email')}
         </Text>
@@ -449,6 +530,18 @@ export default function StaffLogin() {
           </Text>
         ) : null}
 
+        {/* Forgot password — staff accounts are admin-managed, so this explains how
+            to get a reset rather than exposing a self-serve reset (no oracle). */}
+        <Pressable
+          onPress={onForgotPassword}
+          style={local.forgotRow}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={t('staffLogin.forgotPassword')}
+        >
+          <Text style={local.forgotText}>{t('staffLogin.forgotPassword')}</Text>
+        </Pressable>
+
         {/* Generic failure — announced to screen readers. Never reveals whether
             the email exists (the server already returns a generic message). */}
         {error ? (
@@ -517,38 +610,53 @@ export default function StaffLogin() {
         </Pressable>
       </ScrollView>
       )}
-
-      {/* "Back to home" pinned to the bottom (with a back arrow) so it stays
-          within easy thumb reach regardless of how tall the form scrolls. */}
-      <View style={[local.footer, { paddingBottom: insets.bottom + 12 }]}>
-        <Pressable
-          onPress={() => router.replace('/')}
-          disabled={submitting}
-          style={local.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel={t('staffLogin.backHome')}
-        >
-          <BackArrowIcon color={colors.primary} />
-          <Text style={local.backText}>{t('staffLogin.backHome')}</Text>
-        </Pressable>
-      </View>
     </View>
   );
 }
 
 const local = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  header: {
-    paddingHorizontal: 24,
-    paddingBottom: 28,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+  // Top app bar: back + logo + wordmark on the navy bar.
+  appbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    backgroundColor: colors.primary,
   },
-  logoWrap: { alignItems: 'center' },
-  title: { marginTop: 18, fontSize: 28, fontWeight: '800', color: '#ffffff' },
-  subtitle: { marginTop: 6, fontSize: 15, color: 'rgba(255,255,255,0.9)' },
+  appbarBack: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -6,
+  },
+  appbarWordmark: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.primaryText,
+    letterSpacing: 0.3,
+  },
+  // Big left-aligned screen headline + supporting line in the white body.
+  headline: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.4,
+    marginBottom: 6,
+  },
+  bodySubtitle: { fontSize: 15, color: colors.muted, marginBottom: 18 },
+  // Right-aligned "Forgot password?" link under the password field.
+  forgotRow: { alignSelf: 'flex-end', paddingVertical: 6, marginTop: 2 },
+  forgotText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
   scroll: { flex: 1 },
-  body: { padding: 24, paddingTop: 12 },
+  body: { padding: 24, paddingTop: 20 },
   // Bottom-pinned back affordance, separated from the form by a hairline.
   footer: {
     paddingHorizontal: 24,
@@ -604,5 +712,18 @@ const local = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: colors.danger,
+  },
+  // Non-error confirmation (e.g. after a resend) — uses the brand tint, not red.
+  noticeBox: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: colors.primaryTint,
+  },
+  noticeText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.primary,
+    fontWeight: '600',
   },
 });

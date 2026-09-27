@@ -37,11 +37,45 @@ import axios from 'axios';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
+import type { ColorValue } from 'react-native';
 
 import StaffHeader from '../../components/StaffHeader';
 import { setupMfa, activateMfa } from '../../src/api/client';
 import { useAuth } from '../../src/context/AuthContext';
+import { useProfile } from '../../src/context/ProfileContext';
 import { colors, styles as theme } from '../../src/theme';
+
+type IconProps = { color: ColorValue; size?: number };
+
+// Inline line-icons (react-native-svg is already a dependency — no icon font).
+// A phone showing a code → authenticator app; an envelope → email code.
+function AuthAppIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x={6} y={2.5} width={12} height={19} rx={3} stroke={color} strokeWidth={1.8} />
+      <Circle cx={9} cy={11} r={1} fill={color} />
+      <Circle cx={12} cy={11} r={1} fill={color} />
+      <Circle cx={15} cy={11} r={1} fill={color} />
+      <Line x1={10} y1={18.5} x2={14} y2={18.5} stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+function MailIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x={3} y={5} width={18} height={14} rx={2.5} stroke={color} strokeWidth={1.8} />
+      <Path d="M4 7 L12 12.5 L20 7" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+function ChevronIcon({ color, size = 20 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M9 6 l6 6 l-6 6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 // The three states of the flow: kicking off the setup call, scanning + entering
 // a code, and finally showing the backup codes once activation succeeds.
@@ -51,11 +85,21 @@ export default function StaffMfaSetup() {
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { logout } = useAuth();
+  const { logout, isAdmin } = useAuth();
+  const { profile, refresh } = useProfile();
+
+  // "Mandatory" = the staffer was sent here by the 2FA gate (non-admin without 2FA)
+  // and cannot reach case data until they finish. Admins and voluntary re-entry
+  // from the profile screen are NOT mandatory. Captured from profile at render.
+  const mandatory = profile !== null && !isAdmin && profile.mfa_enabled === false;
 
   const [phase, setPhase] = useState<Phase>('intro');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Which second factor the staffer is enrolling. 'totp' shows a QR to scan;
+  // 'email' emails a code instead (no QR). Chosen on the intro screen.
+  const [method, setMethod] = useState<'totp' | 'email'>('totp');
 
   // Setup data (QR data-URL + otpauth fallback) and the entered code. State only.
   const [qr, setQr] = useState<string | null>(null);
@@ -91,23 +135,28 @@ export default function StaffMfaSetup() {
     [goToLogin],
   );
 
-  const onBegin = useCallback(async () => {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await setupMfa();
-      // Hold the QR + fallback in state only; both are discarded when we leave.
-      setQr(res.data.data.qr);
-      setOtpauthUrl(res.data.data.otpauth_url);
-      setPhase('scan');
-    } catch (err) {
-      const message = messageFor(err, t('mfa.mfaFailed'));
-      if (message) setError(message);
-    } finally {
-      setBusy(false);
-    }
-  }, [busy, messageFor, t]);
+  const onBegin = useCallback(
+    async (chosen: 'totp' | 'email') => {
+      if (busy) return;
+      setBusy(true);
+      setError(null);
+      setMethod(chosen);
+      try {
+        const res = await setupMfa(chosen);
+        // Hold the QR + fallback in state only (null for the email method); both
+        // are discarded when we leave. For email, the server has emailed a code.
+        setQr(res.data.data.qr);
+        setOtpauthUrl(res.data.data.otpauth_url);
+        setPhase('scan');
+      } catch (err) {
+        const message = messageFor(err, t('mfa.mfaFailed'));
+        if (message) setError(message);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, messageFor, t],
+  );
 
   const onActivate = useCallback(async () => {
     if (busy) return;
@@ -130,15 +179,46 @@ export default function StaffMfaSetup() {
     }
   }, [busy, code, messageFor, t]);
 
-  const onDone = useCallback(() => {
+  const onDone = useCallback(async () => {
     // Drop the backup codes from state as we leave — they are never persisted.
     setBackupCodes([]);
+    // Re-sync the app's view of 2FA: refresh the profile so mfa_enabled flips to
+    // true everywhere (the profile screen, and the mandatory-2FA gate). Without
+    // this the app still thinks 2FA is off and keeps prompting to enrol.
+    await refresh();
+    // A mandatory enroller was gated out of the tabs, so send them INTO the
+    // dashboard now that 2FA is on; a voluntary enroller just goes back.
+    if (mandatory) {
+      router.replace('/staff/reports');
+    } else {
+      router.back();
+    }
+  }, [refresh, mandatory, router]);
+
+  // Phase-aware back: on the scan step, step BACK to the method chooser (the real
+  // "previous" within this flow). From the intro step, a VOLUNTARY enroller just
+  // leaves; a MANDATORY one has nothing to go back to (case data is blocked until
+  // 2FA is on), so the only exit is to sign out. Clears transient setup data.
+  const onBack = useCallback(() => {
+    if (phase === 'scan') {
+      setPhase('intro');
+      setError(null);
+      setCode('');
+      setQr(null);
+      setOtpauthUrl(null);
+      return;
+    }
+    if (mandatory) {
+      logout();
+      router.replace('/staff/login');
+      return;
+    }
     router.back();
-  }, [router]);
+  }, [phase, mandatory, logout, router]);
 
   return (
     <View style={local.screen}>
-      <StaffHeader title={t('mfa.mfaSetupTitle')} />
+      <StaffHeader title={t('mfa.mfaSetupTitle')} onBack={onBack} backLabel={t('common.back')} />
       <ScrollView
         contentContainerStyle={[local.body, { paddingBottom: insets.bottom + 24 }]}
         keyboardShouldPersistTaps="handled"
@@ -152,31 +232,63 @@ export default function StaffMfaSetup() {
 
         {phase === 'intro' ? (
           <>
-            <Text style={theme.paragraph}>{t('mfa.mfaSetupSteps')}</Text>
+            <Text style={local.chooseTitle} accessibilityRole="header">
+              {t('mfa.mfaMethodTitle')}
+            </Text>
+            <Text style={theme.paragraph}>{t('mfa.mfaMethodIntro')}</Text>
+
+            {/* Authenticator-app option (TOTP). */}
             <Pressable
-              onPress={onBegin}
+              onPress={() => onBegin('totp')}
               disabled={busy}
-              style={[theme.btnPrimary, busy && theme.btnDisabled]}
+              style={[local.methodCard, busy && theme.btnDisabled]}
               accessibilityRole="button"
-              accessibilityLabel={t('mfa.mfaEnable')}
-              accessibilityState={{ disabled: busy, busy }}
+              accessibilityLabel={t('mfa.mfaMethodApp')}
+              accessibilityState={{ disabled: busy }}
             >
-              {busy ? (
-                <ActivityIndicator color={colors.primaryText} />
-              ) : (
-                <Text style={theme.btnPrimaryText}>{t('mfa.mfaEnable')}</Text>
-              )}
+              <View style={local.methodIcon}>
+                <AuthAppIcon color={colors.primary} size={24} />
+              </View>
+              <View style={local.methodTextCol}>
+                <Text style={local.methodTitle}>{t('mfa.mfaMethodApp')}</Text>
+                <Text style={local.methodDesc}>{t('mfa.mfaMethodAppDesc')}</Text>
+              </View>
+              <ChevronIcon color={colors.muted} size={20} />
             </Pressable>
+
+            {/* Email-code option — no second device needed. */}
+            <Pressable
+              onPress={() => onBegin('email')}
+              disabled={busy}
+              style={[local.methodCard, busy && theme.btnDisabled]}
+              accessibilityRole="button"
+              accessibilityLabel={t('mfa.mfaMethodEmail')}
+              accessibilityState={{ disabled: busy }}
+            >
+              <View style={local.methodIcon}>
+                <MailIcon color={colors.primary} size={24} />
+              </View>
+              <View style={local.methodTextCol}>
+                <Text style={local.methodTitle}>{t('mfa.mfaMethodEmail')}</Text>
+                <Text style={local.methodDesc}>{t('mfa.mfaMethodEmailDesc')}</Text>
+              </View>
+              <ChevronIcon color={colors.muted} size={20} />
+            </Pressable>
+
+            {busy ? <ActivityIndicator color={colors.primary} style={{ marginTop: 12 }} /> : null}
           </>
         ) : null}
 
         {phase === 'scan' ? (
           <>
-            <Text style={theme.paragraph}>{t('mfa.mfaSetupSteps')}</Text>
+            <Text style={theme.paragraph}>
+              {method === 'email' ? t('mfa.mfaEmailSetupSteps') : t('mfa.mfaSetupSteps')}
+            </Text>
 
-            {/* QR rendered from the server's data-URL PNG via the BUILT-IN Image
-                component — no QR/camera native module is added. */}
-            {qr ? (
+            {/* TOTP only: QR rendered from the server's data-URL PNG via the
+                BUILT-IN Image component — no QR/camera native module is added.
+                The email method emails a code instead, so there is nothing here. */}
+            {method !== 'email' && qr ? (
               <View style={local.qrWrap}>
                 <Image
                   source={{ uri: qr }}
@@ -190,15 +302,15 @@ export default function StaffMfaSetup() {
 
             {/* Text fallback for staffers who cannot scan — the otpauth URL can be
                 typed/pasted into an authenticator by hand. Selectable so it can be
-                copied; never logged. */}
-            {otpauthUrl ? (
+                copied; never logged. TOTP only. */}
+            {method !== 'email' && otpauthUrl ? (
               <Text style={local.otpauth} selectable accessibilityLabel={otpauthUrl}>
                 {otpauthUrl}
               </Text>
             ) : null}
 
             <Text style={theme.label} nativeID="mfaSetupCodeLabel">
-              {t('mfa.mfaCodeLabel')}
+              {method === 'email' ? t('mfa.mfaEmailCodeLabel') : t('mfa.mfaCodeLabel')}
             </Text>
             <TextInput
               style={theme.input}
@@ -207,7 +319,9 @@ export default function StaffMfaSetup() {
                 setCode(v.replace(/[^0-9]/g, ''));
                 if (error) setError(null);
               }}
-              placeholder={t('mfa.mfaCodePrompt')}
+              placeholder={
+                method === 'email' ? t('mfa.mfaEmailCodePrompt') : t('mfa.mfaCodePrompt')
+              }
               placeholderTextColor={colors.muted}
               keyboardType="number-pad"
               autoCapitalize="none"
@@ -277,6 +391,14 @@ export default function StaffMfaSetup() {
             </Pressable>
           </>
         ) : null}
+
+        {/* A mandatory enroller (no case access yet) needs an escape hatch other
+            than the header back: an explicit sign-out on the intro step. */}
+        {mandatory && phase === 'intro' ? (
+          <Pressable onPress={onBack} style={theme.btnSecondary} accessibilityRole="button">
+            <Text style={theme.btnSecondaryText}>{t('staffReports.signOut')}</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -285,6 +407,36 @@ export default function StaffMfaSetup() {
 const local = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   body: { padding: 20 },
+  chooseTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  // Tappable card per 2FA method on the intro screen — icon + text + chevron row.
+  methodCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 12,
+    backgroundColor: colors.background,
+  },
+  methodIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryTint,
+  },
+  // flexShrink lets the text column wrap instead of pushing the chevron off-screen.
+  methodTextCol: { flex: 1 },
+  methodTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  methodDesc: { fontSize: 13, lineHeight: 19, color: colors.muted, marginTop: 4 },
   qrWrap: { alignItems: 'center', marginVertical: 16 },
   qr: {
     width: 220,
