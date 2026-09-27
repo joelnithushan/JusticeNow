@@ -49,6 +49,41 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
 const ROLES = ['org_admin', 'attorney', 'officer'];
 
+// Sri Lankan shape checks (server is the authority + derives gender/DOB from NIC).
+// Old NIC = 9 digits + V/X; new NIC = 12 digits. Mobile mirrors isValidLkMobile.
+const NIC_RE = /^(\d{9}[VvXx]|\d{12})$/;
+const LK_MOBILE_RE = /^(?:\+94|0094|94|0)?7[0-8]\d{7}$/;
+
+// Derive gender + date of birth from a valid NIC, for a read-only preview (the
+// server derives the authoritative values — the NIC proves them, so we never let
+// the user type a conflicting gender/DOB).
+function deriveFromNic(raw: string): { gender: string; dob: string } | null {
+  const nic = raw.trim().toUpperCase();
+  let year: number;
+  let dayField: number;
+  if (/^\d{9}[VX]$/.test(nic)) {
+    year = 1900 + parseInt(nic.slice(0, 2), 10);
+    dayField = parseInt(nic.slice(2, 5), 10);
+  } else if (/^\d{12}$/.test(nic)) {
+    year = parseInt(nic.slice(0, 4), 10);
+    dayField = parseInt(nic.slice(4, 7), 10);
+  } else {
+    return null;
+  }
+  const female = dayField > 500;
+  let day = female ? dayField - 500 : dayField;
+  if (day < 1 || day > 366) return null;
+  // NIC calendar: day 60 = Feb 29; months use Feb=29 always.
+  const months = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  let month = 0;
+  for (let i = 0; i < 12; i += 1) {
+    if (day <= months[i]) { month = i; break; }
+    day -= months[i];
+  }
+  const dob = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return { gender: female ? 'female' : 'male', dob };
+}
+
 function paramFromUrl(url: string, key: string): string | null {
   const hash = url.includes('#') ? url.split('#')[1] : '';
   const query = url.includes('?') ? url.split('?')[1].split('#')[0] : '';
@@ -69,6 +104,13 @@ export default function StaffRegister() {
   const [role, setRole] = useState<string | null>(null);
   const [organisationId, setOrganisationId] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Role-aware Sri Lankan profile details (collected at registration).
+  const [nic, setNic] = useState('');
+  const [phone, setPhone] = useState('');
+  const [designation, setDesignation] = useState('');
+  const [barNumber, setBarNumber] = useState('');
+  const [department, setDepartment] = useState('');
 
   const [orgs, setOrgs] = useState<Organisation[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -112,10 +154,28 @@ export default function StaffRegister() {
       }
       if (!role) next.role = t('staffRegister.errors.roleRequired');
       if (!organisationId) next.organisation = t('staffRegister.errors.organisationRequired');
+
+      // Common Sri Lankan details (all roles).
+      const nicTrim = nic.trim();
+      if (!nicTrim) next.nic = t('staffRegister.errors.nicRequired');
+      else if (!NIC_RE.test(nicTrim)) next.nic = t('staffRegister.errors.nicInvalid');
+      const phoneTrim = phone.trim().replace(/[\s-]/g, '');
+      if (!phoneTrim) next.phone = t('staffRegister.errors.phoneRequired');
+      else if (!LK_MOBILE_RE.test(phoneTrim)) next.phone = t('staffRegister.errors.phoneInvalid');
+      if (!designation.trim()) next.designation = t('staffRegister.errors.designationRequired');
+
+      // Role-specific fields.
+      if (role === 'attorney' && !barNumber.trim()) {
+        next.barNumber = t('staffRegister.errors.barNumberRequired');
+      }
+      if (role === 'officer' && !department.trim()) {
+        next.department = t('staffRegister.errors.departmentRequired');
+      }
+
       setErrors(next);
       return Object.keys(next).length === 0;
     },
-    [name, email, password, confirm, role, organisationId, t],
+    [name, email, password, confirm, role, organisationId, nic, phone, designation, barNumber, department, t],
   );
 
   const onSubmit = async () => {
@@ -129,6 +189,11 @@ export default function StaffRegister() {
         password,
         role,
         organisationId,
+        nic: nic.trim(),
+        phone: phone.trim(),
+        designation: designation.trim(),
+        barNumber: role === 'attorney' ? barNumber.trim() : undefined,
+        department: role === 'officer' ? department.trim() : undefined,
       });
       setPassword('');
       setConfirm('');
@@ -148,9 +213,12 @@ export default function StaffRegister() {
 
   const onGoogle = async () => {
     if (googleBusy || submitting) return;
-    // Role + org must be chosen before Google (the email comes from Google, but
-    // the role/org come from this form).
-    if (!validate(false) || !role || !organisationId) return;
+    // Google signup only needs a name here — role, organisation and all details are
+    // chosen AFTER login on the profile page. Just require a name.
+    if (!name.trim()) {
+      setErrors((e) => ({ ...e, name: t('staffRegister.errors.nameRequired') }));
+      return;
+    }
     setGoogleBusy(true);
     try {
       const redirectTo = Linking.createURL('/staff/register');
@@ -163,7 +231,7 @@ export default function StaffRegister() {
       if (result.type !== 'success' || !result.url) return; // cancelled
       const accessToken = paramFromUrl(result.url, 'access_token');
       if (!accessToken) throw new Error('No access token');
-      await registerStaffGoogle({ accessToken, name: name.trim(), role, organisationId });
+      await registerStaffGoogle({ accessToken, name: name.trim() });
       setSubmitted(true);
     } catch (err) {
       let message = t('staffRegister.errors.googleFailed');
@@ -207,17 +275,30 @@ export default function StaffRegister() {
   }
 
   const busy = submitting || googleBusy;
+  // Read-only gender + DOB preview, derived from a valid NIC (the server derives
+  // the authoritative values). Null until the NIC is well-formed.
+  const nicInfo = deriveFromNic(nic);
 
   return (
     <View style={local.screen}>
       <StatusBar style="light" />
-      <GradientBackground id="register-header" style={[local.header, { paddingTop: insets.top + 20 }]}>
-        <View style={local.logoWrap}>
-          <BrandLogo size={64} variant="chip" accessibilityLabel={t('app.title')} />
-        </View>
-        <Text style={local.title} accessibilityRole="header">{t('staffRegister.title')}</Text>
-        <Text style={local.subtitle}>{t('staffRegister.subtitle')}</Text>
-      </GradientBackground>
+      {/* Top app bar: back + brand mark + wordmark; the title is a big left-aligned
+          headline in the body below (matches the login screen). */}
+      <View style={[local.appbar, { paddingTop: insets.top + 10 }]}>
+        <Pressable
+          onPress={() => router.replace('/staff/login')}
+          style={local.appbarBack}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+        >
+          <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+            <Path d="M15 6 l-6 6 l6 6" stroke={colors.primaryText} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
+        </Pressable>
+        <BrandLogo size={30} tintColor={colors.primaryText} accessibilityLabel={t('app.title')} />
+        <Text style={local.appbarWordmark}>{t('app.title')}</Text>
+      </View>
 
       <ScrollView
         style={local.scroll}
@@ -225,6 +306,9 @@ export default function StaffRegister() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <Text style={local.headline} accessibilityRole="header">{t('staffRegister.title')}</Text>
+        <Text style={local.bodySubtitle}>{t('staffRegister.subtitle')}</Text>
+
         <Text style={theme.label}>{t('staffRegister.name')}</Text>
         <TextInput
           style={[theme.input, errors.name ? local.inputError : null]}
@@ -317,6 +401,92 @@ export default function StaffRegister() {
           {errors.organisation ? <Text style={theme.fieldError}>{errors.organisation}</Text> : null}
         </View>
 
+        {/* ── Sri Lankan identity + contact (all roles) ── */}
+        <Text style={theme.label}>{t('staffRegister.nic')}</Text>
+        <TextInput
+          style={[theme.input, errors.nic ? local.inputError : null]}
+          value={nic}
+          onChangeText={(v) => { setNic(v.toUpperCase()); clearErr('nic'); }}
+          placeholder={t('staffRegister.nicPlaceholder')}
+          placeholderTextColor={colors.muted}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={12}
+          editable={!busy}
+          accessibilityLabel={t('staffRegister.nic')}
+        />
+        {errors.nic ? <Text style={theme.fieldError}>{errors.nic}</Text> : null}
+        {/* Gender + DOB, derived from the NIC (read-only — the NIC proves them). */}
+        {nicInfo ? (
+          <Text style={local.nicDerived}>
+            {t('staffRegister.nicDerived', {
+              gender: t(`profile.${nicInfo.gender}`),
+              dob: nicInfo.dob,
+            })}
+          </Text>
+        ) : null}
+
+        <Text style={theme.label}>{t('staffRegister.phone')}</Text>
+        <TextInput
+          style={[theme.input, errors.phone ? local.inputError : null]}
+          value={phone}
+          onChangeText={(v) => { setPhone(v); clearErr('phone'); }}
+          placeholder={t('staffRegister.phonePlaceholder')}
+          placeholderTextColor={colors.muted}
+          keyboardType="phone-pad"
+          autoCorrect={false}
+          editable={!busy}
+          accessibilityLabel={t('staffRegister.phone')}
+        />
+        {errors.phone ? <Text style={theme.fieldError}>{errors.phone}</Text> : null}
+
+        <Text style={theme.label}>{t('staffRegister.designation')}</Text>
+        <TextInput
+          style={[theme.input, errors.designation ? local.inputError : null]}
+          value={designation}
+          onChangeText={(v) => { setDesignation(v); clearErr('designation'); }}
+          placeholder={t('staffRegister.designationPlaceholder')}
+          placeholderTextColor={colors.muted}
+          editable={!busy}
+          accessibilityLabel={t('staffRegister.designation')}
+        />
+        {errors.designation ? <Text style={theme.fieldError}>{errors.designation}</Text> : null}
+
+        {/* Attorney-only: Bar registration number. */}
+        {role === 'attorney' ? (
+          <>
+            <Text style={theme.label}>{t('staffRegister.barNumber')}</Text>
+            <TextInput
+              style={[theme.input, errors.barNumber ? local.inputError : null]}
+              value={barNumber}
+              onChangeText={(v) => { setBarNumber(v); clearErr('barNumber'); }}
+              placeholder={t('staffRegister.barNumberPlaceholder')}
+              placeholderTextColor={colors.muted}
+              autoCorrect={false}
+              editable={!busy}
+              accessibilityLabel={t('staffRegister.barNumber')}
+            />
+            {errors.barNumber ? <Text style={theme.fieldError}>{errors.barNumber}</Text> : null}
+          </>
+        ) : null}
+
+        {/* Officer-only: department / unit. */}
+        {role === 'officer' ? (
+          <>
+            <Text style={theme.label}>{t('staffRegister.department')}</Text>
+            <TextInput
+              style={[theme.input, errors.department ? local.inputError : null]}
+              value={department}
+              onChangeText={(v) => { setDepartment(v); clearErr('department'); }}
+              placeholder={t('staffRegister.departmentPlaceholder')}
+              placeholderTextColor={colors.muted}
+              editable={!busy}
+              accessibilityLabel={t('staffRegister.department')}
+            />
+            {errors.department ? <Text style={theme.fieldError}>{errors.department}</Text> : null}
+          </>
+        ) : null}
+
         {errors.form ? (
           <View style={local.errorBox} accessibilityRole="alert">
             <Text style={local.errorText}>{errors.form}</Text>
@@ -386,6 +556,37 @@ const local = StyleSheet.create({
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
+  // Top app bar: back + logo + wordmark on the navy bar.
+  appbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    backgroundColor: colors.primary,
+  },
+  appbarBack: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -6,
+  },
+  appbarWordmark: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.primaryText,
+    letterSpacing: 0.3,
+  },
+  // Big left-aligned screen headline + supporting line in the white body.
+  headline: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.4,
+    marginBottom: 6,
+  },
+  bodySubtitle: { fontSize: 15, color: colors.muted, lineHeight: 21, marginBottom: 18 },
   logoWrap: { alignItems: 'center' },
   title: { marginTop: 16, fontSize: 26, fontWeight: '800', color: '#ffffff' },
   subtitle: { marginTop: 6, fontSize: 14, color: 'rgba(255,255,255,0.9)', lineHeight: 20 },
@@ -393,6 +594,7 @@ const local = StyleSheet.create({
   body: { padding: 24, paddingTop: 12, paddingBottom: 32 },
   selectWrap: { marginTop: 12 },
   inputError: { borderColor: colors.danger },
+  nicDerived: { marginTop: 6, fontSize: 13, color: colors.muted },
   passwordRow: { justifyContent: 'center' },
   passwordInput: { paddingRight: 48 },
   eyeBtn: { position: 'absolute', right: 8, height: 44, width: 40, alignItems: 'center', justifyContent: 'center' },

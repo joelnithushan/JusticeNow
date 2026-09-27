@@ -21,6 +21,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const supabase = require('../config/supabase');
 const { decodeNic, isValidLkMobile } = require('../utils/nic');
+const { SELF_REGISTERABLE_ROLES, maybeSubmitForApproval } = require('./staffService');
 
 // Public storage bucket for staff avatars. Unlike evidence (private, signed
 // URLs only), an avatar is a non-sensitive display picture the staffer chooses,
@@ -42,7 +43,8 @@ const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 // deliberately ABSENT — it must never leave the server.
 const PROFILE_COLUMNS =
   'id, name, email, role, organisation_id, nic, phone, designation, ' +
-  'bar_number, gender, date_of_birth, avatar_path, profile_completed, mfa_enabled';
+  'bar_number, department, gender, date_of_birth, avatar_path, profile_completed, ' +
+  'mfa_enabled, access_status';
 
 /** A validation error the controller maps to a 400 (mirrors staffService). */
 class ValidationError extends Error {
@@ -102,10 +104,14 @@ function toProfile(row, orgName, authMethod) {
     phone: row.phone || null,
     designation: row.designation || null,
     bar_number: row.bar_number || null,
+    department: row.department || null,
     gender: row.gender || null,
     date_of_birth: row.date_of_birth || null,
     avatar_url: avatarUrlFor(row.avatar_path),
     profile_completed: Boolean(row.profile_completed),
+    // Onboarding lifecycle: onboarding | pending | approved | rejected. The client
+    // gates the dashboard on this (approved) and shows the awaiting-approval state.
+    access_status: row.access_status || 'approved',
     // Whether this session may change a password (password accounts only). The
     // client uses it to show/hide the change-password form; the server re-checks.
     auth_method: authMethod,
@@ -191,6 +197,40 @@ async function updateOwnProfile({ staffId, role, authMethod, input }) {
   const src = input || {};
   const patch = {};
 
+  // Load the current row FIRST — we need the persisted role + access_status to
+  // decide role/org handling (a Google onboarding account has no role yet) and to
+  // recompute completeness against the MERGE of existing values + this patch.
+  const { row: current, orgName } = await loadOwnRow(staffId);
+
+  // ── Role + organisation: chosen ONCE, during onboarding (Google accounts have
+  // no role until here). After that they are READ-ONLY. effectiveRole drives the
+  // role-specific fields + completeness below. ──
+  let effectiveRole = current.role || null;
+  const isOnboarding = current.access_status === 'onboarding';
+  const roleUnset = !current.role;
+  if (isOnboarding && roleUnset && src.role !== undefined) {
+    const chosen = typeof src.role === 'string' ? src.role.trim() : '';
+    if (!SELF_REGISTERABLE_ROLES.includes(chosen)) {
+      throw new ValidationError(`role must be one of: ${SELF_REGISTERABLE_ROLES.join(', ')}.`);
+    }
+    patch.role = chosen;
+    effectiveRole = chosen;
+
+    // Organisation is required alongside the role and must reference a real org.
+    const orgId = typeof src.organisation_id === 'string' ? src.organisation_id.trim() : '';
+    if (!orgId) {
+      throw new ValidationError('An organisation is required.');
+    }
+    const { data: org, error: orgErr } = await supabase
+      .from('organisations')
+      .select('id')
+      .eq('id', orgId)
+      .maybeSingle();
+    if (orgErr) throw new Error(`Organisation lookup failed: ${orgErr.message}`);
+    if (!org) throw new ValidationError('Select a valid organisation.');
+    patch.organisation_id = orgId;
+  }
+
   // name — required non-empty when supplied; a profile must always keep a name.
   if (src.name !== undefined) {
     const name = typeof src.name === 'string' ? src.name.trim() : '';
@@ -200,10 +240,8 @@ async function updateOwnProfile({ staffId, role, authMethod, input }) {
     patch.name = name;
   }
 
-  // nic — decode + validate. On success DERIVE gender + date_of_birth from the
-  // decode (the NIC is the authority on both); we never trust a client-sent
-  // gender/dob. A single clear message covers every invalid form (bad format,
-  // impossible day, Feb-29 in a non-leap year) so we do not leak the check logic.
+  // nic — decode + validate. On success DERIVE gender + date_of_birth (the NIC is
+  // the authority on both); we never trust a client-sent gender/dob.
   if (src.nic !== undefined) {
     const nic = typeof src.nic === 'string' ? src.nic.trim() : '';
     const decoded = decodeNic(nic);
@@ -231,9 +269,8 @@ async function updateOwnProfile({ staffId, role, authMethod, input }) {
     patch.designation = designation || null;
   }
 
-  // bar_number — only meaningful for attorneys. For any other role the field is
-  // IGNORED (not an error), so an officer sending it by mistake is harmless.
-  if (role === 'attorney' && src.bar_number !== undefined) {
+  // bar_number — attorneys only (ignored for other roles).
+  if (effectiveRole === 'attorney' && src.bar_number !== undefined) {
     const barNumber =
       typeof src.bar_number === 'string' ? src.bar_number.trim() : '';
     if (!barNumber) {
@@ -242,10 +279,15 @@ async function updateOwnProfile({ staffId, role, authMethod, input }) {
     patch.bar_number = barNumber;
   }
 
-  // Load the current row so we can recompute profile_completed against the
-  // MERGE of existing values + this patch (a partial PATCH must not clobber
-  // completeness computed from fields it did not touch).
-  const { row: current, orgName } = await loadOwnRow(staffId);
+  // department — officers only (ignored for other roles).
+  if (effectiveRole === 'officer' && src.department !== undefined) {
+    const department =
+      typeof src.department === 'string' ? src.department.trim() : '';
+    if (!department) {
+      throw new ValidationError('Enter your department.');
+    }
+    patch.department = department;
+  }
 
   const merged = {
     name: patch.name !== undefined ? patch.name : current.name,
@@ -255,16 +297,21 @@ async function updateOwnProfile({ staffId, role, authMethod, input }) {
       patch.designation !== undefined ? patch.designation : current.designation,
     bar_number:
       patch.bar_number !== undefined ? patch.bar_number : current.bar_number,
+    department:
+      patch.department !== undefined ? patch.department : current.department,
   };
 
-  // profile_completed: the core four fields, plus a bar_number ONLY for
-  // attorneys. Recomputed and stored on every PATCH so the flag cannot drift.
+  // profile_completed: role + org set, the core details, plus the role-specific
+  // field (attorney → bar_number, officer → department). Recomputed on every PATCH.
   patch.profile_completed = Boolean(
-    merged.name &&
+    effectiveRole &&
+      (patch.organisation_id || current.organisation_id) &&
+      merged.name &&
       merged.nic &&
       merged.phone &&
       merged.designation &&
-      (role !== 'attorney' || merged.bar_number),
+      (effectiveRole !== 'attorney' || merged.bar_number) &&
+      (effectiveRole !== 'officer' || merged.department),
   );
 
   const { data: updated, error } = await supabase
@@ -282,7 +329,23 @@ async function updateOwnProfile({ staffId, role, authMethod, input }) {
     throw new NotFoundError('Your profile could not be found.');
   }
 
-  return toProfile(updated, orgName, authMethod);
+  // If the profile is now complete AND 2FA is already on, auto-submit for admin
+  // approval (onboarding → pending). Reflect the new status in the response.
+  const newStatus = await maybeSubmitForApproval(staffId);
+  if (newStatus) updated.access_status = newStatus;
+
+  // Re-fetch the org name when the organisation was just chosen.
+  let effectiveOrgName = orgName;
+  if (patch.organisation_id) {
+    const { data: org } = await supabase
+      .from('organisations')
+      .select('name')
+      .eq('id', patch.organisation_id)
+      .maybeSingle();
+    effectiveOrgName = org ? org.name : null;
+  }
+
+  return toProfile(updated, effectiveOrgName, authMethod);
 }
 
 /**

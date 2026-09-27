@@ -11,6 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import { authenticator } from 'otplib';
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-do-not-use-in-prod';
@@ -21,12 +22,19 @@ process.env.SUPABASE_KEY = process.env.SUPABASE_KEY || 'test-anon-key';
 
 const {
   verifyTotp,
+  generateEmailOtp,
+  verifyEmailOtp,
   generateBackupCodesPlain,
   hashBackupCodes,
   consumeBackupCode,
   signMfaToken,
   BACKUP_CODE_COUNT,
+  MFA_METHODS,
 } = await import('../../services/mfa.js');
+
+// A timestamp comfortably in the future / past, for OTP expiry assertions.
+const FUTURE = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+const PAST = new Date(Date.now() - 60 * 1000).toISOString();
 
 describe('verifyTotp', () => {
   it('accepts a live code generated from the same secret', () => {
@@ -52,6 +60,57 @@ describe('verifyTotp', () => {
     expect(verifyTotp(secret, '')).toBe(false); // empty
     // A null secret can never verify, even with a well-formed code.
     expect(verifyTotp(null, authenticator.generate(secret))).toBe(false);
+  });
+});
+
+describe('generateEmailOtp', () => {
+  it('returns a 6-digit numeric string (zero-padded)', () => {
+    // Run several times: a small value must still be padded to six characters.
+    for (let i = 0; i < 50; i += 1) {
+      const code = generateEmailOtp();
+      expect(code).toMatch(/^\d{6}$/);
+    }
+  });
+});
+
+describe('verifyEmailOtp', () => {
+  it('accepts the correct code before it expires', async () => {
+    const code = '123456';
+    const hash = await bcrypt.hash(code, 10);
+    expect(await verifyEmailOtp(hash, FUTURE, code)).toBe(true);
+  });
+
+  it('rejects the correct code once it has expired', async () => {
+    const code = '123456';
+    const hash = await bcrypt.hash(code, 10);
+    // Right digits, but past the expiry instant → still a miss.
+    expect(await verifyEmailOtp(hash, PAST, code)).toBe(false);
+  });
+
+  it('rejects a wrong code, and a null hash/expiry', async () => {
+    const hash = await bcrypt.hash('123456', 10);
+    expect(await verifyEmailOtp(hash, FUTURE, '000000')).toBe(false);
+    expect(await verifyEmailOtp(null, FUTURE, '123456')).toBe(false);
+    expect(await verifyEmailOtp(hash, null, '123456')).toBe(false);
+  });
+
+  it('rejects a non-6-digit submission before hashing', async () => {
+    const hash = await bcrypt.hash('123456', 10);
+    expect(await verifyEmailOtp(hash, FUTURE, '12345')).toBe(false);
+    expect(await verifyEmailOtp(hash, FUTURE, 'abcdef')).toBe(false);
+    expect(await verifyEmailOtp(hash, FUTURE, '')).toBe(false);
+  });
+
+  it('ignores surrounding whitespace in the submission', async () => {
+    const code = '654321';
+    const hash = await bcrypt.hash(code, 10);
+    expect(await verifyEmailOtp(hash, FUTURE, '  654321  ')).toBe(true);
+  });
+});
+
+describe('MFA_METHODS', () => {
+  it('is exactly the two supported second factors', () => {
+    expect(MFA_METHODS).toEqual(['totp', 'email']);
   });
 });
 

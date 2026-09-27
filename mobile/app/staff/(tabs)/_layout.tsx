@@ -110,12 +110,29 @@ export default function StaffTabsLayout() {
     return <Redirect href="/staff/login" />;
   }
 
-  // Completion gate: once the profile has loaded and is INCOMPLETE, the other
-  // tabs are hidden (href: null) so the staffer cannot leave the profile screen
-  // until they finish it. The profile tab itself always stays reachable, and a
-  // successful save flips profile_completed → the tabs unlock on the next render.
-  // While the profile is still loading (null) we do NOT hide anything, so a slow
-  // fetch never traps a staffer whose profile is actually complete.
+  // ── Onboarding lifecycle gate (non-admins). The system admin is exempt. ──
+  // onboarding → complete the profile, then enable 2FA (the server flips the
+  // account to 'pending' once both are done); pending → the awaiting-approval
+  // screen; approved → the dashboard. The server enforces the same rules, so this
+  // is the UX half. While the profile is still loading (null) we gate nothing.
+  if (profile !== null && !isAdmin) {
+    if (profile.access_status === 'pending') {
+      return <Redirect href="/staff/pending" />;
+    }
+    // Profile complete but 2FA not yet on → enrol 2FA.
+    if (
+      profile.access_status === 'onboarding' &&
+      profile.profile_completed &&
+      profile.mfa_enabled === false
+    ) {
+      return <Redirect href="/staff/mfa-setup" />;
+    }
+  }
+
+  // Completion gate: while the profile is INCOMPLETE, the other tabs are hidden
+  // (href: null) so the staffer must finish the profile first (a Google sign-up
+  // also picks their role + organisation here). A successful save flips
+  // profile_completed → the tabs unlock on the next render.
   const gated = profile !== null && profile.profile_completed === false;
 
   return (

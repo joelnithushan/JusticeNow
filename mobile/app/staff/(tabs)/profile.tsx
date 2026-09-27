@@ -22,6 +22,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -40,11 +41,14 @@ import EyeIcon from '../../../components/EyeIcon';
 import ErrorState from '../../../components/ErrorState';
 import StaffHeader from '../../../components/StaffHeader';
 import LanguageSwitcher from '../../../components/LanguageSwitcher';
+import SelectField, { type Option } from '../../../components/SelectField';
 import {
   updateMe,
   uploadAvatar,
   changeMyPassword,
+  fetchOrganisations,
 } from '../../../src/api/client';
+import type { Organisation } from '../../../src/api/client';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useProfile } from '../../../src/context/ProfileContext';
 import { colors, styles as theme } from '../../../src/theme';
@@ -54,6 +58,8 @@ import { colors, styles as theme } from '../../../src/theme';
 // new NIC = 12 digits. Mobile mirrors the server's isValidLkMobile.
 const NIC_RE = /^(\d{9}[VvXx]|\d{12})$/;
 const LK_MOBILE_RE = /^(?:\+94|0094|94|0)?7[0-8]\d{7}$/;
+// Roles a user may self-assign during onboarding (never the platform 'admin').
+const SELF_ROLES = ['org_admin', 'attorney', 'officer'];
 
 export default function StaffProfileTab() {
   const { t } = useTranslation();
@@ -69,6 +75,12 @@ export default function StaffProfileTab() {
   const [phone, setPhone] = useState('');
   const [designation, setDesignation] = useState('');
   const [barNumber, setBarNumber] = useState('');
+  const [department, setDepartment] = useState('');
+  // Role + organisation are chosen here ONCE during onboarding (mainly for Google
+  // sign-ups that arrive with no role). After the first save they are locked.
+  const [role, setRole] = useState<string | null>(null);
+  const [organisationId, setOrganisationId] = useState<string | null>(null);
+  const [orgs, setOrgs] = useState<Organisation[]>([]);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -100,12 +112,38 @@ export default function StaffProfileTab() {
       setPhone(profile.phone ?? '');
       setDesignation(profile.designation ?? '');
       setBarNumber(profile.bar_number ?? '');
+      setDepartment(profile.department ?? '');
+      setRole(profile.role ?? null);
+      setOrganisationId(profile.organisation_id ?? null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileId]);
 
-  const isAttorney = profile?.role === 'attorney';
+  // A Google onboarding account arrives with no role → it must pick a role + org
+  // here (once). After the role is set on the server it is locked (read-only).
+  const needsRoleSetup = profile !== null && !profile.role;
+  const effectiveRole = role || profile?.role || null;
+  const isAttorney = effectiveRole === 'attorney';
+  const isOfficer = effectiveRole === 'officer';
   const isPasswordAccount = profile?.auth_method === 'password';
+
+  // Load organisations for the picker only when the role/org still need choosing.
+  useEffect(() => {
+    if (!needsRoleSetup) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchOrganisations();
+        if (!cancelled) setOrgs(res.data.data);
+      } catch {
+        // Non-fatal: the picker just shows empty; the server re-validates the org.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [needsRoleSetup]);
+
+  const roleOptions: Option[] = SELF_ROLES.map((r) => ({ value: r, label: t(`roles.${r}`) }));
+  const orgOptions: Option[] = orgs.map((o) => ({ value: o.id, label: o.name }));
 
   const goToLogin = useCallback(() => {
     // In-memory token expired/invalid — drop it so nothing lingers, then require
@@ -113,6 +151,21 @@ export default function StaffProfileTab() {
     logout();
     router.replace('/staff/login');
   }, [logout, router]);
+
+  // Sign-out from the header ASKS FIRST — an accidental tap should not drop the
+  // session (and, on a shared device, force a full re-login). The 401 handler
+  // still calls goToLogin directly (no prompt) since that session is already dead.
+  const confirmSignOut = useCallback(() => {
+    Alert.alert(
+      t('staffReports.signOut'),
+      t('profile.signOutConfirm'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('staffReports.signOut'), style: 'destructive', onPress: goToLogin },
+      ],
+      { cancelable: true },
+    );
+  }, [t, goToLogin]);
 
   // Map an axios error to a message: prefer the server's 400 `message`, treat a
   // 401 as an expired session (bounce to login), else a generic fallback.
@@ -150,6 +203,11 @@ export default function StaffProfileTab() {
     }
     if (!designation.trim()) next.designation = t('profile.designationRequired');
     if (isAttorney && !barNumber.trim()) next.barNumber = t('profile.barNumberRequired');
+    if (isOfficer && !department.trim()) next.department = t('profile.departmentRequired');
+    if (needsRoleSetup) {
+      if (!role) next.role = t('profile.roleRequired');
+      if (!organisationId) next.organisation = t('profile.organisationRequired');
+    }
     setFieldErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -165,6 +223,9 @@ export default function StaffProfileTab() {
         phone: phone.trim(),
         designation: designation.trim(),
         ...(isAttorney ? { bar_number: barNumber.trim() } : {}),
+        ...(isOfficer ? { department: department.trim() } : {}),
+        // Role + org are sent ONLY while onboarding (the server locks them after).
+        ...(needsRoleSetup && role ? { role, organisation_id: organisationId ?? undefined } : {}),
       });
       // Push the fresh profile into context so the derived gender/DOB, the
       // completion flag and the nav avatar all update immediately.
@@ -186,7 +247,12 @@ export default function StaffProfileTab() {
     phone,
     designation,
     barNumber,
+    department,
+    role,
+    organisationId,
     isAttorney,
+    isOfficer,
+    needsRoleSetup,
     setProfile,
     messageFor,
     t,
@@ -287,8 +353,7 @@ export default function StaffProfileTab() {
     <View style={local.screen}>
       <StaffHeader
         title={t('profile.title')}
-        subtitle={t('profile.subtitle')}
-        onSignOut={goToLogin}
+        onSignOut={confirmSignOut}
         signOutLabel={t('staffReports.signOut')}
       />
       <ScrollView
@@ -333,6 +398,41 @@ export default function StaffProfileTab() {
           )}
         </Pressable>
       </View>
+
+      {/* Role + organisation — chosen ONCE during onboarding (Google sign-ups have
+          no role yet). Locked to read-only afterwards. */}
+      {needsRoleSetup ? (
+        <>
+          <Text style={local.onboardingNote}>{t('profile.roleLockNote')}</Text>
+          <View style={local.selectWrap}>
+            <SelectField
+              label={t('staffRegister.role')}
+              required
+              placeholder={t('staffRegister.rolePlaceholder')}
+              value={role}
+              options={roleOptions}
+              onChange={(v) => { setRole(v); clearErr('role'); clearErr('department'); clearErr('barNumber'); }}
+            />
+            {fieldErrors.role ? <Text style={theme.fieldError}>{fieldErrors.role}</Text> : null}
+          </View>
+          <View style={local.selectWrap}>
+            <SelectField
+              label={t('staffRegister.organisation')}
+              required
+              placeholder={t('staffRegister.organisationPlaceholder')}
+              value={organisationId}
+              options={orgOptions}
+              onChange={(v) => { setOrganisationId(v); clearErr('organisation'); }}
+            />
+            {fieldErrors.organisation ? <Text style={theme.fieldError}>{fieldErrors.organisation}</Text> : null}
+          </View>
+        </>
+      ) : (
+        <View style={local.derivedRow}>
+          <ReadOnly label={t('staffRegister.role')} value={profile.role ? t(`roles.${profile.role}`, { defaultValue: profile.role }) : t('caseDetail.notProvided')} />
+          <ReadOnly label={t('staffRegister.organisation')} value={profile.organisation_name ?? t('caseDetail.notProvided')} />
+        </View>
+      )}
 
       {/* Editable fields. */}
       <Field
@@ -422,6 +522,21 @@ export default function StaffProfileTab() {
           autoCorrect={false}
           placeholder={t('profile.barNumberPlaceholder')}
           error={fieldErrors.barNumber}
+        />
+      ) : null}
+
+      {isOfficer ? (
+        <Field
+          label={t('staffRegister.department')}
+          required
+          value={department}
+          onChangeText={(v) => {
+            setDepartment(v);
+            clearErr('department');
+          }}
+          editable={!saving}
+          placeholder={t('staffRegister.departmentPlaceholder')}
+          error={fieldErrors.department}
         />
       ) : null}
 
@@ -587,15 +702,25 @@ export default function StaffProfileTab() {
           point to set it up. */}
       <View style={local.passwordSection}>
         <Text style={local.sectionTitle}>{t('mfa.mfaTitle')}</Text>
-        <Text style={theme.privacyNoteSmall}>{t('mfa.mfaSetupSteps')}</Text>
-        <Pressable
-          onPress={() => router.push('/staff/mfa-setup')}
-          style={theme.btnSecondary}
-          accessibilityRole="button"
-          accessibilityLabel={t('mfa.mfaEnable')}
-        >
-          <Text style={theme.btnSecondaryText}>{t('mfa.mfaEnable')}</Text>
-        </Pressable>
+        {profile?.mfa_enabled ? (
+          // Already on → show the confirmed state instead of the enrol prompt, so
+          // the UI stays in sync with the server after enrolment.
+          <View style={local.mfaOnBox} accessibilityRole="text">
+            <Text style={local.mfaOnText}>{'✓ ' + t('mfa.mfaEnabledMsg')}</Text>
+          </View>
+        ) : (
+          <>
+            <Text style={theme.privacyNoteSmall}>{t('mfa.mfaSetupSteps')}</Text>
+            <Pressable
+              onPress={() => router.push('/staff/mfa-setup')}
+              style={theme.btnSecondary}
+              accessibilityRole="button"
+              accessibilityLabel={t('mfa.mfaEnable')}
+            >
+              <Text style={theme.btnSecondaryText}>{t('mfa.mfaEnable')}</Text>
+            </Pressable>
+          </>
+        )}
       </View>
       </ScrollView>
     </View>
@@ -716,6 +841,15 @@ const local = StyleSheet.create({
   required: { color: colors.danger, fontWeight: '700' },
   inputError: { borderColor: colors.danger },
   derivedRow: { flexDirection: 'row', gap: 12 },
+  selectWrap: { marginTop: 12 },
+  onboardingNote: {
+    fontSize: 13,
+    color: colors.secondaryOnLight,
+    backgroundColor: colors.secondaryTint,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 4,
+  },
   readOnly: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -745,6 +879,13 @@ const local = StyleSheet.create({
   },
   passwordRow: { justifyContent: 'center' },
   passwordInput: { paddingRight: 48 },
+  // Confirmed "2FA is on" state on the profile screen.
+  mfaOnBox: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: colors.primaryTint,
+  },
+  mfaOnText: { fontSize: 14, fontWeight: '700', color: colors.primary },
   eyeBtn: {
     position: 'absolute',
     right: 8,

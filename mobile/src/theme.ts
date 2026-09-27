@@ -47,7 +47,9 @@ export const styles = StyleSheet.create({
   page: {
     flexGrow: 1,
     padding: 20,
-    paddingTop: 56, // leave room for the floating Quick Exit button
+    // Normal top padding: screens now have a header, so the old extra top space
+    // (a leftover reserved for a floating control) just showed as a white gap.
+    paddingTop: 20,
     backgroundColor: colors.background,
   },
   h1: {

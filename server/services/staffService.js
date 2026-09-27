@@ -22,6 +22,7 @@
 const bcrypt = require('bcryptjs');
 const supabase = require('../config/supabase');
 const { STAFF_ROLES } = require('./statusTransition');
+const { decodeNic, isValidLkMobile } = require('../utils/nic');
 
 // bcrypt work factor. 10 matches the seed script (scripts/seed.js) — a sane
 // default for this app; raising it later only affects newly-created hashes.
@@ -44,7 +45,14 @@ const PG_UNIQUE_VIOLATION = '23505';
 // deliberately ABSENT — it must never leave the server. is_active is included
 // so the console can badge/toggle deactivated accounts.
 const SAFE_STAFF_COLUMNS =
-  'id, name, email, role, organisation_id, is_active, created_at';
+  'id, name, email, role, organisation_id, is_active, access_status, mfa_enabled, created_at';
+
+// Full detail an admin may view for approval — includes the submitted profile
+// fields + 2FA status. password_hash is NEVER included.
+const STAFF_DETAIL_COLUMNS =
+  'id, name, email, role, organisation_id, is_active, access_status, mfa_enabled, ' +
+  'mfa_method, nic, phone, designation, bar_number, department, gender, ' +
+  'date_of_birth, profile_completed, created_at';
 
 /** A validation error the controller maps to a 400 (mirrors organisationService). */
 class ValidationError extends Error {
@@ -299,6 +307,45 @@ async function createStaff(input, caller) {
 
   const patch = await buildStaffPatch(src, { isCreate: true });
 
+  // ── Role-aware Sri Lankan details (same policy as self-registration). ──
+  const role = patch.role;
+  const nic = typeof src.nic === 'string' ? src.nic.trim().toUpperCase() : '';
+  const decoded = decodeNic(nic);
+  if (!nic || !decoded.valid) {
+    throw new ValidationError('Enter a valid Sri Lankan NIC.');
+  }
+  patch.nic = nic;
+  patch.gender = decoded.gender;
+  patch.date_of_birth = decoded.dateOfBirth;
+
+  const phone = typeof src.phone === 'string' ? src.phone.trim() : '';
+  if (!phone || !isValidLkMobile(phone)) {
+    throw new ValidationError('Enter a valid Sri Lankan mobile number.');
+  }
+  patch.phone = phone;
+
+  const designation = typeof src.designation === 'string' ? src.designation.trim() : '';
+  if (!designation) {
+    throw new ValidationError('Designation is required.');
+  }
+  patch.designation = designation;
+
+  if (role === 'attorney') {
+    const barNumber = typeof src.bar_number === 'string' ? src.bar_number.trim() : '';
+    if (!barNumber) throw new ValidationError('Bar registration number is required for attorneys.');
+    patch.bar_number = barNumber;
+  }
+  if (role === 'officer') {
+    const department = typeof src.department === 'string' ? src.department.trim() : '';
+    if (!department) throw new ValidationError('Department is required for officers.');
+    patch.department = department;
+  }
+
+  // Admin-created accounts are trusted → ready to use: profile complete and
+  // approved for case access (subject to the is_active flag the admin set).
+  patch.profile_completed = true;
+  patch.access_status = 'approved';
+
   const { data, error } = await supabase
     .from('staff_users')
     .insert(patch)
@@ -505,6 +552,37 @@ const SELF_REGISTERABLE_ROLES = ['org_admin', 'attorney', 'officer'];
 async function registerStaff(input, { google = false } = {}) {
   const src = { ...(input || {}) };
 
+  // ── GOOGLE SSO ──────────────────────────────────────────────────────────────
+  // Create a MINIMAL onboarding account: name + email only (email comes from the
+  // Google-verified identity). Role, organisation and all profile details are
+  // chosen AFTER login, on the profile page (the role is locked on first save).
+  // The account CAN log in (to finish onboarding) but has no case access until an
+  // admin approves it. No password — the OAuth token is the credential.
+  if (google) {
+    const gName = typeof src.name === 'string' ? src.name.trim() : '';
+    const gEmail = typeof src.email === 'string' ? src.email.trim().toLowerCase() : '';
+    if (!gName) throw new ValidationError('name is required and cannot be empty.');
+    if (!gEmail || !EMAIL_SHAPE.test(gEmail)) throw new ValidationError('email is required.');
+    const gPatch = {
+      name: gName,
+      email: gEmail,
+      role: null, // pending — chosen on the profile page
+      organisation_id: null, // chosen on the profile page
+      is_active: true, // may log in to complete onboarding
+      profile_completed: false, // must fill the profile first
+      access_status: 'onboarding',
+    };
+    const { data: gData, error: gError } = await supabase
+      .from('staff_users')
+      .insert(gPatch)
+      .select('id, name, email, role, organisation_id, is_active')
+      .single();
+    if (gError) throwWriteError(gError, 'Staff registration failed');
+    return gData;
+  }
+
+  // ── EMAIL + PASSWORD ─────────────────────────────────────────────────────────
+  // Role + all profile details are collected on the register form.
   const role = typeof src.role === 'string' ? src.role.trim() : '';
   if (!SELF_REGISTERABLE_ROLES.includes(role)) {
     throw new ValidationError(
@@ -512,13 +590,57 @@ async function registerStaff(input, { google = false } = {}) {
     );
   }
 
-  // Reuse the shared validator (name/email/role/org required + org existence).
-  // Google signups have no password — the OAuth token is the credential.
-  const patch = await buildStaffPatch(src, { isCreate: true, passwordRequired: !google });
+  // Reuse the shared validator (name/email/role/org required + password).
+  const patch = await buildStaffPatch(src, { isCreate: true, passwordRequired: true });
 
-  // PENDING APPROVAL: created inactive; an admin flips is_active to activate.
-  patch.is_active = false;
-  patch.profile_completed = false;
+  // ── Role-aware Sri Lankan profile details, collected AT REGISTRATION ──
+  // All roles: NIC (validated) + mobile (validated) + designation. gender + DOB are
+  // DERIVED from the NIC (never trusted from the client — the NIC proves them).
+  const nic = typeof src.nic === 'string' ? src.nic.trim().toUpperCase() : '';
+  const decoded = decodeNic(nic);
+  if (!nic || !decoded.valid) {
+    throw new ValidationError('Enter a valid Sri Lankan NIC.');
+  }
+  patch.nic = nic;
+  patch.gender = decoded.gender;
+  patch.date_of_birth = decoded.dateOfBirth;
+
+  const phone = typeof src.phone === 'string' ? src.phone.trim() : '';
+  if (!phone || !isValidLkMobile(phone)) {
+    throw new ValidationError('Enter a valid Sri Lankan mobile number.');
+  }
+  patch.phone = phone;
+
+  const designation = typeof src.designation === 'string' ? src.designation.trim() : '';
+  if (!designation) {
+    throw new ValidationError('Designation is required.');
+  }
+  patch.designation = designation;
+
+  // Attorney-only: Bar Association enrolment number.
+  if (role === 'attorney') {
+    const barNumber = typeof src.bar_number === 'string' ? src.bar_number.trim() : '';
+    if (!barNumber) {
+      throw new ValidationError('Bar registration number is required for attorneys.');
+    }
+    patch.bar_number = barNumber;
+  }
+
+  // Officer-only: department / unit within the organisation.
+  if (role === 'officer') {
+    const department = typeof src.department === 'string' ? src.department.trim() : '';
+    if (!department) {
+      throw new ValidationError('Department is required for officers.');
+    }
+    patch.department = department;
+  }
+
+  // ONBOARDING: the account may log in (to enable 2FA) but has no case access
+  // until it is submitted (profile + 2FA done) and an admin approves it. Details
+  // are captured on the form, so the profile is already complete.
+  patch.is_active = true;
+  patch.profile_completed = true;
+  patch.access_status = 'onboarding';
 
   const { data, error } = await supabase
     .from('staff_users')
@@ -533,12 +655,86 @@ async function registerStaff(input, { google = false } = {}) {
   return data;
 }
 
+/**
+ * Full detail for ONE staff account (admin approval view). Includes the submitted
+ * profile fields + 2FA status; never password_hash. Also resolves the org name.
+ */
+async function getStaffDetail(id) {
+  const trimmedId = (id || '').trim();
+  const { data: row, error } = await supabase
+    .from('staff_users')
+    .select(STAFF_DETAIL_COLUMNS)
+    .eq('id', trimmedId)
+    .maybeSingle();
+  if (error) throw new Error(`Staff lookup failed: ${error.message}`);
+  if (!row) throw new NotFoundError('That staff account could not be found.');
+
+  let organisation_name = null;
+  if (row.organisation_id) {
+    const { data: org } = await supabase
+      .from('organisations')
+      .select('name')
+      .eq('id', row.organisation_id)
+      .maybeSingle();
+    organisation_name = org ? org.name : null;
+  }
+  return { ...row, organisation_name };
+}
+
+/** Admin approval decision: 'approved' grants access; 'rejected' blocks login. */
+async function setApprovalStatus(id, status) {
+  if (!['approved', 'rejected'].includes(status)) {
+    throw new ValidationError('Invalid approval decision.');
+  }
+  const trimmedId = (id || '').trim();
+  // Approve → active + approved; Reject → inactive + rejected (cannot log in).
+  const patch =
+    status === 'approved'
+      ? { access_status: 'approved', is_active: true }
+      : { access_status: 'rejected', is_active: false };
+  const { data, error } = await supabase
+    .from('staff_users')
+    .update(patch)
+    .eq('id', trimmedId)
+    .select(SAFE_STAFF_COLUMNS)
+    .maybeSingle();
+  if (error) throwWriteError(error, 'Approval update failed');
+  if (!data) throw new NotFoundError('That staff account could not be found.');
+  return data;
+}
+
+/**
+ * Auto-submit an onboarding account for admin approval once BOTH prerequisites are
+ * met: the profile is complete AND 2FA is enabled. Idempotent — only flips an
+ * 'onboarding' row to 'pending'. Called after a profile save and after 2FA
+ * activation. Returns the resulting access_status.
+ */
+async function maybeSubmitForApproval(staffId) {
+  const { data: row, error } = await supabase
+    .from('staff_users')
+    .select('access_status, profile_completed, mfa_enabled')
+    .eq('id', staffId)
+    .maybeSingle();
+  if (error || !row) return null;
+  if (row.access_status === 'onboarding' && row.profile_completed && row.mfa_enabled) {
+    const { error: upErr } = await supabase
+      .from('staff_users')
+      .update({ access_status: 'pending' })
+      .eq('id', staffId);
+    if (!upErr) return 'pending';
+  }
+  return row.access_status;
+}
+
 module.exports = {
   listStaff,
   createStaff,
   updateStaff,
   deactivateStaff,
   registerStaff,
+  maybeSubmitForApproval,
+  getStaffDetail,
+  setApprovalStatus,
   ValidationError,
   NotFoundError,
   ForbiddenError,

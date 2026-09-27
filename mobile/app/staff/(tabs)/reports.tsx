@@ -38,6 +38,7 @@ import { useTranslation } from 'react-i18next';
 import SelectField from '../../../components/SelectField';
 import type { Option } from '../../../components/SelectField';
 import ErrorState from '../../../components/ErrorState';
+import BrandLogo from '../../../components/BrandLogo';
 import { fetchReports } from '../../../src/api/client';
 import type { ReportListItem } from '../../../src/api/client';
 import { CASE_TYPES, CASE_STATUSES } from '../../../src/constants';
@@ -128,7 +129,9 @@ export default function StaffReportsTab() {
           and sign-out (clears the session and returns to login — same leave-no-
           trace path as a 401). Extends up behind the status bar via the inset. */}
       <View style={[local.header, { paddingTop: insets.top + 12 }]}>
-        <View style={local.headerMain}>
+        {/* Brand mark (single-colour PNG tinted white to read on the navy bar). */}
+        <BrandLogo size={30} tintColor={colors.primaryText} accessibilityLabel="JusticeNow" />
+        <View style={[local.headerMain, local.headerMainWithLogo]}>
           <View style={local.titleRow}>
             <Text style={local.title}>{t('staffReports.title')}</Text>
             {!loading && !failed ? (
@@ -143,14 +146,9 @@ export default function StaffReportsTab() {
             </Text>
           ) : null}
         </View>
-        <Pressable
-          onPress={goToLogin}
-          style={local.signOut}
-          accessibilityRole="button"
-          accessibilityLabel={t('staffReports.signOut')}
-        >
-          <Text style={local.signOutText}>{t('staffReports.signOut')}</Text>
-        </Pressable>
+        {/* Sign-out lives ONLY on the Profile screen (single, deliberate place),
+            so it is intentionally not rendered here. goToLogin is still used by
+            the 401 handler to drop an expired session. */}
       </View>
 
       <View style={local.filters}>
@@ -282,6 +280,7 @@ const local = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   headerMain: { flex: 1, marginRight: 12 },
+  headerMainWithLogo: { marginLeft: 10 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   title: {
     fontSize: 24,

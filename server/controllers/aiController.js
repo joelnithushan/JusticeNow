@@ -36,6 +36,11 @@ async function guidance(req, res) {
 
   const scenario = typeof req.body?.scenario === 'string' ? req.body.scenario.trim() : '';
   const district = typeof req.body?.district === 'string' ? req.body.district.trim() : '';
+  // Optional output language so the client can re-generate + read the guidance
+  // aloud in English/Tamil/Sinhala. Anything else is ignored (model uses the
+  // scenario's own language, as before).
+  const rawLang = typeof req.body?.language === 'string' ? req.body.language.trim() : '';
+  const language = ['en', 'ta', 'si'].includes(rawLang) ? rawLang : undefined;
 
   if (scenario.length < MIN_LEN) {
     return res.status(400).json({
@@ -51,7 +56,7 @@ async function guidance(req, res) {
   }
 
   try {
-    const guide = await getGuidance(scenario);
+    const guide = await getGuidance(scenario, language);
 
     // Ground the "find a lawyer" part in REAL directory data — never the model.
     // Filter active orgs by the guidance category, and by district when given.
