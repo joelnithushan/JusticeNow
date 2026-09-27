@@ -192,6 +192,10 @@ describe('POST /api/staff — admin create', () => {
     role: 'officer',
     organisation_id: 'org-1',
     password: 'SuperSecret1',
+    nic: '200012302345',
+    phone: '0771234567',
+    designation: 'Case Officer',
+    department: 'Intake',
   };
 
   it('rejects an unauthenticated caller with 401 (no insert)', async () => {

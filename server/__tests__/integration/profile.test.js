@@ -237,19 +237,25 @@ describe('PATCH /api/staff/me — NIC derivation + validation', () => {
 });
 
 describe('PATCH /api/staff/me — profile_completed computation', () => {
-  it('sets profile_completed true when name+nic+phone+designation are all present (officer)', async () => {
-    // The existing row already has name; the patch supplies the remaining three.
+  it('sets profile_completed true when name+nic+phone+designation+department are all present (officer)', async () => {
+    // The existing row already has name; the patch supplies the remaining fields.
+    // An officer also needs their department before the profile is complete.
     staffRow = { ...baseProfileRow, name: 'Officer One' };
     updatedRow = { ...baseProfileRow, profile_completed: true };
 
     const res = await request(app)
       .patch('/api/staff/me')
       .set(bearer(passwordOfficerToken))
-      .send({ nic: '199010012345', phone: '0712345678', designation: 'Advocacy Officer' });
+      .send({
+        nic: '199010012345',
+        phone: '0712345678',
+        designation: 'Advocacy Officer',
+        department: 'Intake',
+      });
 
     expect(res.status).toBe(200);
-    // For a NON-attorney, bar_number is NOT required, so all four core fields
-    // present ⇒ completed.
+    // For an officer, bar_number is NOT required, but department IS — with the
+    // core fields plus department present ⇒ completed.
     expect(updateBody.profile_completed).toBe(true);
   });
 

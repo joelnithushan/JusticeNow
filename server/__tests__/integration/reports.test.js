@@ -28,6 +28,13 @@ let lastInsertBody = null;
 
 const fetchMock = vi.fn(async (url, options = {}) => {
   const target = String(url);
+  // requireApproved gate: the caller's account must be 'approved' for case access.
+  if (target.includes('/rest/v1/staff_users') && target.includes('access_status')) {
+    return new Response(JSON.stringify({ access_status: 'approved' }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
   if (options.method === 'POST' && target.includes('/rest/v1/case_reports')) {
     lastInsertBody = options.body ? JSON.parse(options.body) : null;
     return new Response('[]', {

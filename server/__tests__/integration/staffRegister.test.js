@@ -67,6 +67,13 @@ const validBody = {
   password: 'Password123',
   role: 'officer',
   organisation_id: 'org-1',
+  // Role-aware Sri Lankan profile details are now collected AT REGISTRATION for
+  // the email+password flow (NIC + mobile + designation for all; department for
+  // officers). The server validates them before creating the account.
+  nic: '200012302345',
+  phone: '0771234567',
+  designation: 'Case Officer',
+  department: 'Intake',
 };
 
 beforeEach(() => {
@@ -86,16 +93,19 @@ beforeEach(() => {
 });
 
 describe('POST /api/staff/register — self-service signup (pending approval)', () => {
-  it('creates a PENDING account: inactive, profile incomplete, hashed password', async () => {
+  it('creates an ONBOARDING account with no case access until approved, hashed password', async () => {
     const res = await request(app).post('/api/staff/register').send(validBody);
 
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
     expect(typeof res.body.message).toBe('string');
 
-    // The stored row must be inactive and profile-incomplete (the gate).
-    expect(insertBody.is_active).toBe(false);
-    expect(insertBody.profile_completed).toBe(false);
+    // The account may log in to enable 2FA, but the REAL gate is access_status:
+    // 'onboarding' means it has no case access until profile+2FA are done and an
+    // admin approves it (requireApproved enforces this on every case route). The
+    // profile is captured on the form, so it is already complete.
+    expect(insertBody.access_status).toBe('onboarding');
+    expect(insertBody.profile_completed).toBe(true);
 
     // A genuine bcrypt hash was stored, NEVER the plaintext.
     expect(insertBody.password_hash).toBeTruthy();

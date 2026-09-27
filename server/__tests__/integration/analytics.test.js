@@ -48,6 +48,9 @@ const fetchMock = vi.fn(async (url, options = {}) => {
       headers: { 'content-type': 'application/json' },
     });
 
+  if (target.includes('/rest/v1/staff_users') && target.includes('access_status')) {
+    return json({ access_status: 'approved' });
+  }
   if (target.includes('/rest/v1/case_reports')) {
     lastCaseReportsUrl = target;
     return json(caseRows);
