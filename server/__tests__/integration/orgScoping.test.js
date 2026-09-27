@@ -68,6 +68,14 @@ const fetchMock = vi.fn(async (url, options = {}) => {
     return json([]); // empty list is fine; we assert on the URL, not the rows
   }
 
+  // requireApproved gate: the caller must be 'approved' for case access. This
+  // lookup selects access_status ALONE (select=access_status&...), which is what
+  // distinguishes it from the staff list/create selects that merely INCLUDE
+  // access_status among many columns.
+  if (target.includes('/rest/v1/staff_users') && target.includes('select=access_status&')) {
+    return json({ access_status: 'approved' });
+  }
+
   // staff_users — the admin list (GET) and create (POST).
   if (target.includes('/rest/v1/staff_users')) {
     if (method === 'POST') {
@@ -227,6 +235,10 @@ describe('POST /api/staff — org scoping of create', () => {
         role: 'officer',
         organisation_id: 'org-999', // a DIFFERENT org — must be ignored/overridden
         password: 'SuperSecret1',
+        nic: '200012302345',
+        phone: '0771234567',
+        designation: 'Case Officer',
+        department: 'Intake',
       });
 
     expect(res.status).toBe(201);
@@ -254,6 +266,10 @@ describe('POST /api/staff — org scoping of create', () => {
         role: 'officer',
         organisation_id: 'org-999',
         password: 'SuperSecret1',
+        nic: '200012302345',
+        phone: '0771234567',
+        designation: 'Case Officer',
+        department: 'Intake',
       });
 
     expect(res.status).toBe(201);
