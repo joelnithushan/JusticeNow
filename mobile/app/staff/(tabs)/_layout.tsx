@@ -23,6 +23,7 @@ import { Redirect, Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useProfile } from '../../../src/context/ProfileContext';
+import DefaultAvatar from '../../../components/DefaultAvatar';
 import { colors } from '../../../src/theme';
 
 // expo-router's tabBarIcon passes a ColorValue (not always a plain string);
@@ -73,7 +74,6 @@ function AdminIcon({ color }: IconProps) {
 // one, else a person glyph. This IS the "avatar in the nav bar" — tapping it
 // opens the profile. The active/inactive tint colours the placeholder glyph.
 function ProfileTabIcon({
-  color,
   avatarUrl,
 }: IconProps & { avatarUrl: string | null }) {
   if (avatarUrl) {
@@ -85,17 +85,11 @@ function ProfileTabIcon({
       />
     );
   }
+  // No photo yet → the shared default avatar (same look as the profile page),
+  // so the nav always shows an avatar rather than a bare tinted glyph.
   return (
     <View style={local.avatarPlaceholder}>
-      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-        <Circle cx={12} cy={8} r={3.5} stroke={color} strokeWidth={1.8} />
-        <Path
-          d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"
-          stroke={color}
-          strokeWidth={1.8}
-          strokeLinecap="round"
-        />
-      </Svg>
+      <DefaultAvatar size={26} />
     </View>
   );
 }

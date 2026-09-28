@@ -23,15 +23,8 @@ import axios from 'axios';
 import { updateMe, uploadAvatar, changeMyPassword, setupMfa, activateMfa } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../context/ProfileContext';
+import DefaultAvatar from '../components/DefaultAvatar';
 import './StaffProfile.css';
-
-// Two-letter initials for the fallback avatar when there is no image yet.
-function initialsOf(name) {
-  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
-}
 
 // Pull the server's 400 message out of an axios error, else a fallback. The
 // server returns a single clear NIC/mobile message we surface verbatim.
@@ -270,9 +263,8 @@ function StaffProfile() {
         {profile.avatar_url ? (
           <img className="profile-avatar" src={profile.avatar_url} alt="" />
         ) : (
-          <span className="profile-avatar profile-avatar-initials" aria-hidden="true">
-            {initialsOf(profile.name)}
-          </span>
+          // Default fallback until the staffer uploads their own photo.
+          <DefaultAvatar className="profile-avatar" size={96} />
         )}
         <label className="btn btn-secondary profile-photo-btn">
           {photoBusy ? t('profile.saving') : t('profile.changePhoto')}

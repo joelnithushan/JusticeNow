@@ -14,14 +14,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useProfile } from '../context/ProfileContext';
-
-// Two-letter initials for the fallback avatar when there is no image yet.
-function initialsOf(name) {
-  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
-}
+import DefaultAvatar from './DefaultAvatar';
 
 function StaffNav() {
   const { t } = useTranslation();
@@ -48,7 +41,7 @@ function StaffNav() {
 
       <div className="staff-nav-actions">
         {/* Avatar shortcut to the profile page — image if uploaded, else the
-            staffer's initials on the primary disc. */}
+            shared default avatar (same look as the profile page). */}
         <button
           type="button"
           className="staff-nav-avatar"
@@ -59,7 +52,7 @@ function StaffNav() {
           {profile?.avatar_url ? (
             <img src={profile.avatar_url} alt="" />
           ) : (
-            <span aria-hidden="true">{initialsOf(profile?.name)}</span>
+            <DefaultAvatar size={32} />
           )}
         </button>
         <button type="button" className="btn-link" onClick={handleSignOut}>
