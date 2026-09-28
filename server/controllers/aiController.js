@@ -10,9 +10,25 @@
  * the paid AI endpoint. The API key stays server-side (see aiGuidanceService).
  */
 
-const { getGuidance, isConfigured } = require('../services/aiGuidanceService');
+const { getGuidance, getLawyers, isConfigured } = require('../services/aiGuidanceService');
 const { listOrganisations } = require('../services/organisationService');
 const { DISTRICTS } = require('../constants');
+
+// Web search for real lawyers legitimately takes ~15-20s, so give it headroom
+// (the mobile client allows 45s and guidance itself is only a few seconds). If
+// it still exceeds this, we return guidance + orgs and an empty lawyers list.
+const LAWYER_LOOKUP_TIMEOUT_MS = 35000;
+
+/** Resolve to [] if the promise doesn't settle within ms (best-effort lookup). */
+function withTimeout(promise, ms) {
+  let timer;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => resolve([]), ms);
+  });
+  // clearTimeout on settle so a fast lookup doesn't leave a 35s timer holding
+  // the event loop open for the rest of the window.
+  return Promise.race([promise.catch(() => []), timeout]).finally(() => clearTimeout(timer));
+}
 
 // Keep the scenario within sane bounds — enough to describe an incident, not an
 // essay (protects the token budget and keeps latency down).
@@ -58,26 +74,31 @@ async function guidance(req, res) {
   try {
     const guide = await getGuidance(scenario, language);
 
-    // Ground the "find a lawyer" part in REAL directory data — never the model.
-    // Filter active orgs by the guidance category, and by district when given.
-    let organisations = [];
-    try {
-      const validDistrict = DISTRICTS.includes(district) ? district : undefined;
-      const res1 = await listOrganisations({
-        caseType: guide.category,
-        district: validDistrict,
-      });
-      organisations = res1 || [];
-      // If a district filter yielded nothing, fall back to category-only so the
-      // person still sees relevant help elsewhere in the country.
-      if (organisations.length === 0 && validDistrict) {
-        organisations = (await listOrganisations({ caseType: guide.category })) || [];
-      }
-    } catch {
-      organisations = []; // directory lookup is best-effort; guidance still returns.
-    }
+    const validDistrict = DISTRICTS.includes(district) ? district : undefined;
 
-    return res.json({ success: true, data: { guidance: guide, organisations } });
+    // Ground the "find a lawyer" part in REAL data from two sources — never the
+    // guidance model itself. Run both in parallel now that we have the category:
+    //  1. organisations: our own vetted legal-aid directory (Supabase).
+    //  2. lawyers: real, source-cited lawyers found via Claude web search.
+    // Both are best-effort — a failure in either still returns the guidance.
+    const [organisations, lawyers] = await Promise.all([
+      (async () => {
+        try {
+          let orgs = (await listOrganisations({ caseType: guide.category, district: validDistrict })) || [];
+          // If a district filter yielded nothing, fall back to category-only so
+          // the person still sees relevant help elsewhere in the country.
+          if (orgs.length === 0 && validDistrict) {
+            orgs = (await listOrganisations({ caseType: guide.category })) || [];
+          }
+          return orgs;
+        } catch {
+          return [];
+        }
+      })(),
+      withTimeout(getLawyers(guide.category, validDistrict, language), LAWYER_LOOKUP_TIMEOUT_MS),
+    ]);
+
+    return res.json({ success: true, data: { guidance: guide, organisations, lawyers } });
   } catch (err) {
     const status = err && err.status ? err.status : 500;
     const message =

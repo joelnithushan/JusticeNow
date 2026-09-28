@@ -19,7 +19,7 @@
  * all styling comes from theme tokens.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -38,6 +38,7 @@ import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 
 import EyeIcon from '../../../components/EyeIcon';
+import DefaultAvatar from '../../../components/DefaultAvatar';
 import ErrorState from '../../../components/ErrorState';
 import StaffHeader from '../../../components/StaffHeader';
 import LanguageSwitcher from '../../../components/LanguageSwitcher';
@@ -311,7 +312,6 @@ export default function StaffProfileTab() {
     }
   }, [pwBusy, currentPassword, newPassword, messageFor, t]);
 
-  const initials = useMemo(() => deriveInitials(profile?.name), [profile?.name]);
 
   // Loading (first fetch, no profile yet).
   if (loading && !profile) {
@@ -379,9 +379,8 @@ export default function StaffProfileTab() {
             accessibilityLabel={profile.name}
           />
         ) : (
-          <View style={[local.avatar, local.avatarPlaceholder]}>
-            <Text style={local.avatarInitials}>{initials}</Text>
-          </View>
+          // Default fallback until the staffer uploads their own photo.
+          <DefaultAvatar size={96} />
         )}
         <Pressable
           onPress={onChangePhoto}
@@ -791,16 +790,6 @@ function ReadOnly({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Up to two initials from a display name, for the avatar placeholder. */
-function deriveInitials(name?: string | null): string {
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  const first = parts[0][0] ?? '';
-  const last = parts.length > 1 ? parts[parts.length - 1][0] ?? '' : '';
-  return (first + last).toUpperCase() || '?';
-}
-
 const local = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   body: { padding: 20, paddingBottom: 40 },
@@ -825,8 +814,6 @@ const local = StyleSheet.create({
     borderRadius: 48,
     backgroundColor: colors.primaryTint,
   },
-  avatarPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  avatarInitials: { fontSize: 34, fontWeight: '800', color: colors.primary },
   changePhoto: {
     marginTop: 12,
     paddingVertical: 10,

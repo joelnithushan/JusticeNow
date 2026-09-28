@@ -31,7 +31,7 @@ import { useTranslation } from 'react-i18next';
 import ReporterTopBar from '../components/ReporterTopBar';
 import SelectField, { type Option } from '../components/SelectField';
 import { fetchLegalGuidance } from '../src/api/client';
-import type { LegalGuidance, Organisation } from '../src/api/client';
+import type { LegalGuidance, Lawyer, Organisation } from '../src/api/client';
 import { DISTRICTS } from '../src/constants';
 import { usePreferences } from '../src/context/PreferencesContext';
 import { colors, styles as theme } from '../src/theme';
@@ -66,6 +66,9 @@ export default function Guidance() {
   const [error, setError] = useState<string | null>(null);
   const [guidance, setGuidance] = useState<LegalGuidance | null>(null);
   const [orgs, setOrgs] = useState<Organisation[]>([]);
+  // Real, source-cited lawyers for this case (from server web search). May be
+  // empty if web search found nothing verifiable — the UI handles that.
+  const [lawyers, setLawyers] = useState<Lawyer[]>([]);
   // Whether the guidance is currently being read aloud (expo-speech).
   const [speaking, setSpeaking] = useState(false);
   // The language the CURRENT guidance text is in — drives both the active toggle
@@ -133,6 +136,7 @@ export default function Guidance() {
       const res = await fetchLegalGuidance(scenario.trim(), district ?? undefined, lang);
       setGuidance(res.data.data.guidance);
       setOrgs(res.data.data.organisations || []);
+      setLawyers(res.data.data.lawyers || []);
       setGuidanceLang(lang);
     } catch (err) {
       let message = t('guidance.failed');
@@ -155,6 +159,7 @@ export default function Guidance() {
     setLoading(true);
     setGuidance(null);
     setOrgs([]);
+    setLawyers([]);
     // Stop any read-aloud from a previous result before generating a new one.
     Speech.stop();
     setSpeaking(false);
@@ -162,6 +167,7 @@ export default function Guidance() {
       const res = await fetchLegalGuidance(scenario.trim(), district ?? undefined, i18n.language);
       setGuidance(res.data.data.guidance);
       setOrgs(res.data.data.organisations || []);
+      setLawyers(res.data.data.lawyers || []);
       setGuidanceLang(i18n.language); // the result is in the app language
     } catch (err) {
       // Never log err — it can echo the scenario.
@@ -180,6 +186,7 @@ export default function Guidance() {
     setSpeaking(false);
     setGuidance(null);
     setOrgs([]);
+    setLawyers([]);
     setError(null);
     setScenario('');
   };
@@ -297,13 +304,13 @@ export default function Guidance() {
             {/* Structured guidance sheet — clearly categorised rows, not a wall of
                 text. Each row: a labelled header + its content. */}
             <View style={local.sheet}>
-              <SheetRow label={t('guidance.categoryTitle')} first>
+              <SheetRow label={t('guidance.categoryTitle')} icon="🔎" first>
                 <Text style={local.category}>{t(`caseTypes.${guidance.category}`)}</Text>
                 {guidance.summary ? <Text style={local.summary}>{guidance.summary}</Text> : null}
               </SheetRow>
 
               {guidance.how_handled.length > 0 ? (
-                <SheetRow label={t('guidance.handledTitle')}>
+                <SheetRow label={t('guidance.handledTitle')} icon="⚖️">
                   {guidance.how_handled.map((h, i) => (
                     <Bullet key={i} text={h} />
                   ))}
@@ -311,7 +318,7 @@ export default function Guidance() {
               ) : null}
 
               {guidance.applicable_laws.length > 0 ? (
-                <SheetRow label={t('guidance.lawsTitle')}>
+                <SheetRow label={t('guidance.lawsTitle')} icon="📜">
                   {guidance.applicable_laws.map((law, i) => (
                     <Bullet key={i} text={law} />
                   ))}
@@ -319,7 +326,7 @@ export default function Guidance() {
               ) : null}
 
               {guidance.steps.length > 0 ? (
-                <SheetRow label={t('guidance.stepsTitle')}>
+                <SheetRow label={t('guidance.stepsTitle')} icon="🧭">
                   {guidance.steps.map((step, i) => (
                     <NumberedStep key={i} n={i + 1} text={step} />
                   ))}
@@ -327,14 +334,30 @@ export default function Guidance() {
               ) : null}
 
               {guidance.approximate_fees ? (
-                <SheetRow label={t('guidance.feesTitle')}>
+                <SheetRow label={t('guidance.feesTitle')} icon="💰">
                   <Text style={local.bodyText}>{guidance.approximate_fees}</Text>
                   <Text style={local.feesNote}>{t('guidance.feesNote')}</Text>
                 </SheetRow>
               ) : null}
 
-              {/* Real legal help from the directory (never AI-invented). */}
-              <SheetRow label={t('guidance.helpTitle')} last>
+              {/* Real, source-cited lawyers for this case (found via web search;
+                  never AI-invented — the server drops any without a source). */}
+              <SheetRow label={t('guidance.lawyersTitle')} icon="👤">
+                {lawyers.length > 0 ? (
+                  <>
+                    <Text style={local.lawyersIntro}>{t('guidance.lawyersIntro')}</Text>
+                    {lawyers.map((l, i) => (
+                      <LawyerCard key={`${l.source_url}-${i}`} lawyer={l} />
+                    ))}
+                    <Text style={local.lawyersDisclaimer}>{t('guidance.lawyersDisclaimer')}</Text>
+                  </>
+                ) : (
+                  <Text style={local.noOrgs}>{t('guidance.noLawyers')}</Text>
+                )}
+              </SheetRow>
+
+              {/* Real legal help from our own vetted directory. */}
+              <SheetRow label={t('guidance.helpTitle')} icon="🏛️" last>
                 {orgs.length > 0 ? (
                   orgs.map((o) => <OrgCard key={o.id} org={o} />)
                 ) : (
@@ -365,21 +388,28 @@ export default function Guidance() {
   );
 }
 
-// One labelled row of the guidance sheet: a tinted header bar + its content.
+// One labelled row of the guidance sheet: a tinted header bar (with a small
+// leading icon, so the sheet reads as sections at a glance rather than a wall of
+// text) + its content.
 function SheetRow({
   label,
+  icon,
   children,
   first,
   last,
 }: {
   label: string;
+  icon?: string;
   children: React.ReactNode;
   first?: boolean;
   last?: boolean;
 }) {
   return (
     <View style={[local.row, !last && local.rowDivider]}>
-      <Text style={[local.rowLabel, first && local.rowLabelFirst]}>{label}</Text>
+      <View style={[local.rowLabelBar, first && local.rowLabelFirst]}>
+        {icon ? <Text style={local.rowLabelIcon}>{icon}</Text> : null}
+        <Text style={local.rowLabel}>{label}</Text>
+      </View>
       <View style={local.rowContent}>{children}</View>
     </View>
   );
@@ -433,6 +463,127 @@ function OrgCard({ org }: { org: Organisation }) {
           </Pressable>
         ) : null}
       </View>
+    </View>
+  );
+}
+
+// A single REAL lawyer/firm, rendered as a visual card (chips + badges + tap
+// actions) rather than a paragraph, so the list scans quickly. Every field the
+// server sent is real and source-cited; empty fields are simply not shown.
+// Defensive normalisers — the server already cleans these, but scraped contact
+// details can be dirty (a list of numbers, an obfuscated "[email protected]"
+// placeholder, a scheme-less domain), so we guard again before building a URL:
+// a scheme-less website would otherwise resolve to a bundle file:// path.
+function dialPhone(raw: string): string | null {
+  const first = raw.split(/[,;/]|\bor\b/i)[0] ?? '';
+  const digits = first.replace(/[^\d+]/g, '');
+  return /\d{6,}/.test(digits) ? digits : null;
+}
+function validEmail(raw: string): string | null {
+  const e = raw.trim();
+  return !/[[\]\s]/.test(e) && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) ? e : null;
+}
+function webUrl(raw: string): string | null {
+  let u = raw.trim();
+  if (!u || /[[\]\s]/.test(u)) return null;
+  if (!/^https?:\/\//i.test(u)) u = `https://${u.replace(/^\/+/, '')}`;
+  return /^https?:\/\/[^/]+\.[^/]/i.test(u) ? u : null;
+}
+
+function LawyerCard({ lawyer }: { lawyer: Lawyer }) {
+  const { t } = useTranslation();
+  const open = (url: string) => Linking.openURL(url).catch(() => undefined);
+  const phone = dialPhone(lawyer.phone);
+  const email = validEmail(lawyer.email);
+  const website = webUrl(lawyer.website);
+
+  return (
+    <View style={local.lawyerCard}>
+      {/* Avatar-ish initial + name/specialisation header. */}
+      <View style={local.lawyerHead}>
+        <View style={local.lawyerAvatar}>
+          <Text style={local.lawyerAvatarText}>
+            {(lawyer.name.trim()[0] || '?').toUpperCase()}
+          </Text>
+        </View>
+        <View style={local.lawyerHeadText}>
+          <Text style={local.lawyerName}>{lawyer.name}</Text>
+          {lawyer.organisation ? (
+            <Text style={local.lawyerOrg}>{lawyer.organisation}</Text>
+          ) : null}
+        </View>
+      </View>
+
+      {/* Chips: specialisation, district, experience. */}
+      <View style={local.chipRow}>
+        {lawyer.specialisation ? (
+          <View style={[local.chip, local.chipAccent]}>
+            <Text style={[local.chipText, local.chipAccentText]}>{lawyer.specialisation}</Text>
+          </View>
+        ) : null}
+        {lawyer.district ? (
+          <View style={local.chip}>
+            <Text style={local.chipText}>📍 {lawyer.district}</Text>
+          </View>
+        ) : null}
+        {lawyer.experience ? (
+          <View style={local.chip}>
+            <Text style={local.chipText}>🎓 {lawyer.experience}</Text>
+          </View>
+        ) : null}
+      </View>
+
+      {/* Fee — highlighted so it stands out from the rest. */}
+      {lawyer.approx_fee ? (
+        <View style={local.feeBox}>
+          <Text style={local.feeIcon}>💰</Text>
+          <Text style={local.feeText}>{lawyer.approx_fee}</Text>
+        </View>
+      ) : null}
+
+      {/* Tap actions — only shown when a usable, well-formed detail exists. */}
+      <View style={local.lawyerActions}>
+        {phone ? (
+          <Pressable
+            onPress={() => open(`tel:${phone}`)}
+            style={local.actionBtn}
+            accessibilityRole="button"
+            accessibilityLabel={`${t('guidance.callLawyer')} ${lawyer.name}`}
+          >
+            <Text style={local.actionBtnText}>📞 {t('guidance.callLawyer')}</Text>
+          </Pressable>
+        ) : null}
+        {email ? (
+          <Pressable
+            onPress={() => open(`mailto:${email}`)}
+            style={local.actionBtn}
+            accessibilityRole="button"
+            accessibilityLabel={`${t('guidance.emailLawyer')} ${lawyer.name}`}
+          >
+            <Text style={local.actionBtnText}>✉️ {t('guidance.emailLawyer')}</Text>
+          </Pressable>
+        ) : null}
+        {website ? (
+          <Pressable
+            onPress={() => open(website)}
+            style={local.actionBtn}
+            accessibilityRole="button"
+          >
+            <Text style={local.actionBtnText}>🌐 {t('guidance.websiteLawyer')}</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      {/* Source link — proves the entry is real, not AI-invented. */}
+      <Pressable
+        onPress={() => open(lawyer.source_url)}
+        accessibilityRole="link"
+        style={local.sourceRow}
+      >
+        <Text style={local.sourceText} numberOfLines={1}>
+          🔗 {t('guidance.viewSource')}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -508,16 +659,23 @@ const local = StyleSheet.create({
   },
   row: { paddingBottom: 14 },
   rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  rowLabelBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.primaryTint,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+  },
+  rowLabelIcon: { fontSize: 15 },
   rowLabel: {
+    flex: 1,
     fontSize: 13,
     fontWeight: '800',
     color: colors.primary,
     letterSpacing: 0.3,
     textTransform: 'uppercase',
-    backgroundColor: colors.primaryTint,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    marginBottom: 12,
   },
   rowLabelFirst: {},
   rowContent: { paddingHorizontal: 14 },
@@ -563,6 +721,76 @@ const local = StyleSheet.create({
   orgActions: { marginTop: 8, gap: 4 },
   orgLink: { fontSize: 14, color: colors.primary, fontWeight: '600' },
   noOrgs: { fontSize: 14, color: colors.muted, marginBottom: 12, lineHeight: 20 },
+
+  // Lawyers section (real, source-cited results from web search).
+  lawyersIntro: { fontSize: 13, color: colors.muted, lineHeight: 19, marginBottom: 12 },
+  lawyersDisclaimer: {
+    fontSize: 12,
+    color: colors.muted,
+    fontStyle: 'italic',
+    lineHeight: 17,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  lawyerCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    backgroundColor: colors.background,
+  },
+  lawyerHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  lawyerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lawyerAvatarText: { color: colors.primaryText, fontSize: 18, fontWeight: '800' },
+  lawyerHeadText: { flex: 1 },
+  lawyerName: { fontSize: 16, fontWeight: '700', color: colors.text },
+  lawyerOrg: { fontSize: 13, color: colors.muted, marginTop: 2 },
+
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
+  chip: {
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    backgroundColor: colors.secondaryTint,
+  },
+  chipText: { fontSize: 12, color: colors.text, fontWeight: '600' },
+  chipAccent: { backgroundColor: colors.primaryTint },
+  chipAccentText: { color: colors.primary },
+
+  feeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: colors.secondaryTint,
+  },
+  feeIcon: { fontSize: 16 },
+  feeText: { flex: 1, fontSize: 14, color: colors.secondaryOnLight, fontWeight: '600', lineHeight: 19 },
+
+  lawyerActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  actionBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: colors.background,
+  },
+  actionBtnText: { fontSize: 13, color: colors.primary, fontWeight: '700' },
+
+  sourceRow: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
+  sourceText: { fontSize: 12, color: colors.muted, fontWeight: '600' },
 
   againBtn: { paddingVertical: 12, alignItems: 'center', marginTop: 4 },
   againText: { fontSize: 15, fontWeight: '700', color: colors.primary },

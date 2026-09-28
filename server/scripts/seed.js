@@ -25,10 +25,11 @@ const SEED_ORG = {
 };
 
 const SEED_ADMIN = {
-  name: 'Dev Admin',
-  email: 'admin@justicenow.local',
-  // Local-only password. Change it before any shared/hosted use.
-  password: 'ChangeMe!Dev-2026',
+  name: 'System Admin',
+  email: 'admin@gmail.com',
+  // Local/project-only password. Change it before any shared/hosted use.
+  // Kept in sync with scripts/ensure-admin.js (the permanent system admin).
+  password: 'Password123',
   role: 'admin',
 };
 
