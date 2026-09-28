@@ -156,6 +156,199 @@ async function getGuidance(scenario, language) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Real lawyer lookup (Anthropic web search).
+//
+// The guidance model above is FORBIDDEN from naming lawyers (it would
+// hallucinate). To surface ACTUAL, contactable lawyers we make a SEPARATE call
+// that uses Anthropic's server-side web_search tool: Claude searches the live
+// web and returns only lawyers/firms it can cite a source URL for. Nothing is
+// invented, and nothing is stored.
+//
+// PRIVACY: the user's scenario/narrative is NEVER sent here — only the derived
+// case category and (optional) district, which are not identifying. We never
+// log the query or the results.
+// ---------------------------------------------------------------------------
+
+// The web-search tool version. 20250305 is broadly compatible across Claude
+// models (including the cheap Haiku default); newer models could use the
+// dynamic-filtering 20260209 version but we keep this stable for the default.
+const WEB_SEARCH_TOOL = { type: 'web_search_20250305', name: 'web_search', max_uses: 5 };
+
+const LAWYER_SYSTEM_PROMPT = `You help people in Sri Lanka find REAL, currently-practising lawyers, law
+firms, or legal-aid providers for a given kind of case and district. You have a
+web_search tool — USE IT to find real people/organisations.
+
+STRICT RULES:
+- ONLY include a lawyer/firm/organisation that actually appears in your web
+  search results and for which you have a real, verifiable source URL. If you
+  cannot find a real source, do NOT include it.
+- NEVER invent, guess, or approximate a name, phone number, email, website, or
+  fee. Omit any field you did not find rather than making one up. It is better
+  to return fewer results (or none) than to return anything fabricated.
+- EMAIL: only include a real, complete address (e.g. "info@example.lk"). Many
+  sites hide the address behind anti-scraping placeholders — NEVER output
+  "[email protected]", "email protected", "[protected]", a "cdn-cgi/l/email-
+  protection" link, or any masked/obfuscated form. If you only see a placeholder,
+  try to find the real address elsewhere; if you still cannot, leave "email" empty.
+- PHONE: if a source lists several numbers, put ONE clean number in "phone".
+- WEBSITE: give the full URL including https:// (e.g. "https://example.lk").
+- Prefer providers in or nearest the given district; you MAY also include
+  island-wide legal-aid bodies (e.g. the Legal Aid Commission of Sri Lanka, the
+  Bar Association of Sri Lanka, university legal-aid clinics) when relevant.
+- For "approx_fee": only state what a source indicates. If sources give no fee,
+  use a short general note (e.g. "Varies — ask the lawyer; legal aid may be
+  free"). NEVER state a specific number you did not find.
+- For "experience": only what a source supports (e.g. "Attorney-at-Law",
+  "practising since 2011", "labour-law specialist"); omit if unknown.
+
+Respond with ONLY a valid JSON object, no markdown, matching exactly:
+{
+  "lawyers": [
+    {
+      "name": "person or firm name",
+      "organisation": "firm/org they belong to, or empty string",
+      "specialisation": "short area of focus relevant to the case",
+      "district": "district or city they serve, or 'Island-wide'",
+      "phone": "phone or empty string",
+      "email": "email or empty string",
+      "website": "website URL or empty string",
+      "experience": "short experience note or empty string",
+      "approx_fee": "short, caveated fee note",
+      "source_url": "the web page you found this on (REQUIRED)"
+    }
+  ]
+}
+At most 6 lawyers. If you find none you can verify, return {"lawyers": []}.`;
+
+// Turn a case-type code ('official_misconduct') into a human phrase for the
+// search query ('official misconduct').
+function readableCategory(category) {
+  return String(category || '').replace(/_/g, ' ').trim() || 'human rights';
+}
+
+/**
+ * Find REAL lawyers for a case category + district using web search.
+ *
+ * Best-effort: returns [] on any failure (web search not enabled, upstream
+ * error, no verifiable results) so the caller can still return guidance.
+ *
+ * @param {string} category  a CASE_TYPES value (the guidance category)
+ * @param {string} [district]  a Sri Lankan district to focus on
+ * @param {string} [language]  'en' | 'ta' | 'si' for the human-facing strings
+ * @returns {Promise<object[]>} normalised, source-verified lawyer objects
+ */
+async function getLawyers(category, district, language) {
+  if (!isConfigured()) return [];
+
+  const area = readableCategory(category);
+  const where = district ? `${district} district, Sri Lanka` : 'Sri Lanka';
+  // Neutral query — NO scenario/narrative, only the case area + location.
+  const query =
+    `Find lawyers, law firms, or legal-aid organisations in ${where} who handle ` +
+    `${area} / human rights cases. Include their contact details (phone, email, ` +
+    `website), area of focus, experience, and any indication of fees. Only include ` +
+    `ones you can cite a real source for.`;
+  const system = LAWYER_SYSTEM_PROMPT + languageInstruction(language);
+
+  // Tamil/Sinhala use far more tokens per word than English, so the same JSON
+  // (up to 6 lawyers with all fields) needs a much higher ceiling or it gets
+  // truncated mid-string and fails to parse — mirrors getGuidance's handling.
+  const maxTokens = language && language !== 'en' ? 4000 : 2500;
+
+  // Web search runs a server-side tool loop; a big task can hit the 10-iteration
+  // cap and return stop_reason 'pause_turn'. Resend to continue, a few times.
+  let messages = [{ role: 'user', content: query }];
+  let data;
+  try {
+    for (let i = 0; i < 4; i += 1) {
+      const response = await fetch(ANTHROPIC_URL, {
+        method: 'POST',
+        headers: {
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': ANTHROPIC_VERSION,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: maxTokens,
+          system,
+          tools: [WEB_SEARCH_TOOL],
+          messages,
+        }),
+      });
+      if (!response.ok) return []; // e.g. web search not enabled on the key
+      data = await response.json();
+      if (data && data.stop_reason === 'pause_turn' && Array.isArray(data.content)) {
+        // Continue the paused server-tool turn: resend with the assistant's
+        // partial content appended (no extra user message — see Anthropic docs).
+        messages = [...messages, { role: 'assistant', content: data.content }];
+        continue;
+      }
+      break;
+    }
+  } catch {
+    return []; // network/parse failure — guidance still returns without lawyers
+  }
+
+  const content = Array.isArray(data?.content)
+    ? data.content.map((b) => (b && b.type === 'text' ? b.text : '')).join('')
+    : '';
+  const parsed = safeParse(content);
+  const list = parsed && Array.isArray(parsed.lawyers) ? parsed.lawyers : [];
+
+  // Normalise + HARD-FILTER: a lawyer without a real source_url is dropped, so
+  // nothing un-grounded (i.e. possibly invented) ever reaches the reporter.
+  const str = (v) => (typeof v === 'string' ? v.trim() : '');
+  return list
+    .map((l) => ({
+      name: str(l.name),
+      organisation: str(l.organisation),
+      specialisation: str(l.specialisation),
+      district: str(l.district),
+      // Contact fields are scraped from the web, so they can be dirty: a
+      // comma-separated list of numbers, an anti-scraping "[email protected]"
+      // placeholder, or a scheme-less domain. Clean them so the tap actions
+      // build valid tel:/mailto:/https: URLs (and drop unusable ones).
+      phone: cleanPhone(l.phone),
+      email: cleanEmail(l.email),
+      website: cleanWebsite(l.website),
+      experience: str(l.experience),
+      approx_fee: str(l.approx_fee),
+      source_url: str(l.source_url),
+    }))
+    .filter((l) => l.name && /^https?:\/\//i.test(l.source_url))
+    .slice(0, 6);
+}
+
+// A dial-safe phone: sources often list several numbers ("+94 11 1, +94 11 2");
+// keep the first, stripped to digits/+ so `tel:` works. '' if none usable.
+function cleanPhone(v) {
+  const raw = typeof v === 'string' ? v.trim() : '';
+  if (!raw) return '';
+  const first = raw.split(/[,;/]|\bor\b/i)[0];
+  const digits = first.replace(/[^\d+]/g, '');
+  return /\d{6,}/.test(digits) ? digits : '';
+}
+
+// A valid email, or '' — rejects obfuscated placeholders like "[email protected]"
+// that scraped pages substitute for real addresses.
+function cleanEmail(v) {
+  const email = typeof v === 'string' ? v.trim() : '';
+  if (!email || /[[\]\s]/.test(email)) return '';
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? email : '';
+}
+
+// A website with an explicit scheme, or '' — a scheme-less "www.x.org" would be
+// treated as a relative/file URL by the app and fail to open.
+function cleanWebsite(v) {
+  let url = typeof v === 'string' ? v.trim() : '';
+  if (!url || /[[\]\s]/.test(url)) return '';
+  if (!/^https?:\/\//i.test(url)) url = `https://${url.replace(/^\/+/, '')}`;
+  // Must look like a real host (has a dot after the scheme).
+  return /^https?:\/\/[^/]+\.[^/]/i.test(url) ? url : '';
+}
+
 /** Parse JSON that may be wrapped in stray text / code fences. Returns null on failure. */
 function safeParse(text) {
   try {
@@ -174,4 +367,4 @@ function safeParse(text) {
   }
 }
 
-module.exports = { getGuidance, isConfigured, MODEL };
+module.exports = { getGuidance, getLawyers, isConfigured, MODEL };
