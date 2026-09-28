@@ -551,23 +551,50 @@ export interface LegalGuidance {
   safety_note: string;
 }
 
+/**
+ * A REAL lawyer / firm / legal-aid provider surfaced for a case, found by the
+ * server via Claude web search and mirrored from the server's projection. Every
+ * entry is source-cited (`source_url`) — the server drops any result it cannot
+ * verify, so nothing here is AI-invented. Optional fields are empty strings when
+ * a detail could not be found (never fabricated).
+ */
+export interface Lawyer {
+  name: string;
+  organisation: string;
+  specialisation: string;
+  district: string;
+  phone: string;
+  email: string;
+  website: string;
+  experience: string;
+  approx_fee: string;
+  source_url: string;
+}
+
 export interface GuidanceResponse {
   success: boolean;
   data: {
     guidance: LegalGuidance;
     organisations: Organisation[];
+    // Real, source-cited lawyers for this case (may be empty if web search is
+    // unavailable or found nothing verifiable). Older servers omit this field.
+    lawyers?: Lawyer[];
   };
 }
 
 /**
  * AI Legal Guidance — describe a situation, get educational guidance (case type,
- * Sri Lankan law, steps) plus real legal-aid orgs. Tokenless `api`: this is a
- * public, anonymous helper and is NOT filing a case. The scenario is sent to the
- * server (which calls the AI); it is never stored. Optional district focuses the
- * org referrals.
+ * Sri Lankan law, steps) plus real legal-aid orgs AND real, source-cited lawyers
+ * (found via web search). Tokenless `api`: this is a public, anonymous helper and
+ * is NOT filing a case. The scenario is sent to the server (which calls the AI);
+ * it is never stored. Optional district focuses the org + lawyer referrals.
+ *
+ * Longer timeout than the default `api` instance: the server does a web search
+ * for real lawyers on top of generating guidance, which can take longer than the
+ * 15s used for ordinary calls.
  */
 export const fetchLegalGuidance = (scenario: string, district?: string, language?: string) =>
-  api.post<GuidanceResponse>('/ai/guidance', { scenario, district, language });
+  api.post<GuidanceResponse>('/ai/guidance', { scenario, district, language }, { timeout: 45000 });
 
 /**
  * The ADMIN view of an organisation: the public Organisation fields PLUS the

@@ -170,11 +170,29 @@ export default function Home() {
         {/* Explore: secondary destinations as a vertical list of rows. */}
         <Text style={local.sectionLabel}>{t('home.explore')}</Text>
         <View style={local.list}>
-          <GridTile
-            href="/guidance"
-            icon={<AIChatIcon color={colors.primary} size={24} />}
-            label={t('guidance.menu')}
-          />
+          {/* AI guidance is the standout feature — same height as the rows below
+              but visually elevated (tinted surface, primary border, filled navy
+              icon, and an orange AI badge) so it reads as special, not just
+              another link. Orange here is the screen's single 10% accent. */}
+          <Link href="/guidance" asChild>
+            <Pressable
+              style={local.aiTile}
+              accessibilityRole="button"
+              accessibilityLabel={t('guidance.menu')}
+            >
+              <View style={local.aiIcon}>
+                <AIChatIcon color={colors.primaryText} size={22} />
+              </View>
+              <Text style={local.aiLabel} numberOfLines={1}>
+                {t('guidance.menu')}
+              </Text>
+              <View style={local.aiBadge}>
+                <Text style={local.aiBadgeText}>✦ {t('guidance.homeBadge')}</Text>
+              </View>
+              <ChevronIcon color={colors.primary} size={20} />
+            </Pressable>
+          </Link>
+
           <GridTile
             href="/directory"
             icon={<DirectoryIcon color={colors.primary} size={22} />}
@@ -315,6 +333,48 @@ const local = StyleSheet.create({
   // Vertical Explore list.
   list: {
     gap: 10,
+  },
+
+  // Featured AI tile — SAME height as the plain rows (matches `tile`: 38px icon,
+  // 10px vertical padding) but visually elevated: tinted-blue surface, primary
+  // border, filled navy icon, and an orange AI badge so it reads as special.
+  aiTile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 12,
+    backgroundColor: colors.primaryTint,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  aiIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+  },
+  aiLabel: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.primary,
+    lineHeight: 21,
+  },
+  aiBadge: {
+    backgroundColor: colors.secondary,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  aiBadgeText: {
+    color: colors.onSecondary,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   tile: {
     flexDirection: 'row',

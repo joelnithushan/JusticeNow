@@ -470,7 +470,10 @@
     "approveConfirm": "Grant {name} access to the case dashboard?",
     "rejectConfirm": "Reject {name}'s request? They will not be able to sign in.",
     "actionFailed": "Could not complete that action. Please try again.",
-    "status": { "pending": "Pending", "onboarding": "Onboarding" }
+    "status": {
+      "pending": "Pending",
+      "onboarding": "Onboarding"
+    }
   },
   "adminOrg": {
     "listTitle": "Organisations",
@@ -744,7 +747,16 @@
     "again": "Ask about another situation",
     "handledTitle": "How this case is handled",
     "feesTitle": "Approximate fees",
-    "feesNote": "Fees vary widely. Many legal-aid organisations below help for free or low cost."
+    "feesNote": "Fees vary widely. Many legal-aid organisations below help for free or low cost.",
+    "lawyersTitle": "Lawyers who may help",
+    "lawyersIntro": "Real lawyers and legal-aid providers found from public sources for this kind of case. Tap to contact them directly.",
+    "lawyersDisclaimer": "These results come from a live web search and can change. Always confirm a lawyer’s details and fees with them before relying on them.",
+    "noLawyers": "We couldn’t find specific lawyers to show right now. The organisations below can still help.",
+    "callLawyer": "Call",
+    "emailLawyer": "Email",
+    "websiteLawyer": "Website",
+    "viewSource": "View source",
+    "homeBadge": "AI"
   },
   "districts": {
     "Ampara": "Ampara",
