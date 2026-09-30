@@ -40,6 +40,20 @@ function DownloadIcon({ color }: { color: string }) {
   );
 }
 
+// A soft heart — signals care/aftercare, not the shield/chart used elsewhere.
+function HeartIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 20 C12 20 4 14.5 4 8.8 A4.2 4.2 0 0 1 12 6.6 A4.2 4.2 0 0 1 20 8.8 C20 14.5 12 20 12 20 Z"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 // A small left-arrow for the subtle "Back to home" control.
 function BackArrow({ color }: { color: string }) {
   return (
@@ -173,6 +187,23 @@ export default function ReportSuccess() {
       <Text style={[theme.paragraph, { fontWeight: '700' }]}>{t('success.writeItDown')}</Text>
       <Text style={theme.paragraph}>{t('success.explanation')}</Text>
 
+      {/* Aftercare: reporting a violation can be distressing, so before the
+          case-tracking actions we offer a calm "you're not alone" card that
+          points to support + emergency hotlines. This is static and links to the
+          offline rights screen — it fetches/stores nothing and asks nothing. */}
+      <View style={local.supportCard}>
+        <View style={local.supportRow}>
+          <HeartIcon color={colors.primary} />
+          <Text style={local.supportTitle}>{t('success.supportTitle')}</Text>
+        </View>
+        <Text style={local.supportBody}>{t('success.supportBody')}</Text>
+        <Link href="/rights" asChild>
+          <Pressable style={local.supportBtn} accessibilityRole="button">
+            <Text style={local.supportBtnText}>{t('success.supportAction')}</Text>
+          </Pressable>
+        </Link>
+      </View>
+
       {/* Primary action: checking the case is what matters most here. */}
       <Link href="/status" asChild>
         <Pressable style={theme.btnPrimary} accessibilityRole="button">
@@ -225,6 +256,30 @@ const local = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.primaryTint,
   },
+  // Aftercare/support card — a calm tinted panel, visually distinct from the
+  // action buttons. Uses the blue tint (never orange — orange is reserved and
+  // never used on the safety path).
+  supportCard: {
+    backgroundColor: colors.primaryTint,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  supportRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  supportTitle: { fontSize: 16, fontWeight: '800', color: colors.primary },
+  supportBody: { fontSize: 14, lineHeight: 21, color: colors.text },
+  supportBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 12,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+  },
+  supportBtnText: { fontSize: 14, fontWeight: '800', color: colors.primary },
+
   // Subtle, de-emphasised "Back to home" — a muted arrow + label, no border, so
   // it never competes with the primary "Check case status" button above it.
   homeBtn: {
