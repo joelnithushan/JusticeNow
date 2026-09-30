@@ -137,9 +137,23 @@ export default function ImageRedactorModal({
   const undo = () => setBoxes((b) => b.slice(0, -1));
   const clear = () => setBoxes([]);
 
-  // Bake the boxes into a new flattened JPEG and hand it back.
+  // Wrap a URI as our evidence file shape after reading its size.
+  const asEvidence = async (uri: string): Promise<RedactedImage> => {
+    const info = await FileSystem.getInfoAsync(uri);
+    return {
+      uri,
+      name: 'evidence.jpg',
+      mimeType: 'image/jpeg',
+      size: info.exists ? info.size : 0,
+      lastModified: Date.now(),
+    };
+  };
+
+  // "Use photo": bake the boxes into a new flattened JPEG and hand it back.
   const apply = async () => {
     if (!natural || !imageUri || busy) return;
+    // With no boxes drawn, "Use photo" is the same as skipping — just strip.
+    if (boxes.length === 0) return skip();
     setBusy(true);
     try {
       const base64Png: string = await new Promise((resolve, reject) => {
@@ -160,17 +174,31 @@ export default function ImageRedactorModal({
         compress: 0.9,
         format: ImageManipulator.SaveFormat.JPEG,
       });
-      const info = await FileSystem.getInfoAsync(jpeg.uri);
-      onApply({
-        uri: jpeg.uri,
-        name: 'evidence.jpg',
-        mimeType: 'image/jpeg',
-        size: info.exists ? info.size : 0,
-        lastModified: Date.now(),
-      });
+      onApply(await asEvidence(jpeg.uri));
     } catch {
-      // On any failure we do NOT silently upload the original — surface it so the
-      // caller can fall back to the plain metadata-strip path deliberately.
+      // On any failure we must NOT upload the original untouched (it may carry
+      // GPS/faces) — back out so the reporter can try again deliberately.
+      onCancel();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // "Skip": attach the photo WITHOUT covering anything, but still re-encode it
+  // to a fresh JPEG so EXIF/GPS metadata is stripped. Passing no actions to
+  // ImageManipulator re-encodes the pixels into a new file with no metadata
+  // block — so we never store the raw original. If it fails we back out rather
+  // than fall back to the untouched file.
+  const skip = async () => {
+    if (!imageUri || busy) return;
+    setBusy(true);
+    try {
+      const jpeg = await ImageManipulator.manipulateAsync(imageUri, [], {
+        compress: 0.9,
+        format: ImageManipulator.SaveFormat.JPEG,
+      });
+      onApply(await asEvidence(jpeg.uri));
+    } catch {
       onCancel();
     } finally {
       setBusy(false);
@@ -181,7 +209,18 @@ export default function ImageRedactorModal({
     <Modal visible={visible} animationType="slide" onRequestClose={onCancel}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
-          <Text style={styles.title}>{t('report.redact.title')}</Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.title}>{t('report.redact.title')}</Text>
+            <Pressable
+              onPress={onCancel}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.cancel')}
+              hitSlop={10}
+            >
+              <Text style={styles.cancelX}>✕</Text>
+            </Pressable>
+          </View>
           <Text style={styles.hint}>{t('report.redact.hint')}</Text>
         </View>
 
@@ -281,9 +320,9 @@ export default function ImageRedactorModal({
           <Text style={styles.count}>{t('report.redact.count', { count: boxes.length })}</Text>
         </View>
 
-        {/* Footer: cancel / apply. */}
+        {/* Footer: skip (attach, still stripped) / apply (attach redacted). */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-          <Pressable style={styles.secondaryBtn} onPress={onCancel} disabled={busy}>
+          <Pressable style={styles.secondaryBtn} onPress={skip} disabled={busy}>
             <Text style={styles.secondaryText}>{t('report.redact.skip')}</Text>
           </Pressable>
           <Pressable style={styles.primaryBtn} onPress={apply} disabled={busy}>
@@ -300,7 +339,9 @@ export default function ImageRedactorModal({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   header: { paddingHorizontal: 20, paddingVertical: 12, backgroundColor: colors.primary },
-  title: { color: colors.primaryText, fontSize: 18, fontWeight: '800' },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  title: { color: colors.primaryText, fontSize: 18, fontWeight: '800', flex: 1, paddingRight: 12 },
+  cancelX: { color: colors.primaryText, fontSize: 20, fontWeight: '800' },
   hint: { color: colors.primaryText, opacity: 0.9, fontSize: 13, marginTop: 4, lineHeight: 18 },
   canvas: { flex: 1, backgroundColor: '#111' },
   loading: { color: '#fff', textAlign: 'center', marginTop: 40 },
