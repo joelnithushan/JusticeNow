@@ -93,6 +93,20 @@ function ChartIcon({ color, size = 20 }: IconProps) {
     </Svg>
   );
 }
+// Know your rights & get help: a life-ring — reads as rescue/safety, distinct
+// from the shield (about) and chart (transparency) already in the list.
+function LifeRingIcon({ color, size = 20 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={12} r={8.5} stroke={color} strokeWidth={1.8} />
+      <Circle cx={12} cy={12} r={3.5} stroke={color} strokeWidth={1.8} />
+      <Line x1={12} y1={3.5} x2={12} y2={8.5} stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Line x1={12} y1={15.5} x2={12} y2={20.5} stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Line x1={3.5} y1={12} x2={8.5} y2={12} stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Line x1={15.5} y1={12} x2={20.5} y2={12} stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
 function LockIcon({ color, size = 20 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -193,6 +207,13 @@ export default function Home() {
             </Pressable>
           </Link>
 
+          {/* Safety/emergency help — placed directly under the AI tile because it
+              is the fastest path to help and works fully offline. */}
+          <GridTile
+            href="/rights"
+            icon={<LifeRingIcon color={colors.primary} size={22} />}
+            label={t('home.rights')}
+          />
           <GridTile
             href="/directory"
             icon={<DirectoryIcon color={colors.primary} size={22} />}

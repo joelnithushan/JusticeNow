@@ -44,6 +44,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import ReporterTopBar from '../../components/ReporterTopBar';
 import SelectField, { type Option } from '../../components/SelectField';
 import LocationPickerModal from '../../components/LocationPickerModal';
+import ImageRedactorModal, { type RedactedImage } from '../../components/ImageRedactorModal';
 import { useReportForm } from '../../src/context/ReportFormContext';
 import { submitReport } from '../../src/api/client';
 import {
@@ -149,6 +150,8 @@ export default function ReportCase() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  // Raw uri of a just-picked image awaiting the redaction editor (null = closed).
+  const [redactUri, setRedactUri] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -264,8 +267,33 @@ export default function ReportCase() {
       setErrors((e) => ({ ...e, evidence: t('report.wizard.evidenceTooBig') }));
       return;
     }
+    // Images open the redaction editor first, so the reporter can cover faces,
+    // plates and name boards before the photo is stored. The editor always
+    // returns a clean, flattened, metadata-free JPEG (even on "Skip"), so the
+    // raw original is never stored. Non-images (PDF/audio) attach directly.
+    const isImage = mime.startsWith('image/') || /\.(jpe?g|png|webp)$/.test(nameLower);
+    if (isImage) {
+      setRedactUri(asset.uri);
+      return;
+    }
+
     setField('evidenceFile', asset);
   };
+
+  // The editor always returns a clean, flattened, metadata-free JPEG — whether
+  // the reporter covered areas ("Use photo") or not ("Skip"). We only enforce
+  // the size cap before storing it in the draft.
+  const applyRedaction = (result: RedactedImage) => {
+    setRedactUri(null);
+    if (result.size > MAX_EVIDENCE_BYTES) {
+      setErrors((e) => ({ ...e, evidence: t('report.wizard.evidenceTooBig') }));
+      return;
+    }
+    setField('evidenceFile', result);
+  };
+
+  // Reporter backed out of the editor entirely — attach no image.
+  const cancelRedaction = () => setRedactUri(null);
 
   const toggleAssistance = (value: string) => {
     const has = draft.assistanceRequested.includes(value);
@@ -899,6 +927,13 @@ export default function ReportCase() {
           if (district) setField('district', district);
           setShowMap(false);
         }}
+      />
+
+      <ImageRedactorModal
+        visible={redactUri != null}
+        imageUri={redactUri}
+        onCancel={cancelRedaction}
+        onApply={applyRedaction}
       />
     </View>
   );
