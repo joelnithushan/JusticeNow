@@ -685,7 +685,10 @@
     "trend": "Reports over the last 6 months",
     "asOf": "Figures as of {{date}}",
     "empty": "No cases have been reported yet.",
-    "loadFailed": "Could not load the figures. Please try again."
+    "loadFailed": "Could not load the figures. Please try again.",
+    "mapFewer": "Fewer",
+    "mapMore": "More",
+    "mapA11y": "Map of Sri Lanka shading each district by the number of cases reported there."
   },
   "reporterTypes": {
     "victim": "I experienced this incident",
