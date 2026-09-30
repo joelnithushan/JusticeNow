@@ -179,7 +179,16 @@
     "mapSearch": "Search",
     "mapSearching": "Searching…",
     "mapNoResults": "No place found. Try a nearby landmark or tap the map.",
-    "useThisLocation": "Use this location"
+    "useThisLocation": "Use this location",
+    "redact": {
+      "title": "Cover anything that identifies someone",
+      "hint": "Drag a box over faces, name boards, vehicle plates, ID cards — anything identifying. Covered areas are removed from the photo.",
+      "undo": "Undo",
+      "clear": "Clear",
+      "apply": "Use photo",
+      "skip": "Skip",
+      "count": "{{count}} covered"
+    }
   },
   "success": {
     "title": "Your report has been received",
