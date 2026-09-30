@@ -204,7 +204,10 @@
     "qrSaveTitle": "Save QR",
     "qrSaved": "QR code saved to your photos.",
     "qrSaveFailed": "Could not save the QR. Please try again.",
-    "qrPermission": "Allow photo access in Settings to save the QR, or take a screenshot instead."
+    "qrPermission": "Allow photo access in Settings to save the QR, or take a screenshot instead.",
+    "supportTitle": "You're not alone",
+    "supportBody": "Reporting can be hard. If you feel unsafe or distressed, support is available — including free hotlines you can call now.",
+    "supportAction": "Get support & hotlines"
   },
   "status": {
     "title": "Check case status",
