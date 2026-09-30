@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 
 import ReporterTopBar from '../components/ReporterTopBar';
 import ErrorState from '../components/ErrorState';
+import DistrictHeatMap from '../components/DistrictHeatMap';
 import { fetchTransparency } from '../src/api/client';
 import type { TransparencyStats } from '../src/api/client';
 import { CASE_STATUSES, CASE_TYPES } from '../src/constants';
@@ -116,6 +117,9 @@ export default function Transparency() {
               {/* By district (server sends only non-zero districts). */}
               {Object.keys(stats.by_district).length > 0 ? (
                 <Section title={t('transparency.byDistrict')}>
+                  {/* At-a-glance geographic heat map (district-level aggregate
+                      counts only), with the exact-number bar list beneath it. */}
+                  <DistrictHeatMap byDistrict={stats.by_district} />
                   <BarList
                     items={Object.entries(stats.by_district)
                       .sort((a, b) => b[1] - a[1])

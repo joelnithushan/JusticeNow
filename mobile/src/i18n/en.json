@@ -47,7 +47,8 @@
     "directory": "Legal resource directory",
     "about": "About & safety",
     "staffLogin": "Staff login",
-    "privacyNote": "You do not need an account. We never ask who you are."
+    "privacyNote": "You do not need an account. We never ask who you are.",
+    "rights": "Know your rights"
   },
   "caseTypes": {
     "harassment": "Harassment",
@@ -178,7 +179,16 @@
     "mapSearch": "Search",
     "mapSearching": "Searching…",
     "mapNoResults": "No place found. Try a nearby landmark or tap the map.",
-    "useThisLocation": "Use this location"
+    "useThisLocation": "Use this location",
+    "redact": {
+      "title": "Cover anything that identifies someone",
+      "hint": "Drag a box over faces, name boards, vehicle plates, ID cards — anything identifying. Covered areas are removed from the photo.",
+      "undo": "Undo",
+      "clear": "Clear",
+      "apply": "Use photo",
+      "skip": "Skip",
+      "count": "{{count}} covered"
+    }
   },
   "success": {
     "title": "Your report has been received",
@@ -684,7 +694,10 @@
     "trend": "Reports over the last 6 months",
     "asOf": "Figures as of {{date}}",
     "empty": "No cases have been reported yet.",
-    "loadFailed": "Could not load the figures. Please try again."
+    "loadFailed": "Could not load the figures. Please try again.",
+    "mapFewer": "Fewer",
+    "mapMore": "More",
+    "mapA11y": "Map of Sri Lanka shading each district by the number of cases reported there."
   },
   "reporterTypes": {
     "victim": "I experienced this incident",
@@ -784,5 +797,40 @@
     "Ratnapura": "Ratnapura",
     "Trincomalee": "Trincomalee",
     "Vavuniya": "Vavuniya"
+  },
+  "rights": {
+    "menu": "Know your rights",
+    "homeBadge": "Offline",
+    "title": "Know your rights & get help",
+    "offlineNote": "✓ Works without internet",
+    "emergencyTitle": "Emergency help",
+    "emergencyIntro": "Tap a number to call. These are free national hotlines.",
+    "callLabel": "Call",
+    "hl": {
+      "police": "Police emergency",
+      "ambulance": "Ambulance (Suwa Seriya)",
+      "hrcsl": "Human Rights Commission",
+      "women": "Women's helpline",
+      "child": "Child protection"
+    },
+    "scenariosTitle": "What to do now",
+    "s1Title": "If you are stopped or detained",
+    "s1a": "Stay calm and polite. You do not have to answer questions about other people.",
+    "s1b": "You may ask for the officer's name and station.",
+    "s1c": "Do not sign anything you do not understand.",
+    "s2Title": "If you or someone is in danger now",
+    "s2a": "Move to a safe place and call 119.",
+    "s2b": "Tell someone you trust where you are.",
+    "s2c": "When it is safe, note the time, place and who was involved.",
+    "s3Title": "Before you report to JusticeNow",
+    "s3a": "Write down what happened while it is fresh in your memory.",
+    "s3b": "Keep any evidence — photos, messages, documents — somewhere safe.",
+    "s3c": "You never need to give your name or any contact details.",
+    "rightsTitle": "Your basic rights",
+    "right1": "You have the right to be treated with dignity and safety.",
+    "right2": "You have the right to stay silent and to ask for a lawyer.",
+    "right3": "You have the right to free legal aid.",
+    "right4": "Reporting here is anonymous — no name, no account, ever.",
+    "footer": "Reference only — not legal advice. In an emergency, call 119."
   }
 }
