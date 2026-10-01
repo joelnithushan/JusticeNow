@@ -31,7 +31,7 @@ import { useTranslation } from 'react-i18next';
 import ReporterTopBar from '../components/ReporterTopBar';
 import SelectField, { type Option } from '../components/SelectField';
 import { fetchLegalGuidance } from '../src/api/client';
-import type { LegalGuidance, Lawyer, Organisation } from '../src/api/client';
+import type { LegalGuidance, Lawyer, LegalBasis, LegalProvision, Organisation } from '../src/api/client';
 import { DISTRICTS } from '../src/constants';
 import { usePreferences } from '../src/context/PreferencesContext';
 import { colors, styles as theme } from '../src/theme';
@@ -56,6 +56,9 @@ const GUIDANCE_LANGS: { code: string; label: string }[] = [
   { code: 'si', label: 'සිංහල' },
 ];
 
+// Empty legal-basis shape, reused for reset + missing-field fallback.
+const EMPTY_LEGAL_BASIS: LegalBasis = { provisions: [], outlook: { helps: [], hurts: [] } };
+
 export default function Guidance() {
   const { t, i18n } = useTranslation();
   const { district: savedDistrict } = usePreferences();
@@ -69,6 +72,12 @@ export default function Guidance() {
   // Real, source-cited lawyers for this case (from server web search). May be
   // empty if web search found nothing verifiable — the UI handles that.
   const [lawyers, setLawyers] = useState<Lawyer[]>([]);
+  // Real, source-cited legal provisions (Act/section/penalty) + a non-predictive
+  // outlook for this case, from server web search. Empty if none verifiable.
+  const [legalBasis, setLegalBasis] = useState<LegalBasis>({
+    provisions: [],
+    outlook: { helps: [], hurts: [] },
+  });
   // Whether the guidance is currently being read aloud (expo-speech).
   const [speaking, setSpeaking] = useState(false);
   // The language the CURRENT guidance text is in — drives both the active toggle
@@ -91,17 +100,27 @@ export default function Guidance() {
   // Flatten the structured guidance into one spoken passage, labelled section by
   // section so a listener (e.g. a low-literacy user) can follow it without the
   // screen. Real org contacts are NOT read out — they are on-screen tap targets.
-  const buildSpokenGuidance = (g: LegalGuidance): string =>
-    [
+  const buildSpokenGuidance = (g: LegalGuidance, lb: LegalBasis): string => {
+    // Read the grounded provisions aloud too (Act, section, summary, penalty) —
+    // source URLs are on-screen tap targets, not spoken.
+    const provisionsSpoken = lb.provisions.length
+      ? `${t('guidance.legalBasisTitle')}. ` +
+        lb.provisions
+          .map((p) => [p.law, p.section, p.summary, p.penalty].filter(Boolean).join('. '))
+          .join('. ')
+      : '';
+    return [
       `${t('guidance.categoryTitle')}: ${t(`caseTypes.${g.category}`)}. ${g.summary}`,
       g.how_handled.length ? `${t('guidance.handledTitle')}. ${g.how_handled.join('. ')}` : '',
       g.applicable_laws.length ? `${t('guidance.lawsTitle')}. ${g.applicable_laws.join('. ')}` : '',
+      provisionsSpoken,
       g.steps.length ? `${t('guidance.stepsTitle')}. ${g.steps.join('. ')}` : '',
       g.approximate_fees ? `${t('guidance.feesTitle')}. ${g.approximate_fees}` : '',
       g.safety_note ? `${t('guidance.safetyTitle')}. ${g.safety_note}` : '',
     ]
       .filter(Boolean)
       .join('. ');
+  };
 
   // Toggle read-aloud. onDone/onStopped/onError all reset the button so it never
   // sticks on "Stop" if a voice is unavailable (common for si-LK/ta-IN).
@@ -113,7 +132,7 @@ export default function Guidance() {
       return;
     }
     setSpeaking(true);
-    Speech.speak(buildSpokenGuidance(guidance), {
+    Speech.speak(buildSpokenGuidance(guidance, legalBasis), {
       // Read in the language the guidance TEXT is actually in (set by the toggle),
       // not the app language — otherwise a Tamil voice would read English text.
       language: SPEECH_LOCALES[guidanceLang] ?? 'en-US',
@@ -137,6 +156,7 @@ export default function Guidance() {
       setGuidance(res.data.data.guidance);
       setOrgs(res.data.data.organisations || []);
       setLawyers(res.data.data.lawyers || []);
+      setLegalBasis(res.data.data.legal_basis || EMPTY_LEGAL_BASIS);
       setGuidanceLang(lang);
     } catch (err) {
       let message = t('guidance.failed');
@@ -160,6 +180,7 @@ export default function Guidance() {
     setGuidance(null);
     setOrgs([]);
     setLawyers([]);
+    setLegalBasis(EMPTY_LEGAL_BASIS);
     // Stop any read-aloud from a previous result before generating a new one.
     Speech.stop();
     setSpeaking(false);
@@ -168,6 +189,7 @@ export default function Guidance() {
       setGuidance(res.data.data.guidance);
       setOrgs(res.data.data.organisations || []);
       setLawyers(res.data.data.lawyers || []);
+      setLegalBasis(res.data.data.legal_basis || EMPTY_LEGAL_BASIS);
       setGuidanceLang(i18n.language); // the result is in the app language
     } catch (err) {
       // Never log err — it can echo the scenario.
@@ -187,6 +209,7 @@ export default function Guidance() {
     setGuidance(null);
     setOrgs([]);
     setLawyers([]);
+    setLegalBasis(EMPTY_LEGAL_BASIS);
     setError(null);
     setScenario('');
   };
@@ -322,6 +345,31 @@ export default function Guidance() {
                   {guidance.applicable_laws.map((law, i) => (
                     <Bullet key={i} text={law} />
                   ))}
+                </SheetRow>
+              ) : null}
+
+              {/* Real, source-cited legal provisions (Act/section/penalty) found
+                  via web search. Every card carries a source link; the server
+                  drops anything un-cited, so nothing here is AI-invented. */}
+              {legalBasis.provisions.length > 0 ? (
+                <SheetRow label={t('guidance.legalBasisTitle')} icon="📖">
+                  <Text style={local.lawyersIntro}>{t('guidance.legalBasisIntro')}</Text>
+                  {legalBasis.provisions.map((p, i) => (
+                    <ProvisionCard key={`${p.source_url}-${i}`} provision={p} />
+                  ))}
+                  {legalBasis.outlook.helps.length > 0 || legalBasis.outlook.hurts.length > 0 ? (
+                    <View style={local.outlookBox}>
+                      <Text style={local.outlookTitle}>{t('guidance.outlookTitle')}</Text>
+                      {legalBasis.outlook.helps.map((h, i) => (
+                        <Text key={`h${i}`} style={local.outlookHelp}>{`✅ ${h}`}</Text>
+                      ))}
+                      {legalBasis.outlook.hurts.map((h, i) => (
+                        <Text key={`x${i}`} style={local.outlookHurt}>{`⚠️ ${h}`}</Text>
+                      ))}
+                      <Text style={local.outlookNote}>{t('guidance.outlookNote')}</Text>
+                    </View>
+                  ) : null}
+                  <Text style={local.lawyersDisclaimer}>{t('guidance.legalBasisDisclaimer')}</Text>
                 </SheetRow>
               ) : null}
 
@@ -588,6 +636,41 @@ function LawyerCard({ lawyer }: { lawyer: Lawyer }) {
   );
 }
 
+// A single source-cited legal provision: Act + section header, plain summary,
+// a highlighted penalty, and the required source link (proves it is real).
+function ProvisionCard({ provision }: { provision: LegalProvision }) {
+  const { t } = useTranslation();
+  const open = (url: string) => Linking.openURL(url).catch(() => undefined);
+  return (
+    <View style={local.lawyerCard}>
+      <View style={local.provisionHead}>
+        <Text style={local.provisionLaw}>{provision.law}</Text>
+        {provision.section ? (
+          <View style={[local.chip, local.chipAccent]}>
+            <Text style={[local.chipText, local.chipAccentText]}>{provision.section}</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={local.bodyText}>{provision.summary}</Text>
+      {provision.penalty ? (
+        <View style={local.penaltyBox}>
+          <Text style={local.penaltyLabel}>{t('guidance.penaltyLabel')}</Text>
+          <Text style={local.penaltyText}>{provision.penalty}</Text>
+        </View>
+      ) : null}
+      <Pressable
+        onPress={() => open(provision.source_url)}
+        accessibilityRole="link"
+        style={local.sourceRow}
+      >
+        <Text style={local.sourceText} numberOfLines={1}>
+          🔗 {t('guidance.viewSource')}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const local = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   body: { padding: 20, paddingBottom: 40 },
@@ -791,6 +874,44 @@ const local = StyleSheet.create({
 
   sourceRow: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
   sourceText: { fontSize: 12, color: colors.muted, fontWeight: '600' },
+
+  // Legal-basis provision card.
+  provisionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 8,
+  },
+  provisionLaw: { flex: 1, fontSize: 15, fontWeight: '800', color: colors.primary, lineHeight: 20 },
+  penaltyBox: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: colors.primaryTint,
+  },
+  penaltyLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.primary,
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  penaltyText: { fontSize: 14, color: colors.text, lineHeight: 19, fontWeight: '600' },
+
+  // Non-predictive outlook (factors that help/hurt this kind of case).
+  outlookBox: {
+    marginTop: 4,
+    marginBottom: 4,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  outlookTitle: { fontSize: 14, fontWeight: '800', color: colors.text, marginBottom: 8 },
+  outlookHelp: { fontSize: 14, color: colors.text, lineHeight: 21 },
+  outlookHurt: { fontSize: 14, color: colors.text, lineHeight: 21 },
+  outlookNote: { fontSize: 12, color: colors.muted, fontStyle: 'italic', marginTop: 8, lineHeight: 17 },
 
   againBtn: { paddingVertical: 12, alignItems: 'center', marginTop: 4 },
   againText: { fontSize: 15, fontWeight: '700', color: colors.primary },

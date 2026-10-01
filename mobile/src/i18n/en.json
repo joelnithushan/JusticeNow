@@ -772,7 +772,13 @@
     "emailLawyer": "Email",
     "websiteLawyer": "Website",
     "viewSource": "View source",
-    "homeBadge": "AI"
+    "homeBadge": "AI",
+    "legalBasisTitle": "The law behind this",
+    "legalBasisIntro": "Actual Sri Lankan legal provisions that may apply — each links to its source.",
+    "penaltyLabel": "PENALTY",
+    "outlookTitle": "What can help or hurt this kind of case",
+    "outlookNote": "General factors only — not a prediction about your case.",
+    "legalBasisDisclaimer": "General legal information from cited public sources, not legal advice. Laws can change — always verify with the source or a lawyer."
   },
   "districts": {
     "Ampara": "Ampara",
