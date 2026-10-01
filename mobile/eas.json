@@ -12,6 +12,11 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://justicenow-production.up.railway.app/api",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://kjvqdfkhtfxnohntxwee.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_o-7CVu2armbhs_TWX_2bsw_M2JXtV3U"
       }
     },
     "production": {
