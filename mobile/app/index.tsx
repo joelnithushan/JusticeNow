@@ -287,25 +287,26 @@ const local = StyleSheet.create({
   page: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: 28,
-    paddingBottom: 32,
+    paddingTop: 20,
+    paddingBottom: 24,
     backgroundColor: colors.background,
   },
 
-  // Left-aligned hero: bold headline + supporting tagline.
-  hero: { marginBottom: 26 },
+  // Left-aligned hero: bold headline + supporting tagline. Kept compact so the
+  // full Explore list — including the Staff login footer — fits above the fold.
+  hero: { marginBottom: 18 },
   headline: {
-    fontSize: 40,
-    lineHeight: 46,
+    fontSize: 32,
+    lineHeight: 38,
     fontWeight: '800',
     color: colors.text,
     letterSpacing: -0.5,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   tagline: {
-    fontSize: 17,
+    fontSize: 15,
     color: colors.muted,
-    lineHeight: 24,
+    lineHeight: 21,
   },
 
   primaryBtn: {
@@ -313,7 +314,7 @@ const local = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     backgroundColor: colors.primary,
-    paddingVertical: 18,
+    paddingVertical: 16,
     paddingHorizontal: 20,
     borderRadius: 14,
     marginTop: 4,
@@ -333,10 +334,10 @@ const local = StyleSheet.create({
     backgroundColor: colors.background,
     borderWidth: 1.5,
     borderColor: colors.primary,
-    paddingVertical: 17,
+    paddingVertical: 15,
     paddingHorizontal: 20,
     borderRadius: 14,
-    marginTop: 14,
+    marginTop: 12,
   },
   outlineText: { color: colors.primary, fontSize: 18, fontWeight: '700' },
 
@@ -347,13 +348,13 @@ const local = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: colors.text,
-    marginTop: 30,
-    marginBottom: 14,
+    marginTop: 20,
+    marginBottom: 10,
   },
 
   // Vertical Explore list.
   list: {
-    gap: 10,
+    gap: 8,
   },
 
   // Featured AI tile — SAME height as the plain rows (matches `tile`: 38px icon,
