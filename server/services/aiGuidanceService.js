@@ -349,6 +349,144 @@ function cleanWebsite(v) {
   return /^https?:\/\/[^/]+\.[^/]/i.test(url) ? url : '';
 }
 
+// ---------------------------------------------------------------------------
+// Real legal basis lookup (Anthropic web search).
+//
+// Like getLawyers, this is GROUNDED: the plain getGuidance model is forbidden
+// from citing statute numbers because it hallucinates them. To surface ACTUAL
+// Sri Lankan legal provisions — the Act, the section, the penalty/fine — we make
+// a SEPARATE web_search call and HARD-DROP any provision without a real source
+// URL. Nothing un-cited (i.e. possibly invented) ever reaches the user.
+//
+// PRIVACY: the user's scenario/narrative is NEVER sent — only the derived case
+// category. We never log the query or the results.
+// ---------------------------------------------------------------------------
+
+const LEGAL_BASIS_SYSTEM_PROMPT = `You help people in Sri Lanka understand the ACTUAL law behind a kind of
+human-rights case. You have a web_search tool — USE IT to find the real,
+current Sri Lankan legal provisions that apply.
+
+STRICT RULES:
+- ONLY include a provision (an Act + section) that actually appears in your web
+  search results and for which you have a real, verifiable source URL. If you
+  cannot find a real source, do NOT include it.
+- NEVER invent, guess, or approximate an Act name, a section number, or a
+  penalty/fine. Omit any field you did not find rather than making one up. It is
+  far better to return fewer provisions (or none) than anything fabricated. A
+  wrong section number or penalty could seriously mislead a vulnerable person.
+- Prefer primary Sri Lankan sources (lawnet.lk, the Human Rights Commission of
+  Sri Lanka, official gazettes, the Parliament/Justice Ministry) over blogs.
+- "penalty": only what the source states (e.g. "Up to 2 years imprisonment,
+  or a fine, or both"). If the source gives no penalty, use an empty string.
+- "outlook": OPTIONAL, general, and NON-predictive — factors that typically
+  strengthen or weaken this KIND of case (e.g. "medical/photographic evidence
+  and prompt reporting help"). NEVER predict that a specific person will win or
+  lose. Omit if you have nothing grounded to say.
+
+Respond with ONLY a valid JSON object, no markdown, matching exactly:
+{
+  "provisions": [
+    {
+      "law": "Act/law name (e.g. 'Penal Code' or 'ICCPR Act No. 56 of 2007')",
+      "section": "section/article reference (e.g. 'Section 365' or 'Article 11')",
+      "summary": "1-2 sentences, plain language, on what this provision protects/prohibits",
+      "penalty": "penalty/fine the source states, or empty string",
+      "source_url": "the web page you found this on (REQUIRED)"
+    }
+  ],
+  "outlook": {
+    "helps": ["short factor that typically strengthens this kind of case", ...],
+    "hurts": ["short factor that typically weakens it", ...]
+  }
+}
+At most 5 provisions. "helps"/"hurts" at most 4 items each (may be empty). If you
+find nothing you can verify, return {"provisions": [], "outlook": {"helps": [], "hurts": []}}.`;
+
+/**
+ * Find REAL, source-cited Sri Lankan legal provisions for a case category using
+ * web search. Best-effort: returns an empty shape on any failure so the caller
+ * can still return guidance.
+ *
+ * @param {string} category  a CASE_TYPES value (the guidance category)
+ * @param {string} [language]  'en' | 'ta' | 'si' for the human-facing strings
+ * @returns {Promise<{provisions:object[], outlook:{helps:string[],hurts:string[]}}>}
+ */
+async function getLegalBasis(category, language) {
+  const empty = { provisions: [], outlook: { helps: [], hurts: [] } };
+  if (!isConfigured()) return empty;
+
+  const area = readableCategory(category);
+  // Neutral query — NO scenario/narrative, only the case area.
+  const query =
+    `Find the current Sri Lankan laws that apply to ${area} / human rights cases. ` +
+    `For each, give the Act name, the exact section/article number, a plain summary, ` +
+    `and the penalty or fine it prescribes. Only include provisions you can cite a ` +
+    `real source URL for (prefer lawnet.lk, the Human Rights Commission of Sri Lanka, ` +
+    `or official gazettes).`;
+  const system = LEGAL_BASIS_SYSTEM_PROMPT + languageInstruction(language);
+  const maxTokens = language && language !== 'en' ? 4000 : 2500;
+
+  let messages = [{ role: 'user', content: query }];
+  let data;
+  try {
+    for (let i = 0; i < 4; i += 1) {
+      const response = await fetch(ANTHROPIC_URL, {
+        method: 'POST',
+        headers: {
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': ANTHROPIC_VERSION,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: maxTokens,
+          system,
+          tools: [WEB_SEARCH_TOOL],
+          messages,
+        }),
+      });
+      if (!response.ok) return empty; // e.g. web search not enabled on the key
+      data = await response.json();
+      if (data && data.stop_reason === 'pause_turn' && Array.isArray(data.content)) {
+        messages = [...messages, { role: 'assistant', content: data.content }];
+        continue;
+      }
+      break;
+    }
+  } catch {
+    return empty; // network/parse failure — guidance still returns without legal basis
+  }
+
+  const content = Array.isArray(data?.content)
+    ? data.content.map((b) => (b && b.type === 'text' ? b.text : '')).join('')
+    : '';
+  const parsed = safeParse(content);
+  if (!parsed) return empty;
+
+  const str = (v) => (typeof v === 'string' ? v.trim() : '');
+  const toList = (v, n) =>
+    Array.isArray(v) ? v.filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim()).slice(0, n) : [];
+
+  // HARD-FILTER: a provision without a real source_url is dropped, so nothing
+  // un-grounded (a possibly-invented section/penalty) ever reaches the user.
+  const provisions = (Array.isArray(parsed.provisions) ? parsed.provisions : [])
+    .map((p) => ({
+      law: str(p.law),
+      section: str(p.section),
+      summary: str(p.summary),
+      penalty: str(p.penalty),
+      source_url: str(p.source_url),
+    }))
+    .filter((p) => p.law && p.summary && /^https?:\/\//i.test(p.source_url))
+    .slice(0, 5);
+
+  const outlook = {
+    helps: toList(parsed.outlook?.helps, 4),
+    hurts: toList(parsed.outlook?.hurts, 4),
+  };
+  return { provisions, outlook };
+}
+
 /** Parse JSON that may be wrapped in stray text / code fences. Returns null on failure. */
 function safeParse(text) {
   try {
@@ -367,4 +505,4 @@ function safeParse(text) {
   }
 }
 
-module.exports = { getGuidance, getLawyers, isConfigured, MODEL };
+module.exports = { getGuidance, getLawyers, getLegalBasis, isConfigured, MODEL };
