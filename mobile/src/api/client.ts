@@ -571,6 +571,29 @@ export interface Lawyer {
   source_url: string;
 }
 
+/**
+ * A REAL Sri Lankan legal provision (Act + section + penalty) surfaced for a
+ * case, found by the server via Claude web search. Every entry is source-cited
+ * (`source_url`) — the server drops any provision it cannot verify, so nothing
+ * here is AI-invented. Optional fields are empty strings when not found.
+ */
+export interface LegalProvision {
+  law: string;
+  section: string;
+  summary: string;
+  penalty: string;
+  source_url: string;
+}
+
+/**
+ * Grounded legal basis for the case: cited provisions plus a NON-predictive
+ * outlook (factors that typically strengthen/weaken this kind of case).
+ */
+export interface LegalBasis {
+  provisions: LegalProvision[];
+  outlook: { helps: string[]; hurts: string[] };
+}
+
 export interface GuidanceResponse {
   success: boolean;
   data: {
@@ -579,6 +602,8 @@ export interface GuidanceResponse {
     // Real, source-cited lawyers for this case (may be empty if web search is
     // unavailable or found nothing verifiable). Older servers omit this field.
     lawyers?: Lawyer[];
+    // Real, source-cited legal provisions + outlook. Older servers omit this.
+    legal_basis?: LegalBasis;
   };
 }
 

@@ -10,7 +10,7 @@
  * the paid AI endpoint. The API key stays server-side (see aiGuidanceService).
  */
 
-const { getGuidance, getLawyers, isConfigured } = require('../services/aiGuidanceService');
+const { getGuidance, getLawyers, getLegalBasis, isConfigured } = require('../services/aiGuidanceService');
 const { listOrganisations } = require('../services/organisationService');
 const { DISTRICTS } = require('../constants');
 
@@ -18,16 +18,19 @@ const { DISTRICTS } = require('../constants');
 // (the mobile client allows 45s and guidance itself is only a few seconds). If
 // it still exceeds this, we return guidance + orgs and an empty lawyers list.
 const LAWYER_LOOKUP_TIMEOUT_MS = 35000;
+// The legal-basis web search is a second grounded lookup; give it the same
+// headroom. If it exceeds this, we return the rest with an empty legal basis.
+const LEGAL_BASIS_TIMEOUT_MS = 35000;
 
-/** Resolve to [] if the promise doesn't settle within ms (best-effort lookup). */
-function withTimeout(promise, ms) {
+/** Resolve to `fallback` if the promise doesn't settle within ms (best-effort). */
+function withTimeout(promise, ms, fallback = []) {
   let timer;
   const timeout = new Promise((resolve) => {
-    timer = setTimeout(() => resolve([]), ms);
+    timer = setTimeout(() => resolve(fallback), ms);
   });
-  // clearTimeout on settle so a fast lookup doesn't leave a 35s timer holding
-  // the event loop open for the rest of the window.
-  return Promise.race([promise.catch(() => []), timeout]).finally(() => clearTimeout(timer));
+  // clearTimeout on settle so a fast lookup doesn't leave a timer holding the
+  // event loop open for the rest of the window.
+  return Promise.race([promise.catch(() => fallback), timeout]).finally(() => clearTimeout(timer));
 }
 
 // Keep the scenario within sane bounds — enough to describe an incident, not an
@@ -81,7 +84,7 @@ async function guidance(req, res) {
     //  1. organisations: our own vetted legal-aid directory (Supabase).
     //  2. lawyers: real, source-cited lawyers found via Claude web search.
     // Both are best-effort — a failure in either still returns the guidance.
-    const [organisations, lawyers] = await Promise.all([
+    const [organisations, lawyers, legalBasis] = await Promise.all([
       (async () => {
         try {
           let orgs = (await listOrganisations({ caseType: guide.category, district: validDistrict })) || [];
@@ -96,9 +99,18 @@ async function guidance(req, res) {
         }
       })(),
       withTimeout(getLawyers(guide.category, validDistrict, language), LAWYER_LOOKUP_TIMEOUT_MS),
+      // Real, source-cited legal provisions (Act/section/penalty) for this case
+      // type. Best-effort and grounded — its own empty shape on timeout/failure.
+      withTimeout(getLegalBasis(guide.category, language), LEGAL_BASIS_TIMEOUT_MS, {
+        provisions: [],
+        outlook: { helps: [], hurts: [] },
+      }),
     ]);
 
-    return res.json({ success: true, data: { guidance: guide, organisations, lawyers } });
+    return res.json({
+      success: true,
+      data: { guidance: guide, organisations, lawyers, legal_basis: legalBasis },
+    });
   } catch (err) {
     const status = err && err.status ? err.status : 500;
     const message =
