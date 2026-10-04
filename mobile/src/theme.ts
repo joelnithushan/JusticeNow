@@ -50,6 +50,9 @@ export const styles = StyleSheet.create({
     // Normal top padding: screens now have a header, so the old extra top space
     // (a leftover reserved for a floating control) just showed as a white gap.
     paddingTop: 20,
+    // Extra bottom room so the last control clears the Android gesture/nav bar
+    // (and the iOS home indicator) on screens that scroll content to the edge.
+    paddingBottom: 40,
     backgroundColor: colors.background,
   },
   h1: {

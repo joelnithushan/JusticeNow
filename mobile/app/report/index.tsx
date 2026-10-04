@@ -24,7 +24,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
+  Linking,
+  Platform,
   Pressable,
   ScrollView,
   Switch,
@@ -34,19 +37,23 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { usePreventScreenCapture } from 'expo-screen-capture';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { useAudioRecorder, useAudioRecorderState, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
+import { useAudioRecorder, useAudioRecorderState, getRecordingPermissionsAsync, requestRecordingPermissionsAsync, setAudioModeAsync, IOSOutputFormat, AudioQuality } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 
 import ReporterTopBar from '../../components/ReporterTopBar';
 import SelectField, { type Option } from '../../components/SelectField';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import ImageRedactorModal, { type RedactedImage } from '../../components/ImageRedactorModal';
+import ReadAloudButton from '../../components/ReadAloudButton';
 import { useReportForm } from '../../src/context/ReportFormContext';
-import { submitReport } from '../../src/api/client';
+import { submitReport, transcribeVoice } from '../../src/api/client';
 import {
   CASE_TYPES,
   DISTRICTS,
@@ -60,6 +67,39 @@ import {
 import { colors, styles as theme } from '../../src/theme';
 
 const TOTAL_STEPS = 5;
+
+// Voice is recorded in a format Google Speech-to-Text accepts directly, so the
+// server can transcribe it without transcoding: LINEAR16 WAV on iOS, AMR_WB on
+// Android — both 16 kHz mono, the sample rate Speech-to-Text recommends.
+const VOICE_RECORDING = {
+  extension: Platform.OS === 'ios' ? '.wav' : '.3gp',
+  sampleRate: 16000,
+  numberOfChannels: 1,
+  bitRate: 128000,
+  android: {
+    extension: '.3gp',
+    outputFormat: 'amrwb' as const,
+    audioEncoder: 'amr_wb' as const,
+    sampleRate: 16000,
+  },
+  ios: {
+    outputFormat: IOSOutputFormat.LINEARPCM,
+    audioQuality: AudioQuality.HIGH,
+    sampleRate: 16000,
+    numberOfChannels: 1,
+    linearPCMBitDepth: 16,
+    linearPCMIsBigEndian: false,
+    linearPCMIsFloat: false,
+  },
+  web: { mimeType: 'audio/webm', bitsPerSecond: 128000 },
+};
+
+// Filename + mime for the recorded voice file, matched to VOICE_RECORDING so the
+// server detects the right Speech-to-Text encoding from the extension.
+const VOICE_FILE =
+  Platform.OS === 'ios'
+    ? { name: 'voice_report.wav', mimeType: 'audio/wav' }
+    : { name: 'voice_report.3gp', mimeType: 'audio/3gpp' };
 
 // Format a Date as 'YYYY-MM-DD' using LOCAL parts (not toISOString, which shifts
 // to UTC and can move the date across midnight). This is what the API expects.
@@ -138,11 +178,24 @@ function ClearIcon() {
 }
 
 export default function ReportCase() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { draft, setField, reset } = useReportForm();
 
+  // SAFETY: block screenshots / screen recording while a report is on screen. On
+  // Android this also hides the app's content in the recents switcher, so a
+  // narrative can't be captured off a shared or seized phone.
+  usePreventScreenCapture();
+
   const [step, setStep] = useState(1);
+  // Reset the scroll to the top whenever the step changes, so each new step opens
+  // at its first question instead of inheriting the previous step's scroll offset
+  // (which dropped the reporter at the bottom of the next page).
+  const scrollRef = useRef<ScrollView>(null);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [step]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   // The time picker works on a Date; we store the chosen time back to the draft
   // as a display string (the column is text). Seeded to a sensible default.
@@ -156,14 +209,33 @@ export default function ReportCase() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const audioRecorder = useAudioRecorder(VOICE_RECORDING);
   const audioState = useAudioRecorderState(audioRecorder);
+  // True while the recorded voice report is being transcribed on the server.
+  const [transcribing, setTranscribing] = useState(false);
 
   const startRecording = async () => {
     try {
       setErrors((e) => ({ ...e, evidence: '' }));
-      const { granted } = await requestRecordingPermissionsAsync();
-      if (!granted) {
+      // Only call request if the OS can still show the dialog. Once the mic was
+      // denied, Android (and iOS) return "denied" WITHOUT re-prompting — so a bare
+      // requestRecordingPermissionsAsync() silently fails and looks like "it never
+      // asked". In that case we send the reporter to Settings to grant it there.
+      let perm = await getRecordingPermissionsAsync();
+      if (!perm.granted && perm.canAskAgain) {
+        perm = await requestRecordingPermissionsAsync();
+      }
+      if (!perm.granted) {
+        if (!perm.canAskAgain) {
+          Alert.alert(
+            t('report.wizard.micPermissionTitle'),
+            t('report.wizard.micPermissionSettings'),
+            [
+              { text: t('common.cancel'), style: 'cancel' },
+              { text: t('report.wizard.openSettings'), onPress: () => Linking.openSettings() },
+            ],
+          );
+        }
         setErrors((e) => ({ ...e, evidence: t('report.wizard.micPermissionRequired') }));
         return;
       }
@@ -190,16 +262,47 @@ export default function ReportCase() {
           return;
         }
 
-        setField('evidenceFile', {
+        const voiceFile = {
           uri: audioRecorder.uri,
-          name: 'voice_report.m4a',
-          mimeType: 'audio/m4a',
+          name: VOICE_FILE.name,
+          mimeType: VOICE_FILE.mimeType,
           size,
           lastModified: Date.now(),
-        });
+        };
+        setField('evidenceFile', voiceFile);
+
+        // Best-effort transcription: turn the spoken report into editable text in
+        // the narrative field so staff get searchable text. NEVER blocks — the
+        // audio is kept regardless, and any failure is silent (we keep the voice).
+        await transcribeVoiceReport(voiceFile);
       }
     } catch (err) {
       setErrors((e) => ({ ...e, evidence: t('report.wizard.recordStopFailed') }));
+    }
+  };
+
+  // Send the recorded audio to the server for transcription and, on success,
+  // append the text to the "What happened?" narrative (the reporter can edit it).
+  const transcribeVoiceReport = async (voiceFile: {
+    uri: string;
+    name: string;
+    mimeType: string;
+  }) => {
+    setTranscribing(true);
+    try {
+      const res = await transcribeVoice(voiceFile, i18n.language);
+      const text = res.data?.data?.transcript?.trim();
+      if (text) {
+        setField(
+          'description',
+          draft.description.trim() ? `${draft.description.trim()}\n\n${text}` : text,
+        );
+      }
+    } catch {
+      // Transcription is optional — never surface a blocking error, and never log
+      // (the audio/transcript are case content). The voice file is already saved.
+    } finally {
+      setTranscribing(false);
     }
   };
 
@@ -246,7 +349,53 @@ export default function ReportCase() {
     setStep(s);
   };
 
+  // ACCESSIBILITY: build a spoken version of the CURRENT step's questions, so a
+  // low-literacy or visually-impaired reporter can hear what to fill in. Uses the
+  // same i18n strings shown on screen. Built lazily (getter) so it always matches
+  // the visible step. Read fully on-device — nothing is sent anywhere.
+  const buildSpokenStep = (): string => {
+    const parts: string[] = [t('report.anonymousBanner')];
+    if (step === 1) {
+      parts.push(t('report.reporterType'), t('report.category'), t('report.caseTitle'));
+    } else if (step === 2) {
+      parts.push(t('report.whatHappened'), t('report.peopleInvolved'), t('report.victimInfo'));
+    } else if (step === 3) {
+      parts.push(t('report.incidentDate'), t('report.incidentTime'), t('report.locationName'));
+    } else if (step === 4) {
+      parts.push(t('report.evidence'), t('report.wizard.recordVoice', t('report.evidence')));
+    } else if (step === 5) {
+      parts.push(t('report.reviewTitle', t('report.title')));
+    }
+    return parts.filter(Boolean).join('. ');
+  };
+
   // ---- Evidence picker (step 4) ----
+  // ANONYMITY: a photo picked from the gallery carries EXIF metadata — most
+  // dangerously embedded GPS coordinates and a capture timestamp, but also the
+  // camera/device model. Any of these can locate or identify the reporter, which
+  // would defeat "anonymous by construction". We re-encode every picked image to
+  // a fresh JPEG before it ever leaves the device: re-encoding writes a new file
+  // with NO metadata block, and we also drop the original filename (which itself
+  // can be identifying, e.g. "IMG_from_<name>.jpg"). PDFs/audio are not images,
+  // so they skip this path — and our own voice recorder never writes GPS.
+  const stripImageMetadata = async (
+    asset: { uri: string; name?: string; mimeType?: string; size?: number },
+  ) => {
+    // Passing no actions still re-encodes the pixels to a clean JPEG.
+    const cleaned = await ImageManipulator.manipulateAsync(asset.uri, [], {
+      compress: 0.9,
+      format: ImageManipulator.SaveFormat.JPEG,
+    });
+    const info = await FileSystem.getInfoAsync(cleaned.uri);
+    return {
+      uri: cleaned.uri,
+      name: 'evidence.jpg',
+      mimeType: 'image/jpeg',
+      size: info.exists ? info.size : asset.size ?? 0,
+      lastModified: Date.now(),
+    };
+  };
+
   const pickEvidence = async () => {
     setErrors((e) => ({ ...e, evidence: '' }));
     const result = await DocumentPicker.getDocumentAsync({
@@ -267,10 +416,11 @@ export default function ReportCase() {
       setErrors((e) => ({ ...e, evidence: t('report.wizard.evidenceTooBig') }));
       return;
     }
+
     // Images open the redaction editor first, so the reporter can cover faces,
-    // plates and name boards before the photo is stored. The editor always
-    // returns a clean, flattened, metadata-free JPEG (even on "Skip"), so the
-    // raw original is never stored. Non-images (PDF/audio) attach directly.
+    // plates and name boards before the photo is stored. The editor bakes the
+    // boxes in AND re-encodes (dropping EXIF/GPS); skipping it still strips
+    // metadata via the plain path below.
     const isImage = mime.startsWith('image/') || /\.(jpe?g|png|webp)$/.test(nameLower);
     if (isImage) {
       setRedactUri(asset.uri);
@@ -281,8 +431,8 @@ export default function ReportCase() {
   };
 
   // The editor always returns a clean, flattened, metadata-free JPEG — whether
-  // the reporter covered areas ("Use photo") or not ("Skip"). We only enforce
-  // the size cap before storing it in the draft.
+  // the reporter covered areas ("Use photo") or not ("Skip"). We only need to
+  // enforce the size cap before storing it in the draft.
   const applyRedaction = (result: RedactedImage) => {
     setRedactUri(null);
     if (result.size > MAX_EVIDENCE_BYTES) {
@@ -376,11 +526,20 @@ export default function ReportCase() {
       {/* Progress: a 5-step icon stepper (completed / current / upcoming). */}
       <StepIndicator step={step} />
 
-      <ScrollView contentContainerStyle={local.body} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={[local.body, { paddingBottom: insets.bottom + 40 }]}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Anonymity reassurance, shown on every step. */}
         <View style={local.anonBanner}>
           <Text style={local.anonText}>{t('report.anonymousBanner')}</Text>
         </View>
+
+        {/* Read the current step's questions aloud (on-device TTS) for low-literacy
+            or visually-impaired reporters. Getter is re-evaluated per tap so it
+            always speaks the step the user is on. */}
+        <ReadAloudButton getText={buildSpokenStep} style={local.readAloud} />
 
         {/* ───────── Step 1 — Incident ───────── */}
         {step === 1 && (
@@ -529,24 +688,33 @@ export default function ReportCase() {
                 ) : null}
               </View>
               {showDatePicker ? (
-                <View style={local.inlinePicker}>
+                // No bordered wrapper on Android: there the picker is a native
+                // MODAL dialog and renders null inline, so a wrapping box would
+                // just show as an empty line/oval under the field. iOS renders the
+                // calendar inline, so it keeps the bordered host.
+                <View style={Platform.OS === 'android' ? undefined : local.inlinePicker}>
                   <DateTimePicker
                     value={draft.incidentDate ?? new Date()}
                     mode="date"
-                    // A spinner wheel, not the full "inline" calendar grid, which was
-                    // far too tall. Consistent with the time wheel below and dismissed
-                    // by tapping outside (handled by the wrapping Pressable).
-                    display="spinner"
+                    // A simple month calendar grid (tap a day) instead of the
+                    // scroll wheel: iOS "inline", Android "calendar".
+                    display={Platform.select({ ios: 'inline', android: 'calendar', default: 'default' })}
                     maximumDate={new Date()}
                     themeVariant="light"
                     accentColor={colors.primary}
                     // v9 renamed `onChange` → `onValueChange` (the old prop logs a
-                    // deprecation warning). The wheel emits on every roll, so we just
-                    // mirror the value into the draft and leave dismissal to the
-                    // outside-tap handler.
+                    // deprecation warning).
                     onValueChange={(_event, selectedDate) => {
                       if (selectedDate) setField('incidentDate', selectedDate);
+                      // Android: the dialog returns a value ONCE on "OK"; close it
+                      // here or the open-effect re-fires on the value change and
+                      // immediately reopens it (and it would stay open over other
+                      // fields). iOS is inline — the outside-tap handler dismisses it.
+                      if (Platform.OS === 'android') setShowDatePicker(false);
                     }}
+                    // Android fires this (not onValueChange) when the dialog is
+                    // cancelled/back-dismissed — close so it doesn't reopen.
+                    onDismiss={() => setShowDatePicker(false)}
                   />
                 </View>
               ) : null}
@@ -596,22 +764,28 @@ export default function ReportCase() {
                 ) : null}
               </View>
               {showTimePicker ? (
-                <View style={local.inlinePicker}>
+                // See the date picker above: Android is a modal dialog (null inline),
+                // so it gets no bordered host; iOS keeps the inline spinner.
+                <View style={Platform.OS === 'android' ? undefined : local.inlinePicker}>
                   <DateTimePicker
                     value={timeValue}
                     mode="time"
-                    display="spinner"
+                    display={Platform.select({ ios: 'spinner', android: 'default', default: 'spinner' })}
                     themeVariant="light"
                     accentColor={colors.primary}
-                    // v9 renamed `onChange` → `onValueChange`. The spinner stays open
-                    // so the reporter can keep rolling to the exact time; we just
-                    // mirror each change into the draft.
+                    // v9 renamed `onChange` → `onValueChange`. On iOS the spinner stays
+                    // open so the reporter can keep rolling; we mirror each change.
                     onValueChange={(_event, selected) => {
                       if (selected) {
                         setTimeValue(selected);
                         setField('incidentTime', formatTime(selected));
                       }
+                      // Android: dialog returns once on "OK" — close it so it doesn't
+                      // reopen on the value change or linger over other fields.
+                      if (Platform.OS === 'android') setShowTimePicker(false);
                     }}
+                    // Android cancel/back-dismiss — close so it doesn't reopen.
+                    onDismiss={() => setShowTimePicker(false)}
                   />
                 </View>
               ) : null}
@@ -693,6 +867,12 @@ export default function ReportCase() {
                 <Text style={[theme.privacyNoteSmall, { color: '#d32f2f', marginTop: 8 }]}>
                   {t('report.wizard.recordingActive')} {Math.floor(audioState.durationMillis / 1000)}s
                 </Text>
+              )}
+              {transcribing && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={theme.privacyNoteSmall}>{t('report.wizard.transcribing')}</Text>
+                </View>
               )}
               {draft.evidenceFile ? (
                 <View style={local.fileRow}>
@@ -1221,6 +1401,7 @@ const local = StyleSheet.create({
     marginBottom: 16,
   },
   anonText: { fontSize: 14, color: colors.primary, fontWeight: '600', lineHeight: 20 },
+  readAloud: { alignSelf: 'flex-start', marginBottom: 16 },
 
   field: { marginBottom: 18 },
   required: { color: colors.danger, fontWeight: '700' },

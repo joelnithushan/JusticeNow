@@ -24,6 +24,19 @@ const supabase = require('../config/supabase');
 const { STAFF_ROLES } = require('./statusTransition');
 const { decodeNic, isValidLkMobile } = require('../utils/nic');
 
+// Public bucket for staff avatars (mirrors profileService.AVATAR_BUCKET). Kept
+// local rather than imported to avoid a require cycle (profileService already
+// requires this module).
+const AVATAR_BUCKET = 'avatars';
+
+/** Turn a stored avatar_path into a public URL (null when absent). Mirrors
+ *  profileService.avatarUrlFor — the `avatars` bucket is public. */
+function avatarUrlFor(avatarPath) {
+  if (!avatarPath) return null;
+  const { data } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(avatarPath);
+  return (data && data.publicUrl) || null;
+}
+
 // bcrypt work factor. 10 matches the seed script (scripts/seed.js) — a sane
 // default for this app; raising it later only affects newly-created hashes.
 const BCRYPT_COST = 10;
@@ -42,17 +55,21 @@ const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PG_UNIQUE_VIOLATION = '23505';
 
 // The columns an admin may receive for a staff account. password_hash is
-// deliberately ABSENT — it must never leave the server. is_active is included
-// so the console can badge/toggle deactivated accounts.
+// deliberately ABSENT — it must never leave the server. is_active + the
+// suspension/deletion markers are included so the list can badge suspended
+// accounts and hide deleted ones.
 const SAFE_STAFF_COLUMNS =
-  'id, name, email, role, organisation_id, is_active, access_status, mfa_enabled, created_at';
+  'id, name, email, role, organisation_id, is_active, access_status, mfa_enabled, ' +
+  'created_at, suspended_at, suspension_reason, deleted_at';
 
-// Full detail an admin may view for approval — includes the submitted profile
-// fields + 2FA status. password_hash is NEVER included.
+// Full detail an admin may view — includes the submitted profile fields, 2FA
+// status, the avatar path (resolved to a URL below), and the suspend/delete
+// moderation state + reasons. password_hash is NEVER included.
 const STAFF_DETAIL_COLUMNS =
   'id, name, email, role, organisation_id, is_active, access_status, mfa_enabled, ' +
   'mfa_method, nic, phone, designation, bar_number, department, gender, ' +
-  'date_of_birth, profile_completed, created_at';
+  'date_of_birth, avatar_path, profile_completed, created_at, ' +
+  'suspended_at, suspension_reason, deleted_at, deletion_reason';
 
 /** A validation error the controller maps to a 400 (mirrors organisationService). */
 class ValidationError extends Error {
@@ -169,10 +186,17 @@ async function buildStaffPatch(input, { isCreate = false, passwordRequired = isC
     patch.role = role;
   }
 
-  // organisation_id — required on create; must reference an EXISTING org. We
-  // look it up so a bad id is a clear 400 here rather than a foreign-key 500
-  // surfacing from the insert.
-  if (isCreate || src.organisation_id !== undefined) {
+  // organisation_id — required for org-scoped roles; must reference an EXISTING
+  // org. We look it up so a bad id is a clear 400 here rather than a foreign-key
+  // 500 surfacing from the insert.
+  //
+  // The PLATFORM admin ('admin') is unrestricted ACROSS every org and so has NO
+  // organisation of its own — organisation_id stays null (matching
+  // scripts/ensure-admin.js). We therefore skip the requirement for admins and
+  // force the column null, and only require/validate an org for the other roles.
+  if (src.role === PLATFORM_ADMIN) {
+    patch.organisation_id = null;
+  } else if (isCreate || src.organisation_id !== undefined) {
     const organisationId =
       typeof src.organisation_id === 'string' ? src.organisation_id.trim() : '';
     if (!organisationId) {
@@ -234,6 +258,9 @@ async function listStaff(caller) {
   let query = supabase
     .from('staff_users')
     .select(SAFE_STAFF_COLUMNS)
+    // Deleted accounts are soft-deleted (row kept for the audit trail) but must
+    // not appear in the admin list — only non-deleted rows.
+    .is('deleted_at', null)
     .order('name', { ascending: true });
 
   // org_admin scoping: restrict the list to the caller's own org. A platform
@@ -429,103 +456,168 @@ async function updateStaff(id, input, caller) {
 }
 
 /**
- * ADMIN: SOFT-delete (deactivate) a staff account by clearing is_active.
+ * Shared moderation preamble for suspend/unsuspend/delete: resolve + authorise
+ * the target. Loads the row, 404s a missing id, and org-scopes an org_admin (a
+ * target in another org is a generic 404 — we never reveal it exists).
  *
- * WHY SOFT DELETE (never a DB DELETE): audit_log.actor_id references
- * staff_users(id) ON DELETE SET NULL (see docs/schema.sql), so a hard DELETE
- * would strip the actor from every audit entry this person ever wrote —
- * destroying accountability. Deactivating instead blocks the account's login
- * (services/auth.js rejects an inactive account) while preserving the trail.
- * NEVER replace this with supabase.delete().
- *
- * GUARDS (both return 400 with a specific message the client surfaces):
- *  - An admin may NOT deactivate their OWN account. WHY: it is an instant
- *    self-lockout, and it is almost always a mistake — deactivating yourself
- *    would drop your own session's account out from under you.
- *  - An admin may NOT deactivate the LAST active admin. WHY: the app would be
- *    left with no one able to manage orgs/staff or reopen closed cases — an
- *    unrecoverable state through the UI. We count active admins first.
- *
- * SCOPE (org_admin): may only deactivate a staffer in their OWN org; a target
- * in another org is a generic 404 (we do not reveal it exists). A platform
- * admin is unrestricted.
- *
- * @param {string} id           the staff uuid to deactivate
- * @param {?{ id?: string, role?: string, org?: string }} actingStaff  the caller
- * @returns {Promise<object>} the deactivated account in the safe projection.
- * @throws {ValidationError} on a self / last-admin guard (400).
- * @throws {NotFoundError}   when the id matches no account (or is out of scope).
+ * @returns {Promise<{ trimmedId: string, target: object }>}
  */
-async function deactivateStaff(id, actingStaff) {
+async function loadModerationTarget(id, actingStaff) {
   const trimmedId = (id || '').trim();
   if (!trimmedId) {
     throw new NotFoundError('Staff member not found.');
   }
-
-  const actingId = (actingStaff && actingStaff.id) || '';
-
-  // Self-lockout guard: a staffer cannot deactivate their own account.
-  if (trimmedId === String(actingId).trim()) {
-    throw new ValidationError('You cannot deactivate your own account.');
-  }
-
-  // Load the target first so we can (a) 404 a missing id, (b) know whether it is
-  // an admin before applying the last-admin guard, and (c) org-scope org_admin.
   const { data: target, error: targetError } = await supabase
     .from('staff_users')
-    .select('id, role, is_active, organisation_id')
+    .select('id, role, is_active, organisation_id, deleted_at')
     .eq('id', trimmedId)
     .maybeSingle();
-
   if (targetError) {
     throw new Error(`Staff lookup failed: ${targetError.message}`);
   }
   if (!target) {
     throw new NotFoundError('Staff member not found.');
   }
-
   // org_admin scoping: a target outside the caller's org is a generic 404.
   if (!isPlatformAdmin(actingStaff) && target.organisation_id !== actingStaff.org) {
     throw new NotFoundError('Staff member not found.');
   }
+  return { trimmedId, target };
+}
 
-  // Last-active-admin guard: if the target is an active admin, ensure at least
-  // one OTHER active admin remains. count: 'exact', head: true asks Postgres for
-  // the count only (no rows), which is enough to decide.
-  if (target.role === 'admin' && target.is_active !== false) {
+/**
+ * Self-lockout guard shared by SUSPEND and DELETE (both set is_active=false): an
+ * admin may NOT block their OWN account — it is an instant self-lockout and almost
+ * always a mistake. Checked BEFORE any DB touch so the id need not exist/resolve.
+ *
+ * @param {string} verb  the user-facing verb ("suspend"/"delete")
+ */
+function assertNotSelf(id, actingStaff, verb) {
+  const trimmedId = (id || '').trim();
+  const actingId = String((actingStaff && actingStaff.id) || '').trim();
+  if (trimmedId && trimmedId === actingId) {
+    throw new ValidationError(`You cannot ${verb} your own account.`);
+  }
+}
+
+/**
+ * Last-active-admin guard shared by SUSPEND and DELETE: an admin may NOT block the
+ * LAST active admin (that leaves no one able to manage orgs/staff or reopen cases
+ * — unrecoverable through the UI).
+ *
+ * @param {string} verb  the user-facing verb for the message ("suspend"/"delete")
+ */
+async function assertNotLastAdmin(target, verb) {
+  // Only relevant when blocking an active, non-deleted admin.
+  if (target.role === 'admin' && target.is_active !== false && !target.deleted_at) {
     const { count, error: countError } = await supabase
       .from('staff_users')
       .select('id', { count: 'exact', head: true })
       .eq('role', 'admin')
-      .eq('is_active', true);
-
+      .eq('is_active', true)
+      .is('deleted_at', null);
     if (countError) {
       throw new Error(`Active-admin count failed: ${countError.message}`);
     }
     if ((count || 0) <= 1) {
       throw new ValidationError(
-        'You cannot deactivate the last active admin. Promote another admin first.',
+        `You cannot ${verb} the last active admin. Promote another admin first.`,
       );
     }
   }
+}
 
+/** Apply a moderation patch and return the safe projection (404 if it vanished). */
+async function applyModerationPatch(trimmedId, patch, context) {
   const { data, error } = await supabase
     .from('staff_users')
-    // Soft delete: flip the flag, never remove the row (would break the audit
-    // trail's actor references — see the function header).
-    .update({ is_active: false })
+    .update(patch)
     .eq('id', trimmedId)
     .select(SAFE_STAFF_COLUMNS)
     .maybeSingle();
-
   if (error) {
-    throw new Error(`Staff deactivate failed: ${error.message}`);
+    throw new Error(`${context}: ${error.message}`);
   }
   if (!data) {
     throw new NotFoundError('Staff member not found.');
   }
-
   return data;
+}
+
+/**
+ * ADMIN: SUSPEND a staff account WITH a reason. Reversible (see unsuspendStaff).
+ *
+ * Sets is_active=false so services/auth.js rejects the login (a no-oracle
+ * INVALID_CREDENTIALS failure), and records suspended_at + suspension_reason so
+ * the admin UI can show WHY when viewing the account. Same self / last-admin
+ * guards + org-scope as delete. The row is never removed (audit trail intact).
+ */
+async function suspendStaff(id, reason, actingStaff) {
+  const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
+  if (!trimmedReason) {
+    throw new ValidationError('A reason is required to suspend an account.');
+  }
+  assertNotSelf(id, actingStaff, 'suspend');
+  const { trimmedId, target } = await loadModerationTarget(id, actingStaff);
+  await assertNotLastAdmin(target, 'suspend');
+  return applyModerationPatch(
+    trimmedId,
+    {
+      is_active: false,
+      suspended_at: new Date().toISOString(),
+      suspension_reason: trimmedReason,
+    },
+    'Staff suspend failed',
+  );
+}
+
+/**
+ * ADMIN: lift a suspension — restore login access and clear the suspension
+ * markers. No self / last-admin guard (restoring access can never lock anyone
+ * out). Org-scoped like the others. A deleted account cannot be unsuspended.
+ */
+async function unsuspendStaff(id, actingStaff) {
+  const { trimmedId, target } = await loadModerationTarget(id, actingStaff);
+  if (target.deleted_at) {
+    throw new NotFoundError('Staff member not found.');
+  }
+  return applyModerationPatch(
+    trimmedId,
+    { is_active: true, suspended_at: null, suspension_reason: null },
+    'Staff unsuspend failed',
+  );
+}
+
+/**
+ * ADMIN: SOFT-delete a staff account WITH a reason.
+ *
+ * WHY SOFT DELETE (never a DB DELETE): audit_log.actor_id references
+ * staff_users(id) ON DELETE SET NULL (see docs/schema.sql), so a hard DELETE
+ * would strip the actor from every audit entry this person ever wrote —
+ * destroying accountability. We set deleted_at + deletion_reason and is_active=
+ * false instead: login is blocked, the row is hidden from the admin list
+ * (deleted_at IS NULL filter), and the audit trail is preserved.
+ * NEVER replace this with supabase.delete().
+ *
+ * Same self / last-admin guards + org-scope as suspend.
+ */
+async function deleteStaff(id, reason, actingStaff) {
+  const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
+  if (!trimmedReason) {
+    throw new ValidationError('A reason is required to delete an account.');
+  }
+  assertNotSelf(id, actingStaff, 'delete');
+  const { trimmedId, target } = await loadModerationTarget(id, actingStaff);
+  await assertNotLastAdmin(target, 'delete');
+  return applyModerationPatch(
+    trimmedId,
+    {
+      is_active: false,
+      deleted_at: new Date().toISOString(),
+      deletion_reason: trimmedReason,
+    },
+    'Staff delete failed',
+  );
 }
 
 // The roles a person may pick when SELF-registering. Excludes 'admin': the
@@ -678,7 +770,11 @@ async function getStaffDetail(id) {
       .maybeSingle();
     organisation_name = org ? org.name : null;
   }
-  return { ...row, organisation_name };
+  // Resolve the stored avatar_path to a public URL (null when no avatar). The
+  // raw path is internal, so we drop it and expose only the URL — same shape the
+  // profile API uses so the client renders it identically.
+  const { avatar_path, ...rest } = row;
+  return { ...rest, organisation_name, avatar_url: avatarUrlFor(avatar_path) };
 }
 
 /** Admin approval decision: 'approved' grants access; 'rejected' blocks login. */
@@ -730,7 +826,9 @@ module.exports = {
   listStaff,
   createStaff,
   updateStaff,
-  deactivateStaff,
+  suspendStaff,
+  unsuspendStaff,
+  deleteStaff,
   registerStaff,
   maybeSubmitForApproval,
   getStaffDetail,

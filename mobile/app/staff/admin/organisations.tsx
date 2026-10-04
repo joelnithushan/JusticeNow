@@ -28,7 +28,7 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ErrorState from '../../../components/ErrorState';
-import BackButton from '../../../components/BackButton';
+import StaffHeader from '../../../components/StaffHeader';
 import { fetchAllOrganisations } from '../../../src/api/client';
 import type { AdminOrganisation } from '../../../src/api/client';
 import { useAuth } from '../../../src/context/AuthContext';
@@ -80,13 +80,12 @@ export default function AdminOrganisationsScreen() {
   }
 
   return (
-    <View style={[local.screen, { paddingTop: insets.top }]}>
-      <View style={local.header}>
-        <BackButton onPress={() => router.back()} label={t('common.back')} />
-        <View style={local.titleRow}>
-          <Text style={local.title} accessibilityRole="header">
-            {t('adminOrg.listTitle')}
-          </Text>
+    <View style={local.screen}>
+      <StaffHeader
+        title={t('adminOrg.listTitle')}
+        onBack={() => router.back()}
+        backLabel={t('common.back')}
+        rightAction={
           <Pressable
             onPress={() => router.push('/staff/admin/organisation/new')}
             style={local.newBtn}
@@ -95,8 +94,8 @@ export default function AdminOrganisationsScreen() {
           >
             <Text style={local.newBtnText}>＋ {t('adminOrg.new')}</Text>
           </Pressable>
-        </View>
-      </View>
+        }
+      />
 
       {loading ? (
         <View style={local.centre}>
@@ -194,16 +193,17 @@ const local = StyleSheet.create({
     flexShrink: 1,
     marginRight: 8,
   },
+  // White pill so it reads on the navy header bar.
   newBtn: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: colors.primary,
+    backgroundColor: '#ffffff',
   },
   newBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.primaryText,
+    color: colors.primary,
   },
   centre: {
     flexGrow: 1,

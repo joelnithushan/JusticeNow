@@ -71,7 +71,15 @@ CREATE TABLE staff_users (
     -- Self-service password reset (email code): only the bcrypt hash of the 6-digit
     -- code + its expiry are stored; the plaintext is emailed in transit only.
     pw_reset_hash        TEXT,
-    pw_reset_expires_at  TIMESTAMPTZ
+    pw_reset_expires_at  TIMESTAMPTZ,
+    -- Admin moderation (migration 007). SUSPEND (reversible) + soft-DELETE, each
+    -- WITH a reason the admin UI shows. Both also set is_active=false so login is
+    -- blocked (services/auth.js). A suspended account has suspended_at set; a
+    -- deleted account has deleted_at set and is hidden from the admin staff list.
+    suspended_at         TIMESTAMPTZ,
+    suspension_reason    TEXT,
+    deleted_at           TIMESTAMPTZ,
+    deletion_reason      TEXT
 );
 
 -- Anonymous case reports. Deliberately NO link to any person.

@@ -25,6 +25,9 @@ type Props = {
   /** When provided, renders a sign-out button on the right. */
   onSignOut?: () => void;
   signOutLabel?: string;
+  /** Arbitrary control rendered on the right (e.g. a "New" button on list pages).
+   *  Ignored when onSignOut is set (sign-out takes the slot). */
+  rightAction?: React.ReactNode;
 };
 
 export default function StaffHeader({
@@ -35,6 +38,7 @@ export default function StaffHeader({
   backLabel,
   onSignOut,
   signOutLabel,
+  rightAction,
 }: Props) {
   const insets = useSafeAreaInsets();
   return (
@@ -81,6 +85,8 @@ export default function StaffHeader({
         >
           <Text style={styles.signOutText}>{signOutLabel}</Text>
         </Pressable>
+      ) : rightAction ? (
+        <View style={styles.rightAction}>{rightAction}</View>
       ) : null}
     </View>
   );
@@ -129,4 +135,5 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.45)',
   },
   signOutText: { fontSize: 14, fontWeight: '700', color: '#ffffff' },
+  rightAction: { alignSelf: 'center' },
 });

@@ -92,6 +92,7 @@ describe('GET /api/transparency — public anonymised aggregates', () => {
         'by_district',
         'by_status',
         'generated_at',
+        'median_resolution_days',
         'organisations',
         'recent_by_month',
         'resolution_rate',

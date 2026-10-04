@@ -32,7 +32,9 @@
     "retry": "Try again",
     "comingSoon": "This page is coming in the next sprint.",
     "optional": "optional",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "listen": "Read aloud",
+    "stopListening": "Stop"
   },
   "quickExit": {
     "label": "Quick exit",
@@ -118,8 +120,13 @@
       "stopRecording": "Stop Recording",
       "recordingActive": "Recording…",
       "micPermissionRequired": "Microphone permission is required to record.",
+      "micPermissionTitle": "Microphone access",
+      "micPermissionSettings": "Microphone access is off for JusticeNow. Open Settings to allow it, then try recording again.",
+      "openSettings": "Open Settings",
       "recordStartFailed": "Could not start recording. Please try again.",
-      "recordStopFailed": "Could not stop recording. Please try again."
+      "recordStopFailed": "Could not stop recording. Please try again.",
+      "evidenceStripFailed": "Could not safely process this image. Please try a different one.",
+      "transcribing": "Turning your voice into text…"
     },
     "anonymousBanner": "You can submit this report without revealing your identity.",
     "stepOf": "{{current}} of {{total}}",
@@ -175,11 +182,13 @@
     "clearTime": "Clear time",
     "pickOnMap": "Pick on map",
     "mapPrompt": "Search a place or tap the map to drop a pin at the incident location",
-    "mapSearchPlaceholder": "Search a place (e.g. Jaffna Bus Stand)",
+    "mapSearchPlaceholder": "Search a place (e.g. Jaffna)",
     "mapSearch": "Search",
     "mapSearching": "Searching…",
     "mapNoResults": "No place found. Try a nearby landmark or tap the map.",
     "useThisLocation": "Use this location",
+    "mapSearchAction": "Go",
+    "mapSearchNotFound": "Place not found. Try a nearby town or tap the map.",
     "redact": {
       "title": "Cover anything that identifies someone",
       "hint": "Drag a box over faces, name boards, vehicle plates, ID cards — anything identifying. Covered areas are removed from the photo.",
@@ -275,6 +284,11 @@
     "anonBody2": "Because of this, we cannot recover a lost code, not even for you: we do not know who you are. Nothing about your case is saved on this device.",
     "safetyTitle": "Staying safe",
     "safetyBody": "The Quick Exit button sits on every screen. One tap closes JusticeNow and clears anything you have typed. Write your reference code somewhere safe — and if this device is shared or not private, keep the code on something else.",
+    "deviceSafetyTitle": "Safety on this device",
+    "deviceSafetyIntro": "JusticeNow saves nothing about your case on this phone — no report text, reference code, or evidence. Only your chosen language and district are remembered.",
+    "deviceSafety1": "Screenshots and screen recording are blocked on the report and status screens to protect you.",
+    "deviceSafety2": "To remove the app completely, press and hold its icon and choose Remove or Uninstall.",
+    "deviceSafety3": "If your phone may be checked by someone else, close the app when you finish and keep your reference code somewhere other than this device.",
     "footer": "Aligned with UN SDG 16 · Peace, Justice & Strong Institutions"
   },
   "staffLogin": {
@@ -397,9 +411,16 @@
     "reportDetailsTitle": "Report details"
   },
   "staffTabs": {
+    "dashboard": "Dashboard",
     "reports": "Reports",
     "analytics": "Analytics",
     "admin": "Admin"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "snapshot": "Snapshot",
+    "viewAnalytics": "View detailed analytics",
+    "manage": "Management"
   },
   "profile": {
     "tab": "Profile",
@@ -558,7 +579,41 @@
     "namePlaceholder": "e.g. Nimal Perera",
     "emailPlaceholder": "name@organisation.lk",
     "passwordPlaceholder": "At least 8 characters",
-    "newPasswordPlaceholder": "Leave blank to keep current"
+    "newPasswordPlaceholder": "Leave blank to keep current",
+    "view": "Staff member",
+    "accountDetails": "Account",
+    "profileDetails": "Profile",
+    "status": "Access status",
+    "twoFactor": "Two-factor auth",
+    "twoFactorOn": "Enabled ({{method}})",
+    "twoFactorOff": "Not enabled",
+    "gender": "Gender",
+    "dateOfBirth": "Date of birth",
+    "notProvided": "Not provided",
+    "activeBadge": "Active",
+    "inactiveBadge": "Inactive",
+    "suspendedBadge": "Suspended",
+    "suspensionReason": "Reason for suspension",
+    "suspend": "Suspend account",
+    "suspendReasonTitle": "Suspend account",
+    "suspendReasonPrompt": "Enter a reason for suspending this account. They won't be able to sign in until the suspension is lifted.",
+    "unsuspend": "Lift suspension",
+    "unsuspendConfirm": "Restore this account's access? They will be able to sign in again.",
+    "delete": "Delete account",
+    "deleteReasonTitle": "Delete account",
+    "deleteReasonPrompt": "Enter a reason for deleting this account. They will no longer be able to sign in. The audit history is kept.",
+    "reasonPlaceholder": "Reason",
+    "reasonRequired": "Please enter a reason."
+  },
+  "accessStatus": {
+    "onboarding": "Onboarding",
+    "pending": "Pending approval",
+    "approved": "Approved",
+    "rejected": "Rejected"
+  },
+  "mfaMethod": {
+    "totp": "Authenticator app",
+    "email": "Email code"
   },
   "audit": {
     "title": "Audit trail",
@@ -697,6 +752,8 @@
     "trend": "Reports over the last 6 months",
     "asOf": "Figures as of {{date}}",
     "empty": "No cases have been reported yet.",
+    "medianResolution": "Typical days to action",
+    "daysValue": "{{days}} days",
     "loadFailed": "Could not load the figures. Please try again.",
     "mapFewer": "Fewer",
     "mapMore": "More",
