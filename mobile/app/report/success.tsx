@@ -99,20 +99,32 @@ export default function ReportSuccess() {
     }
     setSaving(true);
     try {
-      const perm = await MediaLibrary.requestPermissionsAsync();
+      // Request the WRITE-ONLY scope (`true`): saving a photo doesn't need read
+      // access, and on Android 13+ the narrower prompt is far less likely to be
+      // denied than the broad "access all photos" one.
+      const perm = await MediaLibrary.requestPermissionsAsync(true);
       if (!perm.granted) {
         Alert.alert(t('success.qrSaveTitle'), t('success.qrPermission'));
         return;
       }
-      // QRCode.toDataURL returns raw base64 (no data-URI prefix).
-      const base64: string = await new Promise((resolve) =>
+      // QRCode.toDataURL returns raw base64 (no data-URI prefix). Strip any
+      // whitespace/newlines first — some platforms wrap the base64, which would
+      // write a corrupt PNG that MediaLibrary then fails to import.
+      const raw: string = await new Promise((resolve) =>
         qrRef.current!.toDataURL((data) => resolve(data)),
       );
+      const base64 = raw.replace(/\s/g, '');
       const fileUri = `${FileSystem.cacheDirectory}justicenow-${referenceCode}.png`;
       await FileSystem.writeAsStringAsync(fileUri, base64, {
         encoding: FileSystem.EncodingType.Base64,
       });
-      await MediaLibrary.saveToLibraryAsync(fileUri);
+      try {
+        await MediaLibrary.saveToLibraryAsync(fileUri);
+      } catch {
+        // Some Android devices reject saveToLibraryAsync (write-only scope) but
+        // accept createAssetAsync — fall back to it before giving up.
+        await MediaLibrary.createAssetAsync(fileUri);
+      }
       Alert.alert(t('success.qrSaveTitle'), t('success.qrSaved'));
     } catch {
       // Never log — nothing sensitive should reach logs.

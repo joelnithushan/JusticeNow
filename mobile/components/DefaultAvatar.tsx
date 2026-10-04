@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, G, Path } from 'react-native-svg';
 
 // Neutral cool-greys, kept local: this is deliberately OFF-brand (a placeholder
 // should read as "empty", not as a themed element), so it does not use the navy
@@ -28,11 +28,20 @@ interface DefaultAvatarProps {
 export default function DefaultAvatar({ size = 96 }: DefaultAvatarProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 96 96" accessibilityRole="image">
+      {/* Clip the silhouette to the disc so the shoulders can't bleed past the
+          circle's edge (they span wider than the disc at the bottom). */}
+      <Defs>
+        <ClipPath id="discClip">
+          <Circle cx={48} cy={48} r={48} />
+        </ClipPath>
+      </Defs>
       <Circle cx={48} cy={48} r={48} fill={DISC} />
-      {/* Head */}
-      <Circle cx={48} cy={38} r={16} fill={FIGURE} />
-      {/* Shoulders — a rounded cap clipped by the disc via the viewBox. */}
-      <Path d="M20 82c0-15.5 12.5-26 28-26s28 10.5 28 26v6H20z" fill={FIGURE} />
+      <G clipPath="url(#discClip)">
+        {/* Head */}
+        <Circle cx={48} cy={38} r={16} fill={FIGURE} />
+        {/* Shoulders — the cap, clipped to the disc so it reads as a clean circle. */}
+        <Path d="M20 82c0-15.5 12.5-26 28-26s28 10.5 28 26v6H20z" fill={FIGURE} />
+      </G>
     </Svg>
   );
 }

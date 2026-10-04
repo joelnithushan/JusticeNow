@@ -429,7 +429,11 @@ export default function StaffProfileTab() {
       ) : (
         <View style={local.derivedRow}>
           <ReadOnly label={t('staffRegister.role')} value={profile.role ? t(`roles.${profile.role}`, { defaultValue: profile.role }) : t('caseDetail.notProvided')} />
-          <ReadOnly label={t('staffRegister.organisation')} value={profile.organisation_name ?? t('caseDetail.notProvided')} />
+          {/* The platform admin belongs to no single organisation — omit the org
+              field for that role (it would only ever read "Not provided"). */}
+          {profile.role !== 'admin' ? (
+            <ReadOnly label={t('staffRegister.organisation')} value={profile.organisation_name ?? t('caseDetail.notProvided')} />
+          ) : null}
         </View>
       )}
 

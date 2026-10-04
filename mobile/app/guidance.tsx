@@ -26,6 +26,7 @@ import {
 import { Link } from 'expo-router';
 import axios from 'axios';
 import * as Speech from 'expo-speech';
+import { usePreventScreenCapture } from 'expo-screen-capture';
 import { useTranslation } from 'react-i18next';
 
 import ReporterTopBar from '../components/ReporterTopBar';
@@ -62,6 +63,10 @@ const EMPTY_LEGAL_BASIS: LegalBasis = { provisions: [], outlook: { helps: [], hu
 export default function Guidance() {
   const { t, i18n } = useTranslation();
   const { district: savedDistrict } = usePreferences();
+
+  // SAFETY: the scenario a user types + the legal guidance can be sensitive;
+  // block screenshots / screen recording while this screen is open.
+  usePreventScreenCapture();
 
   const [scenario, setScenario] = useState('');
   const [district, setDistrict] = useState<string | null>(savedDistrict ?? null);

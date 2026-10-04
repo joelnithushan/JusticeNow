@@ -29,7 +29,9 @@ const {
   listStaff,
   createStaff,
   updateStaff,
-  deactivateStaff,
+  suspendStaff,
+  unsuspendStaff,
+  deleteStaff,
   getMe,
   updateMe,
   updateMyAvatar,
@@ -144,9 +146,15 @@ router.post('/:id/reject', requireStaff, requireRole('admin', 'org_admin'), reje
 // PUT /api/staff/:id — update (partial; may rehash password, toggle active).
 router.put('/:id', requireStaff, requireRole('admin', 'org_admin'), updateStaff);
 
-// DELETE /api/staff/:id — SOFT-delete (deactivate; never a DB DELETE — that
+// POST /api/staff/:id/suspend — temporarily block login WITH a reason (reversible).
+router.post('/:id/suspend', requireStaff, requireRole('admin', 'org_admin'), suspendStaff);
+
+// POST /api/staff/:id/unsuspend — lift a suspension (restore login access).
+router.post('/:id/unsuspend', requireStaff, requireRole('admin', 'org_admin'), unsuspendStaff);
+
+// DELETE /api/staff/:id — SOFT-delete WITH a reason (never a DB DELETE — that
 // would strip the actor from the audit trail). Refuses self / last-admin.
-router.delete('/:id', requireStaff, requireRole('admin', 'org_admin'), deactivateStaff);
+router.delete('/:id', requireStaff, requireRole('admin', 'org_admin'), deleteStaff);
 
 // POST /api/staff/:id/mfa/reset — ADMIN resets a colleague's 2FA (lost device);
 // the target must re-enroll on next login. Admin/org-admin only.

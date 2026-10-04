@@ -342,6 +342,29 @@ export const submitReport = (input: SubmitReportInput) => {
   });
 };
 
+/**
+ * Transcribe a recorded voice report to text via the server (which proxies Google
+ * Speech-to-Text). The audio is case content, so this goes through the tokenless
+ * reporter `api` and is never persisted client-side. Returns the transcript, or
+ * throws — callers keep the audio regardless of transcription success.
+ */
+export const transcribeVoice = (
+  file: { uri: string; name: string; mimeType?: string },
+  language: string,
+) => {
+  const form = new FormData();
+  form.append('audio', {
+    uri: file.uri,
+    name: file.name,
+    type: file.mimeType ?? 'application/octet-stream',
+  } as unknown as Blob);
+  form.append('language', language);
+  return api.post<{ success: boolean; data: { transcript: string } }>('/transcribe', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 30000, // transcription can take longer than a normal call
+  });
+};
+
 export interface ReportFilters {
   caseType?: string;
   status?: string;
@@ -526,6 +549,8 @@ export interface TransparencyStats {
   by_case_type: Record<string, number>;
   by_district: Record<string, number>;
   recent_by_month: { month: string; count: number }[];
+  // Median days from report to first resolution; null until anything is resolved.
+  median_resolution_days: number | null;
   generated_at: string;
 }
 
@@ -622,6 +647,54 @@ export const fetchLegalGuidance = (scenario: string, district?: string, language
   api.post<GuidanceResponse>('/ai/guidance', { scenario, district, language }, { timeout: 45000 });
 
 /**
+ * A single place-search suggestion (Google Places, proxied by our server).
+ * snake_case matches the server projection. `place_id` is an opaque Google id
+ * used to fetch coordinates via placeDetails().
+ */
+export interface PlacePrediction {
+  place_id: string;
+  description: string;
+  main_text: string;
+  secondary_text: string;
+}
+
+export interface PlaceAutocompleteResponse {
+  success: boolean;
+  data: { predictions: PlacePrediction[] };
+}
+
+export interface PlaceDetail {
+  latitude: number;
+  longitude: number;
+  place_name: string;
+}
+
+export interface PlaceDetailResponse {
+  success: boolean;
+  data: { place: PlaceDetail };
+}
+
+/**
+ * Map place search — type-ahead suggestions. Tokenless `api` (public, anonymous).
+ * POST (not GET) so the typed text stays in the body and never lands in a server
+ * request-log URL. The server proxies Google so the key stays server-side; if the
+ * server has no key it replies 503 and the caller falls back to the on-device
+ * geocoder. `sessionToken` groups the keystrokes + the follow-up details call
+ * into one Google billing session.
+ */
+export const placesAutocomplete = (input: string, sessionToken?: string) =>
+  api.post<PlaceAutocompleteResponse>('/places/autocomplete', {
+    input,
+    session_token: sessionToken,
+  });
+
+/** Resolve a place_id (from placesAutocomplete) to coordinates + a name. */
+export const placeDetails = (placeId: string, sessionToken?: string) =>
+  api.get<PlaceDetailResponse>('/places/details', {
+    params: { place_id: placeId, session_token: sessionToken },
+  });
+
+/**
  * The ADMIN view of an organisation: the public Organisation fields PLUS the
  * is_active flag (so the admin console can badge and reactivate inactive orgs).
  * Only authenticated admins ever receive is_active — reporters never do.
@@ -710,9 +783,17 @@ export interface StaffMember {
   access_status: string; // onboarding | pending | approved | rejected
   mfa_enabled: boolean;
   created_at: string;
+  // Admin moderation markers (null when not suspended/deleted). Present on the
+  // list so a suspended account can be badged.
+  suspended_at?: string | null;
+  suspension_reason?: string | null;
+  deleted_at?: string | null;
 }
 
-/** Full detail an admin sees for approval — submitted profile + 2FA status. */
+/**
+ * Full detail an admin sees — submitted profile + 2FA status + avatar + the
+ * suspend/delete moderation state and reasons.
+ */
 export interface StaffMemberDetail extends StaffMember {
   mfa_method: string | null;
   nic: string | null;
@@ -723,6 +804,8 @@ export interface StaffMemberDetail extends StaffMember {
   gender: string | null;
   date_of_birth: string | null;
   profile_completed: boolean;
+  avatar_url: string | null;
+  deletion_reason?: string | null;
 }
 export interface StaffMemberDetailResponse {
   success: boolean;
@@ -754,7 +837,8 @@ export interface StaffInput {
   name?: string;
   email?: string;
   role?: string;
-  organisation_id?: string;
+  // null for the platform admin role (which belongs to no single organisation).
+  organisation_id?: string | null;
   password?: string;
   is_active?: boolean;
   // Role-aware Sri Lankan details (required by the server on create).
@@ -789,14 +873,26 @@ export const updateStaff = (id: string, input: StaffInput) =>
   staffApi.put<StaffResponse>(`/staff/${encodeURIComponent(id)}`, input);
 
 /**
- * ADMIN: deactivate (SOFT-delete) a staff account. Uses staffApi. The server
- * NEVER hard-deletes (a DB DELETE would strip the actor from the audit trail);
- * it flips is_active to false. It also refuses to deactivate the caller's own
- * account or the last active admin, returning a 400 with a specific message the
- * caller should surface.
+ * ADMIN: SUSPEND a staff account WITH a reason (reversible; blocks login). The
+ * server records the reason and refuses to suspend the caller's own account or
+ * the last active admin (400 with a specific message to surface).
  */
-export const deactivateStaff = (id: string) =>
-  staffApi.delete<StaffResponse>(`/staff/${encodeURIComponent(id)}`);
+export const suspendStaffMember = (id: string, reason: string) =>
+  staffApi.post<StaffResponse>(`/staff/${encodeURIComponent(id)}/suspend`, { reason });
+
+/** ADMIN: lift a suspension (restore login access). */
+export const unsuspendStaffMember = (id: string) =>
+  staffApi.post<StaffResponse>(`/staff/${encodeURIComponent(id)}/unsuspend`);
+
+/**
+ * ADMIN: DELETE (SOFT-delete) a staff account WITH a reason. The server NEVER
+ * hard-deletes (a DB DELETE would strip the actor from the audit trail); it sets
+ * deleted_at + the reason and flips is_active to false (login blocked, hidden
+ * from the list). Refuses the caller's own account or the last active admin.
+ * The reason travels in the DELETE body.
+ */
+export const deleteStaffMember = (id: string, reason: string) =>
+  staffApi.delete<StaffResponse>(`/staff/${encodeURIComponent(id)}`, { data: { reason } });
 
 /** ADMIN: full detail for ONE staff account (approval view). */
 export const fetchStaffMember = (id: string) =>

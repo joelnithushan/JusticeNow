@@ -67,6 +67,17 @@ export default function ImageRedactorModal({
   const [draft, setDraft] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const svgRef = useRef<any>(null);
+  // The canvas's origin in WINDOW coordinates. We map a drag using the gesture's
+  // absolute window coords (x0/moveX) minus this origin, NOT nativeEvent.locationX
+  // — locationX is relative to whichever child view the finger landed on (e.g. the
+  // image), which is offset inside the canvas and made the box appear shifted.
+  const canvasRef = useRef<View>(null);
+  const originRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const measureCanvas = () => {
+    canvasRef.current?.measureInWindow((x, y) => {
+      originRef.current = { x, y };
+    });
+  };
 
   // Read the image's natural pixel size so we can map display → output coords.
   useEffect(() => {
@@ -96,13 +107,16 @@ export default function ImageRedactorModal({
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: (e) => {
+        onPanResponderGrant: (_e, g) => {
           if (!fit) return;
-          const x = e.nativeEvent.locationX;
-          const y = e.nativeEvent.locationY;
+          // Start point in canvas coords = touch window coords − canvas origin.
+          const x = g.x0 - originRef.current.x;
+          const y = g.y0 - originRef.current.y;
           setDraft({ x, y, w: 0, h: 0 });
         },
-        onPanResponderMove: (e, g) => {
+        onPanResponderMove: (_e, g) => {
+          // dx/dy are deltas from the grant point, so the box tracks the finger
+          // 1:1 regardless of where in the canvas the drag began.
           setDraft((d) => (d ? { ...d, w: g.dx, h: g.dy } : d));
         },
         onPanResponderRelease: () => {
@@ -226,10 +240,13 @@ export default function ImageRedactorModal({
 
         {/* Drawing surface. */}
         <View
+          ref={canvasRef}
           style={styles.canvas}
-          onLayout={(e) =>
-            setLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })
-          }
+          onLayout={(e) => {
+            setLayout({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
+            // Cache the canvas's window origin for the drag → canvas coord mapping.
+            measureCanvas();
+          }}
           {...pan.panHandlers}
         >
           {imageUri && fit ? (

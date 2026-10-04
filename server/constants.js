@@ -83,6 +83,8 @@ const AUDIT_ACTIONS = [
   'staff_created',
   'staff_updated',
   'staff_deleted',
+  'staff_suspended',
+  'staff_unsuspended',
   'staff_login',
   'staff_registered',
 ];

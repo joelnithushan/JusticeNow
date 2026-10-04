@@ -36,7 +36,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import SelectField, { type Option } from '../../../../components/SelectField';
 import ErrorState from '../../../../components/ErrorState';
-import BackButton from '../../../../components/BackButton';
+import StaffHeader from '../../../../components/StaffHeader';
 import {
   fetchAllOrganisations,
   createOrganisation,
@@ -221,13 +221,8 @@ export default function AdminOrganisationEditor() {
   const districtOptions: Option[] = DISTRICTS.map((d) => ({ value: d, label: t(`districts.${d}`, d) }));
 
   return (
-    <View style={[local.screen, { paddingTop: insets.top }]}>
-      <View style={local.header}>
-        <BackButton onPress={() => router.back()} label={t('common.back')} />
-        <Text style={local.title} accessibilityRole="header">
-          {title}
-        </Text>
-      </View>
+    <View style={local.screen}>
+      <StaffHeader title={title} onBack={() => router.back()} backLabel={t('common.back')} />
 
       {loading ? (
         <View style={local.centre}>

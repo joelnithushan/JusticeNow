@@ -88,6 +88,19 @@ export default function Transparency() {
             <StatCard value={String(stats.organisations)} label={t('transparency.organisations')} />
           </View>
 
+          {/* Median time-to-resolution: shown only once at least one case has been
+              resolved (server returns null otherwise). Aggregate, non-identifying. */}
+          {stats.median_resolution_days != null ? (
+            <View style={local.cardsRow}>
+              <StatCard
+                value={t('transparency.daysValue', { days: stats.median_resolution_days })}
+                label={t('transparency.medianResolution')}
+                accent
+              />
+              <View style={local.cardSpacer} />
+            </View>
+          ) : null}
+
           {stats.total === 0 ? (
             <Text style={local.empty}>{t('transparency.empty')}</Text>
           ) : (
@@ -208,6 +221,7 @@ const local = StyleSheet.create({
   subtitle: { fontSize: 14, color: colors.muted, lineHeight: 20, marginBottom: 16 },
 
   cardsRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  cardSpacer: { flex: 1 },
   card: {
     flex: 1,
     borderRadius: 14,

@@ -24,7 +24,9 @@ const {
   listStaff: listStaffService,
   createStaff: createStaffService,
   updateStaff: updateStaffService,
-  deactivateStaff: deactivateStaffService,
+  suspendStaff: suspendStaffService,
+  unsuspendStaff: unsuspendStaffService,
+  deleteStaff: deleteStaffService,
   registerStaff: registerStaffService,
   maybeSubmitForApproval,
   getStaffDetail: getStaffDetailService,
@@ -341,20 +343,60 @@ async function updateStaff(req, res) {
 }
 
 /**
- * DELETE /api/staff/:id — ADMIN SOFT-delete (deactivate) a staff account.
+ * POST /api/staff/:id/suspend — ADMIN suspend an account WITH a reason.
+ * Reversible via /unsuspend. The service blocks login (is_active=false) and
+ * records the reason; it refuses to suspend the caller's own account or the
+ * last active admin. AUDIT: staff_suspended with ONLY { staff_id, role } —
+ * NEVER the reason text (it may name a person; the trail records WHO/WHAT).
+ */
+async function suspendStaff(req, res) {
+  try {
+    const { reason } = req.body || {};
+    const staff = await suspendStaffService(req.params.id, reason, req.staff);
+    await writeAudit({
+      actorId: req.staff.id,
+      action: 'staff_suspended',
+      detail: { staff_id: staff.id, role: staff.role },
+    });
+    return res.json({ success: true, data: staff });
+  } catch (err) {
+    return respondServiceError(res, err, 'Could not suspend the staff member. Please try again.');
+  }
+}
+
+/**
+ * POST /api/staff/:id/unsuspend — ADMIN lift a suspension (restore login access).
+ * AUDIT: staff_unsuspended with ONLY { staff_id, role }.
+ */
+async function unsuspendStaff(req, res) {
+  try {
+    const staff = await unsuspendStaffService(req.params.id, req.staff);
+    await writeAudit({
+      actorId: req.staff.id,
+      action: 'staff_unsuspended',
+      detail: { staff_id: staff.id, role: staff.role },
+    });
+    return res.json({ success: true, data: staff });
+  } catch (err) {
+    return respondServiceError(res, err, 'Could not reactivate the staff member. Please try again.');
+  }
+}
+
+/**
+ * DELETE /api/staff/:id — ADMIN SOFT-delete a staff account WITH a reason.
  *
  * The service NEVER issues a DB DELETE — that would strip the actor from every
- * audit entry this person wrote (audit_log.actor_id ON DELETE SET NULL). It
- * flips is_active to false instead, and refuses to deactivate the caller's own
- * account or the last active admin (both 400 from the service).
- * AUDIT: staff_deleted with ONLY { staff_id, role }.
+ * audit entry this person wrote (audit_log.actor_id ON DELETE SET NULL). It sets
+ * deleted_at + the reason and flips is_active to false (login blocked, hidden
+ * from the list), and refuses to delete the caller's own account or the last
+ * active admin (both 400 from the service).
+ * AUDIT: staff_deleted with ONLY { staff_id, role } — NEVER the reason text.
  */
-async function deactivateStaff(req, res) {
+async function deleteStaff(req, res) {
   try {
-    // Pass the acting staff member so the service can enforce the self-lockout
-    // guard (may not deactivate own account), the last-admin guard, AND
-    // org_admin scoping (may only deactivate staff in their own org).
-    const staff = await deactivateStaffService(req.params.id, req.staff);
+    // DELETE bodies are unusual but supported; the reason is required by the service.
+    const { reason } = req.body || {};
+    const staff = await deleteStaffService(req.params.id, reason, req.staff);
 
     await writeAudit({
       actorId: req.staff.id,
@@ -367,7 +409,7 @@ async function deactivateStaff(req, res) {
     return respondServiceError(
       res,
       err,
-      'Could not deactivate the staff member. Please try again.',
+      'Could not delete the staff member. Please try again.',
     );
   }
 }
@@ -683,7 +725,9 @@ module.exports = {
   listStaff,
   createStaff,
   updateStaff,
-  deactivateStaff,
+  suspendStaff,
+  unsuspendStaff,
+  deleteStaff,
   getMe,
   updateMe,
   updateMyAvatar,

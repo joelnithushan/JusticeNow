@@ -489,4 +489,5 @@ module.exports = {
   MIN_PASSWORD_LENGTH,
   MAX_AVATAR_BYTES,
   AVATAR_BUCKET,
+  avatarUrlFor,
 };

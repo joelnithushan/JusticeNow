@@ -40,7 +40,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SelectField from '../../components/SelectField';
 import type { Option } from '../../components/SelectField';
 import ErrorState from '../../components/ErrorState';
-import BackButton from '../../components/BackButton';
+import StaffHeader from '../../components/StaffHeader';
 import { fetchAudit } from '../../src/api/client';
 import type { AuditEntry } from '../../src/api/client';
 import { AUDIT_ACTIONS } from '../../src/constants';
@@ -134,13 +134,12 @@ export default function StaffAuditScreen() {
   ];
 
   return (
-    <View style={[local.screen, { paddingTop: insets.top }]}>
-      <View style={local.header}>
-        <BackButton onPress={() => router.back()} label={t('common.back')} />
-        <Text style={local.title} accessibilityRole="header">
-          {t('audit.title')}
-        </Text>
-      </View>
+    <View style={local.screen}>
+      <StaffHeader
+        title={t('audit.title')}
+        onBack={() => router.back()}
+        backLabel={t('common.back')}
+      />
 
       <View style={local.filters}>
         <SelectField
