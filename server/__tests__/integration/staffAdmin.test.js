@@ -386,77 +386,143 @@ describe('PUT /api/staff/:id — admin update', () => {
   });
 });
 
-describe('DELETE /api/staff/:id — admin SOFT delete', () => {
+describe('DELETE /api/staff/:id — admin SOFT delete (with reason)', () => {
   it('rejects an officer token with 403', async () => {
     const res = await request(app)
       .delete('/api/staff/staff-uuid-1')
-      .set(bearer(officerToken));
+      .set(bearer(officerToken))
+      .send({ reason: 'left the organisation' });
     expect(res.status).toBe(403);
   });
 
-  it('SOFT-deletes (PATCH is_active=false, no DB DELETE) and writes staff_deleted', async () => {
+  it('requires a reason (400) before any DB write', async () => {
+    targetStaffRow = { id: 'staff-uuid-1', role: 'officer', is_active: true };
+    const res = await request(app)
+      .delete('/api/staff/staff-uuid-1')
+      .set(bearer(adminToken)); // no reason
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/reason/i);
+    expect(updateMethod).toBeNull();
+    expect(auditBodies).toHaveLength(0);
+  });
+
+  it('SOFT-deletes (PATCH deleted_at + reason, no DB DELETE) and writes staff_deleted', async () => {
     // Target is a non-admin, so no last-admin guard applies.
     targetStaffRow = { id: 'staff-uuid-1', role: 'officer', is_active: true };
     mutatedRow = { ...safeStaff, is_active: false };
 
     const res = await request(app)
       .delete('/api/staff/staff-uuid-1')
-      .set(bearer(adminToken));
+      .set(bearer(adminToken))
+      .send({ reason: 'left the organisation' });
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.is_active).toBe(false);
 
-    // The deactivation is an UPDATE setting is_active=false — NOT a DB DELETE.
+    // Soft delete = UPDATE setting is_active=false + deleted_at + reason — NOT a DB DELETE.
     expect(updateMethod).toBe('PATCH');
-    expect(updateBody).toEqual({ is_active: false });
+    expect(updateBody.is_active).toBe(false);
+    expect(updateBody.deletion_reason).toBe('left the organisation');
+    expect(typeof updateBody.deleted_at).toBe('string');
     expect(sawStaffDbDelete).toBe(false);
 
     const audit = auditBodies.find((a) => a.action === 'staff_deleted');
     expect(audit).toBeTruthy();
+    // Audit records WHO/WHAT only — never the reason text.
     expect(audit.detail).toEqual({ staff_id: safeStaff.id, role: safeStaff.role });
   });
 
-  it('refuses to deactivate the caller’s OWN account with 400 (self-lockout guard)', async () => {
-    // The admin token's sub is 'staff-admin'; deactivating that same id must 400
-    // BEFORE any DB write or audit.
+  it('refuses to delete the caller’s OWN account with 400 (self-lockout guard)', async () => {
     const res = await request(app)
       .delete('/api/staff/staff-admin')
-      .set(bearer(adminToken));
+      .set(bearer(adminToken))
+      .send({ reason: 'oops' });
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/your own account/i);
     expect(updateMethod).toBeNull();
     expect(auditBodies).toHaveLength(0);
   });
 
-  it('refuses to deactivate the LAST active admin with 400', async () => {
+  it('refuses to delete the LAST active admin with 400', async () => {
     targetStaffRow = { id: 'other-admin', role: 'admin', is_active: true };
     adminCount = 1; // this is the only active admin left
     const res = await request(app)
       .delete('/api/staff/other-admin')
-      .set(bearer(adminToken));
+      .set(bearer(adminToken))
+      .send({ reason: 'cleanup' });
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/last active admin/i);
     expect(updateMethod).toBeNull();
     expect(auditBodies).toHaveLength(0);
   });
 
-  it('allows deactivating an admin when another active admin remains', async () => {
+  it('allows deleting an admin when another active admin remains', async () => {
     targetStaffRow = { id: 'other-admin', role: 'admin', is_active: true };
     adminCount = 3;
     mutatedRow = { ...safeStaff, id: 'other-admin', role: 'admin', is_active: false };
     const res = await request(app)
       .delete('/api/staff/other-admin')
-      .set(bearer(adminToken));
+      .set(bearer(adminToken))
+      .send({ reason: 'cleanup' });
     expect(res.status).toBe(200);
-    expect(updateBody).toEqual({ is_active: false });
+    expect(updateBody.is_active).toBe(false);
+    expect(updateBody.deletion_reason).toBe('cleanup');
   });
 
   it('returns 404 when the staff member does not exist (no audit)', async () => {
     targetStaffRow = null; // the target lookup finds nothing
-    const res = await request(app).delete('/api/staff/missing').set(bearer(adminToken));
+    const res = await request(app)
+      .delete('/api/staff/missing')
+      .set(bearer(adminToken))
+      .send({ reason: 'cleanup' });
     expect(res.status).toBe(404);
     expect(sawStaffDbDelete).toBe(false);
     expect(auditBodies).toHaveLength(0);
+  });
+});
+
+describe('POST /api/staff/:id/suspend & /unsuspend', () => {
+  it('suspend requires a reason (400)', async () => {
+    targetStaffRow = { id: 'staff-uuid-1', role: 'officer', is_active: true };
+    const res = await request(app)
+      .post('/api/staff/staff-uuid-1/suspend')
+      .set(bearer(adminToken));
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/reason/i);
+  });
+
+  it('suspends with a reason (is_active=false + suspended_at + reason) and audits', async () => {
+    targetStaffRow = { id: 'staff-uuid-1', role: 'officer', is_active: true };
+    mutatedRow = { ...safeStaff, is_active: false };
+    const res = await request(app)
+      .post('/api/staff/staff-uuid-1/suspend')
+      .set(bearer(adminToken))
+      .send({ reason: 'under investigation' });
+    expect(res.status).toBe(200);
+    expect(updateBody.is_active).toBe(false);
+    expect(updateBody.suspension_reason).toBe('under investigation');
+    expect(typeof updateBody.suspended_at).toBe('string');
+    expect(sawStaffDbDelete).toBe(false);
+    expect(auditBodies.find((a) => a.action === 'staff_suspended')).toBeTruthy();
+  });
+
+  it('unsuspend restores access (is_active=true, clears reason) and audits', async () => {
+    targetStaffRow = { id: 'staff-uuid-1', role: 'officer', is_active: false };
+    mutatedRow = { ...safeStaff, is_active: true };
+    const res = await request(app)
+      .post('/api/staff/staff-uuid-1/unsuspend')
+      .set(bearer(adminToken));
+    expect(res.status).toBe(200);
+    expect(updateBody).toEqual({ is_active: true, suspended_at: null, suspension_reason: null });
+    expect(auditBodies.find((a) => a.action === 'staff_unsuspended')).toBeTruthy();
+  });
+
+  it('rejects an officer token with 403', async () => {
+    const res = await request(app)
+      .post('/api/staff/staff-uuid-1/suspend')
+      .set(bearer(officerToken))
+      .send({ reason: 'x' });
+    expect(res.status).toBe(403);
   });
 });

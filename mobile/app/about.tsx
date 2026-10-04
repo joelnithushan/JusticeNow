@@ -27,6 +27,7 @@ import { useTranslation } from 'react-i18next';
 
 import ReporterTopBar from '../components/ReporterTopBar';
 import BrandLogo from '../components/BrandLogo';
+import ReadAloudButton from '../components/ReadAloudButton';
 import { colors, styles as theme } from '../src/theme';
 
 export default function About() {
@@ -68,7 +69,30 @@ export default function About() {
           <Text style={local.calloutBody}>{t('about.safetyBody')}</Text>
         </Callout>
 
-        {/* 5 · SDG 16 footer line (same tone as splash.footer). */}
+        {/* 5 · Safety on this device — practical, plain-language steps a reporter
+            can take on a shared or watched phone. Read-aloud for low literacy. */}
+        <Callout title={t('about.deviceSafetyTitle')}>
+          <Text style={local.calloutBody}>{t('about.deviceSafetyIntro')}</Text>
+          <Text style={[local.calloutBody, local.calloutBodySpaced]}>
+            {`• ${t('about.deviceSafety1')}`}
+          </Text>
+          <Text style={local.calloutBody}>{`• ${t('about.deviceSafety2')}`}</Text>
+          <Text style={local.calloutBody}>{`• ${t('about.deviceSafety3')}`}</Text>
+          <ReadAloudButton
+            style={local.readAloud}
+            getText={() =>
+              [
+                t('about.deviceSafetyTitle'),
+                t('about.deviceSafetyIntro'),
+                t('about.deviceSafety1'),
+                t('about.deviceSafety2'),
+                t('about.deviceSafety3'),
+              ].join('. ')
+            }
+          />
+        </Callout>
+
+        {/* 6 · SDG 16 footer line (same tone as splash.footer). */}
         <Text style={local.footer}>{t('about.footer')}</Text>
       </ScrollView>
     </View>
@@ -175,6 +199,7 @@ const local = StyleSheet.create({
   calloutBodySpaced: {
     marginTop: 10,
   },
+  readAloud: { alignSelf: 'flex-start', marginTop: 14 },
   footer: {
     fontSize: 12,
     lineHeight: 18,

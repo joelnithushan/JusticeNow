@@ -146,6 +146,10 @@ export const ALLOWED_EVIDENCE_MIME = [
   'image/png',
   'image/webp',
   'application/pdf',
+  // Voice reports are recorded in a Speech-to-Text-compatible format: WAV on iOS,
+  // 3GPP/AMR on Android (audio/m4a kept for older recordings).
+  'audio/wav',
+  'audio/3gpp',
   'audio/m4a',
 ];
 

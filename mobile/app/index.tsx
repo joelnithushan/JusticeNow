@@ -154,7 +154,10 @@ export default function Home() {
         <LanguageSwitcher onDark />
       </View>
 
-      <ScrollView contentContainerStyle={local.page} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[local.page, { paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Hero: left-aligned headline + tagline. */}
         <View style={local.hero}>
           <Text style={local.headline}>{t('home.headline')}</Text>

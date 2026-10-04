@@ -39,7 +39,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SelectField from '../../../components/SelectField';
 import type { Option } from '../../../components/SelectField';
 import ErrorState from '../../../components/ErrorState';
-import BackButton from '../../../components/BackButton';
+import StaffHeader from '../../../components/StaffHeader';
 import {
   fetchCaseDetail,
   addCaseNote,
@@ -151,18 +151,23 @@ export default function StaffCaseDetail() {
   }
 
   return (
-    <ScrollView
-      style={[local.screen, { paddingTop: insets.top }]}
-      contentContainerStyle={local.body}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={colors.primary}
-        />
-      }
-    >
-      <Header caseData={caseData} onBack={() => router.back()} />
+    <View style={local.screen}>
+      <StaffHeader
+        title={caseData.reference_code}
+        onBack={() => router.back()}
+        backLabel={t('caseDetail.back')}
+      />
+      <ScrollView
+        contentContainerStyle={local.body}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        <Header caseData={caseData} />
 
       <MetadataCard caseData={caseData} />
 
@@ -186,16 +191,16 @@ export default function StaffCaseDetail() {
         onDone={load}
         onAuthError={handledAuthError}
       />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 /** Header: reference code (mono) + status badge + a Back control. */
-function Header({ caseData, onBack }: { caseData: CaseDetail; onBack: () => void }) {
+function Header({ caseData }: { caseData: CaseDetail }) {
   const { t } = useTranslation();
   return (
     <View style={local.header}>
-      <BackButton onPress={onBack} label={t('caseDetail.back')} />
       <View style={local.headerRow}>
         <Text style={local.reference}>{caseData.reference_code}</Text>
         <View style={local.badge}>

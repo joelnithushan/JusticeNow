@@ -23,6 +23,8 @@ const analyticsRoutes = require('./routes/analytics');
 const auditRoutes = require('./routes/audit');
 const transparencyRoutes = require('./routes/transparency');
 const aiRoutes = require('./routes/ai');
+const placesRoutes = require('./routes/places');
+const transcribeRoutes = require('./routes/transcribe');
 
 const app = express();
 
@@ -56,6 +58,8 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/transparency', transparencyRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/places', placesRoutes);
+app.use('/api/transcribe', transcribeRoutes);
 
 // Root Welcome Endpoint
 app.get('/', (req, res) => {

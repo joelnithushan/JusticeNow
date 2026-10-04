@@ -18,7 +18,7 @@
 import React from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import type { ColorValue } from 'react-native';
-import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
+import Svg, { Line, Path, Rect } from 'react-native-svg';
 import { Redirect, Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../../src/context/AuthContext';
@@ -46,26 +46,14 @@ function ReportsIcon({ color }: IconProps) {
   );
 }
 
-// Analytics: three bars.
-function AnalyticsIcon({ color }: IconProps) {
+// Dashboard: a 2×2 grid of rounded cells (the landing/overview tab).
+function DashboardIcon({ color }: IconProps) {
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-      <Rect x={4} y={12} width={4} height={8} stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
-      <Rect x={10} y={8} width={4} height={12} stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
-      <Rect x={16} y={4} width={4} height={16} stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
-    </Svg>
-  );
-}
-
-// Admin: a gear-ish cog (circle + spokes).
-function AdminIcon({ color }: IconProps) {
-  return (
-    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-      <Circle cx={12} cy={12} r={4} stroke={color} strokeWidth={1.8} />
-      <Line x1={12} y1={2} x2={12} y2={5} stroke={color} strokeWidth={1.8} strokeLinecap="round" />
-      <Line x1={12} y1={19} x2={12} y2={22} stroke={color} strokeWidth={1.8} strokeLinecap="round" />
-      <Line x1={2} y1={12} x2={5} y2={12} stroke={color} strokeWidth={1.8} strokeLinecap="round" />
-      <Line x1={19} y1={12} x2={22} y2={12} stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Rect x={4} y={4} width={7} height={7} rx={1.6} stroke={color} strokeWidth={1.8} />
+      <Rect x={13} y={4} width={7} height={7} rx={1.6} stroke={color} strokeWidth={1.8} />
+      <Rect x={4} y={13} width={7} height={7} rx={1.6} stroke={color} strokeWidth={1.8} />
+      <Rect x={13} y={13} width={7} height={7} rx={1.6} stroke={color} strokeWidth={1.8} />
     </Svg>
   );
 }
@@ -137,6 +125,16 @@ export default function StaffTabsLayout() {
         tabBarInactiveTintColor: colors.muted,
       }}
     >
+      {/* Dashboard — the staff landing tab: snapshot analytics + (for admins) the
+          management shortcuts that used to live on a separate Admin tab. */}
+      <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: t('staffTabs.dashboard'),
+          tabBarIcon: ({ color }) => <DashboardIcon color={color} />,
+          href: gated ? null : undefined,
+        }}
+      />
       <Tabs.Screen
         name="reports"
         options={{
@@ -145,22 +143,13 @@ export default function StaffTabsLayout() {
           href: gated ? null : undefined,
         }}
       />
+      {/* Full analytics — reachable from the Dashboard's "detailed analytics" link,
+          so it stays a route but is hidden from the tab bar (href: null). */}
       <Tabs.Screen
         name="analytics"
         options={{
           title: t('staffTabs.analytics'),
-          tabBarIcon: ({ color }) => <AnalyticsIcon color={color} />,
-          href: gated ? null : undefined,
-        }}
-      />
-      <Tabs.Screen
-        name="admin"
-        options={{
-          title: t('staffTabs.admin'),
-          tabBarIcon: ({ color }) => <AdminIcon color={color} />,
-          // Hide the Admin tab for non-admins OR while the profile gate is active.
-          // The route still exists; real enforcement is server-side.
-          href: isAdmin && !gated ? undefined : null,
+          href: null,
         }}
       />
       <Tabs.Screen

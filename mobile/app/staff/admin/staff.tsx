@@ -31,7 +31,7 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ErrorState from '../../../components/ErrorState';
-import BackButton from '../../../components/BackButton';
+import StaffHeader from '../../../components/StaffHeader';
 import { fetchStaff } from '../../../src/api/client';
 import type { StaffMember } from '../../../src/api/client';
 import { useAuth } from '../../../src/context/AuthContext';
@@ -83,13 +83,12 @@ export default function AdminStaffScreen() {
   }
 
   return (
-    <View style={[local.screen, { paddingTop: insets.top }]}>
-      <View style={local.header}>
-        <BackButton onPress={() => router.back()} label={t('common.back')} />
-        <View style={local.titleRow}>
-          <Text style={local.title} accessibilityRole="header">
-            {t('adminStaff.listTitle')}
-          </Text>
+    <View style={local.screen}>
+      <StaffHeader
+        title={t('adminStaff.listTitle')}
+        onBack={() => router.back()}
+        backLabel={t('common.back')}
+        rightAction={
           <Pressable
             onPress={() => router.push('/staff/admin/staff-member/new')}
             style={local.newBtn}
@@ -98,8 +97,8 @@ export default function AdminStaffScreen() {
           >
             <Text style={local.newBtnText}>＋ {t('adminStaff.new')}</Text>
           </Pressable>
-        </View>
-      </View>
+        }
+      />
 
       {loading ? (
         <View style={local.centre}>
@@ -159,7 +158,11 @@ function StaffRow({ member, onPress }: { member: StaffMember; onPress: () => voi
         <View style={local.roleBadge}>
           <Text style={local.roleBadgeText}>{roleLabel}</Text>
         </View>
-        {member.is_active ? null : (
+        {member.suspended_at ? (
+          <View style={local.suspendedBadge}>
+            <Text style={local.suspendedBadgeText}>{t('adminStaff.suspendedBadge')}</Text>
+          </View>
+        ) : member.is_active ? null : (
           <View style={local.inactiveBadge}>
             <Text style={local.inactiveBadgeText}>{t('adminStaff.inactive')}</Text>
           </View>
@@ -203,16 +206,17 @@ const local = StyleSheet.create({
     flexShrink: 1,
     marginRight: 8,
   },
+  // White pill so it reads on the navy header bar.
   newBtn: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: colors.primary,
+    backgroundColor: '#ffffff',
   },
   newBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.primaryText,
+    color: colors.primary,
   },
   centre: {
     flexGrow: 1,
@@ -282,6 +286,18 @@ const local = StyleSheet.create({
     marginTop: 6,
   },
   inactiveBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.danger,
+  },
+  suspendedBadge: {
+    backgroundColor: '#FCE8E6',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 6,
+  },
+  suspendedBadgeText: {
     fontSize: 12,
     fontWeight: '700',
     color: colors.danger,

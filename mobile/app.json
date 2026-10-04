@@ -86,7 +86,8 @@
         {
           "microphonePermission": "JusticeNow uses the microphone to let you record a voice report instead of typing."
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "extra": {
       "router": {},

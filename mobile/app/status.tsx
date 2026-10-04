@@ -37,6 +37,8 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import ReporterTopBar from '../components/ReporterTopBar';
 import ErrorState from '../components/ErrorState';
 import QrScannerModal from '../components/QrScannerModal';
+import ReadAloudButton from '../components/ReadAloudButton';
+import { usePreventScreenCapture } from 'expo-screen-capture';
 import { fetchCaseStatus, postCaseMessage } from '../src/api/client';
 import type { CaseStatus, CaseStatusNote } from '../src/api/client';
 import { REPORTER_MESSAGE_MAX } from '../src/constants';
@@ -74,6 +76,10 @@ function normaliseCode(raw: string): string | null {
 
 export default function CheckStatus() {
   const { t } = useTranslation();
+
+  // SAFETY: a case status + reporter-visible notes are sensitive; block
+  // screenshots / screen recording (and recents-preview capture on Android).
+  usePreventScreenCapture();
 
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -288,6 +294,33 @@ function StatusCard({ data }: { data: CaseStatus }) {
           <Text style={local.statusChipText}>{t(`statuses.${data.status}`)}</Text>
         </View>
       </View>
+
+      {/* Read the case outcome + reporter-visible notes aloud (on-device TTS) for
+          low-literacy or visually-impaired reporters. Built from the same data
+          shown on screen; nothing leaves the device. */}
+      <ReadAloudButton
+        style={local.readAloud}
+        getText={() =>
+          [
+            `${t('status.statusLabel')}: ${t(`statuses.${data.status}`)}`,
+            `${t('status.caseTypeLabel')}: ${
+              data.case_type === 'other' && data.custom_category
+                ? data.custom_category
+                : t(`caseTypes.${data.case_type}`)
+            }`,
+            `${t('status.notesTitle')}. ${
+              thread.length === 0
+                ? t('status.noNotes')
+                : thread
+                    .map(
+                      (n) =>
+                        `${n.sender === 'reporter' ? t('status.senderYou') : t('status.senderStaff')}: ${n.note}`,
+                    )
+                    .join('. ')
+            }`,
+          ].join('. ')
+        }
+      />
       {data.title ? <Row label={t('report.caseTitle')} value={data.title} /> : null}
       <Row
         label={t('status.caseTypeLabel')}
@@ -524,6 +557,7 @@ const local = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.primaryTint,
   },
+  readAloud: { alignSelf: 'flex-start', marginTop: 12 },
   statusChip: {
     backgroundColor: colors.secondary,
     borderRadius: 999,
