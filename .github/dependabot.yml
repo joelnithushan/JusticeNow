@@ -60,6 +60,24 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
+    # These packages are version-locked to the installed Expo SDK. Their correct
+    # versions come from `expo install` when the SDK is upgraded, NOT from
+    # piecemeal bumps — Dependabot has no knowledge of Expo's constraints and
+    # over-bumps them (e.g. react-native 0.86 -> 0.87 under SDK 57), which fails
+    # the "Expo dependency consistency" CI gate and breaks the mobile typecheck.
+    # See #86. This list mirrors exactly what `expo install --check` governs;
+    # expo/expo-* patches are intentionally left to Dependabot (they stay in SDK
+    # tolerance). Revisit when bumping the Expo SDK itself.
+    ignore:
+      - dependency-name: 'react'
+      - dependency-name: 'react-dom'
+      - dependency-name: '@types/react'
+      - dependency-name: 'react-native'
+      - dependency-name: 'react-native-maps'
+      - dependency-name: 'react-native-safe-area-context'
+      - dependency-name: 'react-native-screens'
+      - dependency-name: 'react-native-svg'
+      - dependency-name: '@react-native-community/datetimepicker'
 
   # GitHub Actions (ci.yml uses actions/checkout, actions/setup-node, etc.)
   - package-ecosystem: 'github-actions'
