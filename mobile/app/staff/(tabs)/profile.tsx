@@ -825,7 +825,9 @@ const local = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.primaryTint,
     minWidth: 140,
+    minHeight: 44, // ≥44dp tap target
     alignItems: 'center',
+    justifyContent: 'center',
   },
   changePhotoText: { fontSize: 15, fontWeight: '700', color: colors.primary },
   field: { marginTop: 4, marginBottom: 8 },

@@ -199,6 +199,8 @@ const local = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     backgroundColor: '#ffffff',
+    minHeight: 44, // ≥44dp tap target
+    justifyContent: 'center',
   },
   newBtnText: {
     fontSize: 14,

@@ -136,6 +136,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.background,
+    minHeight: 44, // ≥44dp tap target
   },
   chipOnDark: {
     borderColor: 'rgba(255,255,255,0.55)',
@@ -169,6 +170,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 12,
     paddingHorizontal: 14,
+    minHeight: 44, // ≥44dp tap target
   },
   optionDivider: { borderTopWidth: 1, borderTopColor: colors.primaryTint },
   optionText: { fontSize: 15, color: colors.text },
