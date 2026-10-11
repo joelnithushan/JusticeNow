@@ -16,6 +16,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,7 +27,7 @@ import {
 import { Link } from 'expo-router';
 import axios from 'axios';
 import * as Speech from 'expo-speech';
-import { usePreventScreenCapture } from 'expo-screen-capture';
+import * as ScreenCapture from 'expo-screen-capture';
 import { useTranslation } from 'react-i18next';
 
 import ReporterTopBar from '../components/ReporterTopBar';
@@ -65,8 +66,17 @@ export default function Guidance() {
   const { district: savedDistrict } = usePreferences();
 
   // SAFETY: the scenario a user types + the legal guidance can be sensitive;
-  // block screenshots / screen recording while this screen is open.
-  usePreventScreenCapture();
+  // block screenshots / screen recording while this screen is open (native only).
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      ScreenCapture.preventScreenCaptureAsync().catch(() => {});
+    }
+    return () => {
+      if (Platform.OS !== 'web') {
+        ScreenCapture.allowScreenCaptureAsync().catch(() => {});
+      }
+    };
+  }, []);
 
   const [scenario, setScenario] = useState('');
   const [district, setDistrict] = useState<string | null>(savedDistrict ?? null);

@@ -503,9 +503,13 @@ export default function ReportCase() {
       const referenceCode = res.data.data.reference_code;
       reset();
       router.replace({ pathname: '/report/success', params: { referenceCode } });
-    } catch {
-      // Never log the error — it can contain the request body.
-      setSubmitError(t('report.errors.submitFailed'));
+    } catch (err: any) {
+      if (err.response) {
+        console.error('Server error response:', err.response.data);
+        setSubmitError("Something went wrong on our side. Please try again.");
+      } else {
+        setSubmitError(t('report.errors.submitFailed'));
+      }
     } finally {
       setSubmitting(false);
     }

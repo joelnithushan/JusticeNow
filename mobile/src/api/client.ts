@@ -337,9 +337,7 @@ export const submitReport = (input: SubmitReportInput) => {
       type: evidenceFile.mimeType ?? 'application/octet-stream',
     } as unknown as Blob);
   }
-  return api.post('/reports', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  return api.post('/reports', form);
 };
 
 /**
