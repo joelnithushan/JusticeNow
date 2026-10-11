@@ -133,6 +133,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.16)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.45)',
+    minHeight: 44, // ≥44dp tap target
+    justifyContent: 'center',
   },
   signOutText: { fontSize: 14, fontWeight: '700', color: '#ffffff' },
   rightAction: { alignSelf: 'center' },

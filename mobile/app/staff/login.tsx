@@ -648,7 +648,7 @@ const local = StyleSheet.create({
   },
   bodySubtitle: { fontSize: 15, color: colors.muted, marginBottom: 18 },
   // Right-aligned "Forgot password?" link under the password field.
-  forgotRow: { alignSelf: 'flex-end', paddingVertical: 6, marginTop: 2 },
+  forgotRow: { alignSelf: 'flex-end', paddingVertical: 6, marginTop: 2, minHeight: 44, justifyContent: 'center' },
   forgotText: {
     color: colors.primary,
     fontSize: 14,

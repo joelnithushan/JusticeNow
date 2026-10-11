@@ -281,6 +281,7 @@ export default function LocationPickerModal({
                   hitSlop={8}
                   accessibilityRole="button"
                   accessibilityLabel={t('report.mapSearchAction')}
+                  style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
                 >
                   <Text style={styles.searchGo}>{t('report.mapSearchAction')}</Text>
                 </Pressable>
@@ -393,6 +394,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 11,
     paddingHorizontal: 12,
+    minHeight: 44, // ≥44dp tap target
   },
   suggestionDivider: { borderTopWidth: 1, borderTopColor: colors.border },
   suggestionIcon: { fontSize: 14 },
