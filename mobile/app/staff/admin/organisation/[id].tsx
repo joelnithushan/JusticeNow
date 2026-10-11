@@ -459,6 +459,8 @@ const local = StyleSheet.create({
     marginBottom: 8,
     borderWidth: 1,
     borderColor: colors.border,
+    minHeight: 44, // ≥44dp tap target
+    justifyContent: 'center',
   },
   chipActive: {
     backgroundColor: colors.primary,

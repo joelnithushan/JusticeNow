@@ -231,6 +231,7 @@ export default function ImageRedactorModal({
               accessibilityRole="button"
               accessibilityLabel={t('common.cancel')}
               hitSlop={10}
+              style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}
             >
               <Text style={styles.cancelX}>✕</Text>
             </Pressable>
@@ -324,6 +325,8 @@ export default function ImageRedactorModal({
             style={[styles.editBtn, boxes.length === 0 && styles.editBtnDisabled]}
             onPress={undo}
             disabled={boxes.length === 0}
+            accessibilityRole="button"
+            accessibilityLabel={t('report.redact.undo')}
           >
             <Text style={styles.editBtnText}>{t('report.redact.undo')}</Text>
           </Pressable>
@@ -331,6 +334,8 @@ export default function ImageRedactorModal({
             style={[styles.editBtn, boxes.length === 0 && styles.editBtnDisabled]}
             onPress={clear}
             disabled={boxes.length === 0}
+            accessibilityRole="button"
+            accessibilityLabel={t('report.redact.clear')}
           >
             <Text style={styles.editBtnText}>{t('report.redact.clear')}</Text>
           </Pressable>
@@ -339,10 +344,22 @@ export default function ImageRedactorModal({
 
         {/* Footer: skip (attach, still stripped) / apply (attach redacted). */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-          <Pressable style={styles.secondaryBtn} onPress={skip} disabled={busy}>
+          <Pressable
+            style={styles.secondaryBtn}
+            onPress={skip}
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel={t('report.redact.skip')}
+          >
             <Text style={styles.secondaryText}>{t('report.redact.skip')}</Text>
           </Pressable>
-          <Pressable style={styles.primaryBtn} onPress={apply} disabled={busy}>
+          <Pressable
+            style={styles.primaryBtn}
+            onPress={apply}
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel={t('report.redact.apply')}
+          >
             <Text style={styles.primaryText}>
               {busy ? t('common.loading') : t('report.redact.apply')}
             </Text>
@@ -378,6 +395,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 16,
+    minHeight: 44, // ≥44dp tap target
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   editBtnDisabled: { opacity: 0.4 },
   editBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },

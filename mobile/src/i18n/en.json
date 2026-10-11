@@ -137,6 +137,12 @@
       "evidence": "Evidence & Safety",
       "review": "Review & Submit"
     },
+    "discard": {
+      "title": "Discard this report?",
+      "body": "Your answers will be lost. We cannot recover them.",
+      "keep": "Keep editing",
+      "leave": "Discard"
+    },
     "reporterType": "Who are you reporting for?",
     "category": "Case category",
     "categoryPlaceholder": "Select a category",
@@ -216,7 +222,14 @@
     "qrPermission": "Allow photo access in Settings to save the QR, or take a screenshot instead.",
     "supportTitle": "You're not alone",
     "supportBody": "Reporting can be hard. If you feel unsafe or distressed, support is available — including free hotlines you can call now.",
-    "supportAction": "Get support & hotlines"
+    "supportAction": "Get support & hotlines",
+    "saveGateLabel": "I have saved my reference code",
+    "gateTitle": "Save your reference code",
+    "gateBody": "This code is the only way to check your case. We cannot recover it for you later.",
+    "gateStay": "Go back and save it",
+    "gateLeave": "Leave without saving",
+    "qrUnavailableTitle": "Not available",
+    "qrUnavailableBody": "Saving to gallery requires a full build of the app."
   },
   "status": {
     "title": "Check case status",

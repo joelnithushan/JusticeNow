@@ -7,15 +7,18 @@
 
 import React from 'react';
 import { Pressable, ScrollView, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Link } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { styles as theme } from '../src/theme';
 
 export default function NotFound() {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   return (
-    <ScrollView contentContainerStyle={theme.page}>
+    // Apply the top safe-area inset so the heading clears the status bar / notch.
+    <ScrollView contentContainerStyle={[theme.page, { paddingTop: insets.top + 20 }]}>
       <Text style={theme.h1}>{t('notFound.title')}</Text>
       <Text style={theme.paragraph}>{t('notFound.body')}</Text>
 

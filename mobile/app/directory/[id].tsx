@@ -84,7 +84,9 @@ export default function OrganisationDetail() {
 
   return (
     <View style={local.screen}>
-      <ReporterTopBar title={org?.name ?? t('directory.title')} />
+      {/* Top bar shows the section title; the org name is the body <h1> below, so
+          it is not duplicated (and long names aren't truncated in the bar). */}
+      <ReporterTopBar title={t('directory.title')} />
 
       <ScrollView contentContainerStyle={theme.page}>
         {loading ? (
