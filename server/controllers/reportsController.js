@@ -48,20 +48,35 @@ const createReport = async (req, res) => {
     const b = req.body || {};
 
     // Field helpers. Multipart sends everything as strings, so coerce carefully.
-    const str = (v) => (typeof v === 'string' ? v.trim() : '');
+    const str = (v) => {
+      if (v === undefined || v === null) return '';
+      const s = typeof v === 'string' ? v.trim() : String(v).trim();
+      return (s === 'undefined' || s === 'null') ? '' : s;
+    };
     const optStr = (v) => str(v) || null;
     const bool = (v) => v === true || v === 'true' || v === '1';
     const parseArray = (v) => {
-      if (Array.isArray(v)) return v.map((x) => String(x).trim());
+      if (Array.isArray(v)) {
+        return v
+          .map((x) => String(x).trim())
+          .filter((x) => x && x !== 'undefined' && x !== 'null');
+      }
       const s = str(v);
       if (!s) return [];
       try {
         const p = JSON.parse(s);
-        if (Array.isArray(p)) return p.map((x) => String(x).trim());
+        if (Array.isArray(p)) {
+          return p
+            .map((x) => String(x).trim())
+            .filter((x) => x && x !== 'undefined' && x !== 'null');
+        }
       } catch {
         /* not JSON — fall through to CSV */
       }
-      return s.split(',').map((x) => x.trim()).filter(Boolean);
+      return s
+        .split(',')
+        .map((x) => x.trim())
+        .filter((x) => x && x !== 'undefined' && x !== 'null');
     };
 
     // ---- Validation. MANDATORY per spec: reporter type, category, description,
@@ -72,7 +87,7 @@ const createReport = async (req, res) => {
     // reporter_type is mandatory in the mobile UI, but we DEFAULT it server-side
     // (rather than 400) so existing clients that don't send it keep working
     // during the rollout. Present-but-invalid is still rejected.
-    const reporterType = str(b.reporter_type) || 'prefer_not_to_say';
+    const reporterType = optStr(b.reporter_type) || 'prefer_not_to_say';
     if (!REPORTER_TYPES.includes(reporterType)) {
       errors.push(`reporter_type must be one of: ${REPORTER_TYPES.join(', ')}.`);
     }
@@ -99,7 +114,8 @@ const createReport = async (req, res) => {
       errors.push('district must be a valid Sri Lankan district.');
     }
 
-    if (b.incident_date && Number.isNaN(Date.parse(b.incident_date))) {
+    const incidentDate = optStr(b.incident_date);
+    if (incidentDate && Number.isNaN(Date.parse(incidentDate))) {
       errors.push('incident_date must be a valid date (YYYY-MM-DD).');
     }
 
@@ -128,7 +144,7 @@ const createReport = async (req, res) => {
     // Title: use the reporter's, else auto-derive a short one from the narrative.
     const description = str(b.description);
     const derivedTitle = description.length > 60 ? `${description.slice(0, 57)}…` : description;
-    const title = str(b.title) || derivedTitle;
+    const title = optStr(b.title) || derivedTitle;
 
     // ---- Optional evidence upload to Supabase Storage ----
     // The stored filename is random — the original filename is discarded
@@ -155,19 +171,39 @@ const createReport = async (req, res) => {
         });
 
       if (uploadError) {
+        console.error('[reportsController] Evidence upload error:', uploadError);
+        const isDev = process.env.NODE_ENV !== 'production';
         return res.status(500).json({
           success: false,
           message: `Evidence upload failed: ${uploadError.message}`,
+          ...(isDev ? {
+            error: {
+              message: uploadError.message,
+              details: uploadError.details || null,
+              hint: uploadError.hint || null,
+              code: uploadError.code || null,
+            },
+          } : {}),
         });
       }
       evidencePath = storageName;
     }
 
     // ---- Insert with reference-code collision retry ----
+    console.log('[reportsController] Payload before save:');
+    console.log('req.body:', req.body);
+    console.log('req.file:', req.file ? {
+      fieldname: req.file.fieldname,
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+    } : null);
+
+    let lastError = null;
     for (let attempt = 1; attempt <= MAX_CODE_ATTEMPTS; attempt++) {
       const referenceCode = generateReferenceCode();
 
-      const { error } = await supabase.from('case_reports').insert({
+      const reportData = {
         reference_code: referenceCode,
         reporter_type: reporterType,
         case_type: normalisedType,
@@ -176,7 +212,7 @@ const createReport = async (req, res) => {
         description,
         people_involved: optStr(b.people_involved),
         victim_information: optStr(b.victim_information),
-        incident_date: b.incident_date || null,
+        incident_date: incidentDate,
         incident_date_approximate: bool(b.incident_date_approximate),
         incident_time: optStr(b.incident_time),
         incident_time_approximate: bool(b.incident_time_approximate),
@@ -191,22 +227,49 @@ const createReport = async (req, res) => {
         previous_report_details: optStr(b.previous_report_details),
         assistance_requested: assistance,
         additional_information: optStr(b.additional_information),
-      });
+      };
 
-      if (!error) {
-        return res.status(201).json({
-          success: true,
-          message: 'Report received.',
-          data: { reference_code: referenceCode },
-        });
+      // In case the DB schema hasn't applied all migration columns yet, gracefully strip missing columns
+      while (true) {
+        const { error } = await supabase.from('case_reports').insert(reportData);
+
+        if (!error) {
+          return res.status(201).json({
+            success: true,
+            message: 'Report received.',
+            data: { reference_code: referenceCode },
+          });
+        }
+
+        if (error.code === 'PGRST204') {
+          const match = error.message?.match(/Could not find the '([^']+)' column/);
+          if (match && match[1] && reportData[match[1]] !== undefined) {
+            console.warn(`[reportsController] Database schema missing column '${match[1]}', stripping and retrying save.`);
+            delete reportData[match[1]];
+            continue;
+          }
+        }
+
+        lastError = error;
+        console.error(`[reportsController] Insert attempt ${attempt} failed:`, error);
+        break;
       }
 
       // 23505 = Postgres unique violation -> code collision, try a new code.
-      if (error.code !== '23505') {
-        console.error('Failed to insert case report:', error.message);
+      if (lastError && lastError.code !== '23505') {
+        console.error('Failed to insert case report (fatal):', lastError);
+        const isDev = process.env.NODE_ENV !== 'production';
         return res.status(500).json({
           success: false,
           message: 'Could not save the report. Please try again.',
+          ...(isDev && lastError ? {
+            error: {
+              message: lastError.message,
+              details: lastError.details,
+              hint: lastError.hint,
+              code: lastError.code,
+            },
+          } : {}),
         });
       }
     }
@@ -217,9 +280,18 @@ const createReport = async (req, res) => {
     });
   } catch (err) {
     console.error('Unexpected error creating report:', err);
+    const isDev = process.env.NODE_ENV !== 'production';
     return res.status(500).json({
       success: false,
       message: 'Could not save the report. Please try again.',
+      ...(isDev && err ? {
+        error: {
+          message: err.message,
+          details: err.details || null,
+          hint: err.hint || null,
+          code: err.code || null,
+        },
+      } : {}),
     });
   }
 };
@@ -271,19 +343,37 @@ const listReports = async (req, res) => {
     const { data, error } = await query;
 
     if (error) {
-      console.error('Failed to list case reports:', error.message);
+      console.error('Failed to list case reports:', error);
+      const isDev = process.env.NODE_ENV !== 'production';
       return res.status(500).json({
         success: false,
         message: 'Could not load reports. Please try again.',
+        ...(isDev ? {
+          error: {
+            message: error.message,
+            details: error.details || null,
+            hint: error.hint || null,
+            code: error.code || null,
+          },
+        } : {}),
       });
     }
 
     return res.json({ success: true, data });
   } catch (err) {
     console.error('Unexpected error listing reports:', err);
+    const isDev = process.env.NODE_ENV !== 'production';
     return res.status(500).json({
       success: false,
       message: 'Could not load reports. Please try again.',
+      ...(isDev && err ? {
+        error: {
+          message: err.message,
+          details: err.details || null,
+          hint: err.hint || null,
+          code: err.code || null,
+        },
+      } : {}),
     });
   }
 };

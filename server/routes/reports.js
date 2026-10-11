@@ -26,7 +26,19 @@ const upload = multer({
 // POST /api/reports — anonymous submission ("evidence" = optional file field).
 // DELIBERATELY UNGUARDED: reporters never authenticate, so this route must NOT
 // carry requireStaff — adding auth here would break anonymous reporting.
-router.post('/', upload.single('evidence'), createReport);
+router.post('/', (req, res, next) => {
+  upload.single('evidence')(req, res, function (err) {
+    if (err) {
+      console.error('Multer file upload error:', err);
+      return res.status(400).json({
+        success: false,
+        message: 'File upload error: ' + err.message,
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined,
+      });
+    }
+    createReport(req, res).catch(next);
+  });
+});
 
 // GET /api/reports — staff list with ?case_type= and ?status= filters.
 // GUARDED: listing cases is staff-only (see CLAUDE.md authorization matrix —
