@@ -43,11 +43,23 @@ async function getCaseByReferenceCode(referenceCode) {
     return null;
   }
 
-  const { data: caseRow, error: caseError } = await supabase
+  let { data: caseRow, error: caseError } = await supabase
     .from('case_reports')
     .select(SAFE_CASE_COLUMNS)
     .eq('reference_code', normalisedCode)
     .maybeSingle();
+
+  // If DB hasn't been migrated with expanded columns yet, fallback to base safe columns
+  if (caseError && caseError.message && caseError.message.includes('does not exist')) {
+    const fallbackColumns = 'id, reference_code, case_type, district, incident_date, status, created_at, updated_at';
+    const fallbackResult = await supabase
+      .from('case_reports')
+      .select(fallbackColumns)
+      .eq('reference_code', normalisedCode)
+      .maybeSingle();
+    caseRow = fallbackResult.data;
+    caseError = fallbackResult.error;
+  }
 
   if (caseError) {
     // A DB failure is a server problem — surface it so the controller returns a

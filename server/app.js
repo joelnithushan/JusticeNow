@@ -9,9 +9,11 @@
  * anonymous end to end.
  */
 
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
 
 // Import Routes
 const healthRoutes = require('./routes/health');
@@ -31,7 +33,14 @@ const app = express();
 // Enable CORS for the frontend client
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
 app.use(cors({
-  origin: [clientUrl, 'http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: [
+    clientUrl, 
+    'http://localhost:3000', 
+    'http://127.0.0.1:3000', 
+    'http://localhost:8081',
+    'http://127.0.0.1:8081',
+    /^http:\/\/192\.168\.\d+\.\d+:\d+$/ // Allow LAN connections for Expo Go
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   credentials: true,
 }));
