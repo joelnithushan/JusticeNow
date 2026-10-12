@@ -84,26 +84,47 @@ CREATE TABLE staff_users (
 
 -- Anonymous case reports. Deliberately NO link to any person.
 CREATE TABLE case_reports (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    reference_code  VARCHAR(12) NOT NULL UNIQUE,
-    case_type       VARCHAR(30) NOT NULL
-                    -- Must stay in lock-step with CASE_TYPES in server/constants.js
-                    -- (the shared source of truth). If they drift, a valid report
-                    -- is rejected by the DB backstop instead of by validation.
-                    CHECK (case_type IN ('harassment','violence','domestic_violence',
-                        'sexual_abuse','discrimination','child_protection','corruption',
-                        'abuse_of_authority','human_rights_violation','workplace_abuse',
-                        'cyber_harassment','unlawful_detention','land_dispute',
-                        'official_misconduct','other')),
-    incident_date   DATE,
-    district        VARCHAR(50) NOT NULL,
-    description     TEXT NOT NULL,
-    evidence_path   TEXT,
-    status          VARCHAR(20) NOT NULL DEFAULT 'received'
-                    CHECK (status IN ('received','under_review','referred','closed')),
-    assigned_org_id UUID REFERENCES organisations(id) ON DELETE SET NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reference_code            VARCHAR(12) NOT NULL UNIQUE,
+    reporter_type             TEXT DEFAULT 'prefer_not_to_say'
+                              CHECK (reporter_type IS NULL OR reporter_type IN ('victim', 'witness', 'third_party', 'informed', 'prefer_not_to_say')),
+    case_type                 VARCHAR(30) NOT NULL
+                              -- Must stay in lock-step with CASE_TYPES in server/constants.js
+                              -- (the shared source of truth). If they drift, a valid report
+                              -- is rejected by the DB backstop instead of by validation.
+                              CHECK (case_type IN ('harassment','violence','domestic_violence',
+                                  'sexual_abuse','discrimination','child_protection','corruption',
+                                  'abuse_of_authority','human_rights_violation','workplace_abuse',
+                                  'cyber_harassment','unlawful_detention','land_dispute',
+                                  'official_misconduct','other')),
+    custom_category           TEXT,
+    title                     TEXT,
+    description               TEXT NOT NULL,
+    people_involved           TEXT,
+    victim_information        TEXT,
+    incident_date             DATE,
+    incident_date_approximate BOOLEAN NOT NULL DEFAULT FALSE,
+    incident_time             TEXT,
+    incident_time_approximate BOOLEAN NOT NULL DEFAULT FALSE,
+    district                  VARCHAR(50) NOT NULL,
+    location_name             TEXT,
+    evidence_path             TEXT,
+    evidence_description      TEXT,
+    other_witnesses           TEXT
+                              CHECK (other_witnesses IS NULL OR other_witnesses IN ('yes', 'no', 'not_sure')),
+    witness_details           TEXT,
+    immediate_risk            TEXT
+                              CHECK (immediate_risk IS NULL OR immediate_risk IN ('yes', 'no', 'not_sure')),
+    previously_reported       TEXT
+                              CHECK (previously_reported IS NULL OR previously_reported IN ('none', 'police', 'ngo', 'government', 'school', 'workplace', 'other', 'prefer_not_to_say')),
+    previous_report_details   TEXT,
+    assistance_requested      TEXT[] NOT NULL DEFAULT '{}',
+    additional_information    TEXT,
+    status                    VARCHAR(20) NOT NULL DEFAULT 'received'
+                              CHECK (status IN ('received','under_review','referred','closed')),
+    assigned_org_id           UUID REFERENCES organisations(id) ON DELETE SET NULL,
+    created_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Notes on a case. is_reporter_visible controls whether the note is shown to the

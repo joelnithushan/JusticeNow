@@ -215,11 +215,22 @@ async function getCaseDetail(id, caller) {
     throw new NotFoundError('Case not found.');
   }
 
-  const { data: caseRow, error: caseError } = await supabase
+  let { data: caseRow, error: caseError } = await supabase
     .from('case_reports')
     .select(FULL_CASE_COLUMNS)
     .eq('id', trimmedId)
     .maybeSingle();
+
+  if (caseError && caseError.message && caseError.message.includes('does not exist')) {
+    const fallbackColumns = 'id, reference_code, case_type, district, description, incident_date, evidence_path, status, assigned_org_id, created_at, updated_at';
+    const fallbackResult = await supabase
+      .from('case_reports')
+      .select(fallbackColumns)
+      .eq('id', trimmedId)
+      .maybeSingle();
+    caseRow = fallbackResult.data;
+    caseError = fallbackResult.error;
+  }
 
   if (caseError) {
     throw new Error(`Case lookup failed: ${caseError.message}`);
