@@ -26,7 +26,7 @@ import {
 import { Link } from 'expo-router';
 import axios from 'axios';
 import * as Speech from 'expo-speech';
-import { usePreventScreenCapture } from 'expo-screen-capture';
+import { useSafeScreenCapture } from '../src/hooks/useSafeScreenCapture';
 import { useTranslation } from 'react-i18next';
 
 import ReporterTopBar from '../components/ReporterTopBar';
@@ -66,7 +66,7 @@ export default function Guidance() {
 
   // SAFETY: the scenario a user types + the legal guidance can be sensitive;
   // block screenshots / screen recording while this screen is open.
-  usePreventScreenCapture();
+  useSafeScreenCapture();
 
   const [scenario, setScenario] = useState('');
   const [district, setDistrict] = useState<string | null>(savedDistrict ?? null);
