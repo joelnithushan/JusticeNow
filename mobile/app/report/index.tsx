@@ -42,7 +42,7 @@ import { useTranslation } from 'react-i18next';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { usePreventScreenCapture } from 'expo-screen-capture';
+import { useSafeScreenCapture } from '../../src/hooks/useSafeScreenCapture';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useAudioRecorder, useAudioRecorderState, getRecordingPermissionsAsync, requestRecordingPermissionsAsync, setAudioModeAsync, IOSOutputFormat, AudioQuality } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -186,7 +186,7 @@ export default function ReportCase() {
   // SAFETY: block screenshots / screen recording while a report is on screen. On
   // Android this also hides the app's content in the recents switcher, so a
   // narrative can't be captured off a shared or seized phone.
-  usePreventScreenCapture();
+  useSafeScreenCapture();
 
   const [step, setStep] = useState(1);
   // Reset the scroll to the top whenever the step changes, so each new step opens

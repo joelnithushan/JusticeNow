@@ -38,7 +38,7 @@ import ReporterTopBar from '../components/ReporterTopBar';
 import ErrorState from '../components/ErrorState';
 import QrScannerModal from '../components/QrScannerModal';
 import ReadAloudButton from '../components/ReadAloudButton';
-import { usePreventScreenCapture } from 'expo-screen-capture';
+import { useSafeScreenCapture } from '../src/hooks/useSafeScreenCapture';
 import { fetchCaseStatus, postCaseMessage } from '../src/api/client';
 import type { CaseStatus, CaseStatusNote } from '../src/api/client';
 import { REPORTER_MESSAGE_MAX } from '../src/constants';
@@ -79,7 +79,7 @@ export default function CheckStatus() {
 
   // SAFETY: a case status + reporter-visible notes are sensitive; block
   // screenshots / screen recording (and recents-preview capture on Android).
-  usePreventScreenCapture();
+  useSafeScreenCapture();
 
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);

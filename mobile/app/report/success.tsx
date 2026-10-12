@@ -15,9 +15,9 @@ import { useTranslation } from 'react-i18next';
 import * as Clipboard from 'expo-clipboard';
 // expo-media-library is a native module — not available in standard Expo Go.
 // We load it lazily so a missing native module does not crash the whole screen.
-// The classic API (requestPermissionsAsync / saveToLibraryAsync) lives under /legacy in v57.
-let MediaLibrary: typeof import('expo-media-library/legacy') | null = null;
-try { MediaLibrary = require('expo-media-library/legacy'); } catch { MediaLibrary = null; }
+// In SDK 57, MediaLibrary.Asset.create(fileUri) is the class-based API.
+let MediaLibrary: typeof import('expo-media-library') | null = null;
+try { MediaLibrary = require('expo-media-library'); } catch { MediaLibrary = null; }
 // The classic file API (cacheDirectory / writeAsStringAsync) lives under /legacy
 // in expo-file-system v57.
 import * as FileSystem from 'expo-file-system/legacy';
@@ -119,12 +119,18 @@ export default function ReportSuccess() {
       await FileSystem.writeAsStringAsync(fileUri, base64, {
         encoding: FileSystem.EncodingType.Base64,
       });
-      try {
-        await MediaLibrary.saveToLibraryAsync(fileUri);
-      } catch {
-        // Some Android devices reject saveToLibraryAsync (write-only scope) but
-        // accept createAssetAsync — fall back to it before giving up.
-        await MediaLibrary.createAssetAsync(fileUri);
+      if (MediaLibrary.Asset && typeof MediaLibrary.Asset.create === 'function') {
+        await MediaLibrary.Asset.create(fileUri);
+      } else if (typeof (MediaLibrary as any).saveToLibraryAsync === 'function') {
+        try {
+          await (MediaLibrary as any).saveToLibraryAsync(fileUri);
+        } catch {
+          if (typeof (MediaLibrary as any).createAssetAsync === 'function') {
+            await (MediaLibrary as any).createAssetAsync(fileUri);
+          }
+        }
+      } else if (typeof (MediaLibrary as any).createAssetAsync === 'function') {
+        await (MediaLibrary as any).createAssetAsync(fileUri);
       }
       Alert.alert(t('success.qrSaveTitle'), t('success.qrSaved'));
     } catch {
