@@ -193,8 +193,9 @@ const local = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 14,
+    minHeight: 44, // guaranteed ≥44dp tap target (survivor-critical control)
     backgroundColor: colors.background,
   },
   hlIcon: {

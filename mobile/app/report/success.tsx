@@ -8,16 +8,16 @@
  * device.
  */
 
-import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Link, Redirect, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Link, Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as Clipboard from 'expo-clipboard';
 // expo-media-library is a native module — not available in standard Expo Go.
 // We load it lazily so a missing native module does not crash the whole screen.
-// The classic API (requestPermissionsAsync / saveToLibraryAsync) lives under /legacy in v57.
-let MediaLibrary: typeof import('expo-media-library/legacy') | null = null;
-try { MediaLibrary = require('expo-media-library/legacy'); } catch { MediaLibrary = null; }
+// In SDK 57, MediaLibrary.Asset.create(fileUri) is the class-based API.
+let MediaLibrary: typeof import('expo-media-library') | null = null;
+try { MediaLibrary = require('expo-media-library'); } catch { MediaLibrary = null; }
 // The classic file API (cacheDirectory / writeAsStringAsync) lives under /legacy
 // in expo-file-system v57.
 import * as FileSystem from 'expo-file-system/legacy';
@@ -75,8 +75,35 @@ export default function ReportSuccess() {
   const { referenceCode } = useLocalSearchParams<{ referenceCode?: string }>();
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
+  // The reference code is the reporter's ONLY handle on the case and is never
+  // persisted. Every way off this screen is gated behind an explicit confirmation
+  // that the user has saved it — copying the code or saving the QR does NOT tick
+  // this; the confirmation must be deliberate.
+  const [savedConfirmed, setSavedConfirmed] = useState(false);
+  const router = useRouter();
   // Ref to the QRCode so we can export it as a PNG to save to the gallery.
   const qrRef = useRef<{ toDataURL: (cb: (data: string) => void) => void } | null>(null);
+
+  // Intercept the Android hardware back: if the code isn't confirmed saved, warn
+  // first — the default action keeps the user here to save it. Once confirmed,
+  // back behaves normally. (iOS has no hardware back and the header back is hidden
+  // on this screen, so the on-screen gated buttons below cover iOS.)
+  useEffect(() => {
+    const onBack = () => {
+      if (savedConfirmed) return false; // allow the default back
+      Alert.alert(
+        t('success.gateTitle'),
+        t('success.gateBody'),
+        [
+          { text: t('success.gateStay'), style: 'cancel' },
+          { text: t('success.gateLeave'), style: 'destructive', onPress: () => router.replace('/') },
+        ],
+      );
+      return true; // block the default back
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
+    return () => sub.remove();
+  }, [savedConfirmed, t, router]);
 
   if (!referenceCode) {
     return <Redirect href="/" />;
@@ -95,7 +122,7 @@ export default function ReportSuccess() {
   const saveQr = async () => {
     if (saving || !qrRef.current) return;
     if (!MediaLibrary) {
-      Alert.alert('Not available', 'Saving to gallery requires a full build of the app.');
+      Alert.alert(t('success.qrUnavailableTitle'), t('success.qrUnavailableBody'));
       return;
     }
     setSaving(true);
@@ -119,12 +146,18 @@ export default function ReportSuccess() {
       await FileSystem.writeAsStringAsync(fileUri, base64, {
         encoding: FileSystem.EncodingType.Base64,
       });
-      try {
-        await MediaLibrary.saveToLibraryAsync(fileUri);
-      } catch {
-        // Some Android devices reject saveToLibraryAsync (write-only scope) but
-        // accept createAssetAsync — fall back to it before giving up.
-        await MediaLibrary.createAssetAsync(fileUri);
+      if (MediaLibrary.Asset && typeof MediaLibrary.Asset.create === 'function') {
+        await MediaLibrary.Asset.create(fileUri);
+      } else if (typeof (MediaLibrary as any).saveToLibraryAsync === 'function') {
+        try {
+          await (MediaLibrary as any).saveToLibraryAsync(fileUri);
+        } catch {
+          if (typeof (MediaLibrary as any).createAssetAsync === 'function') {
+            await (MediaLibrary as any).createAssetAsync(fileUri);
+          }
+        }
+      } else if (typeof (MediaLibrary as any).createAssetAsync === 'function') {
+        await (MediaLibrary as any).createAssetAsync(fileUri);
       }
       Alert.alert(t('success.qrSaveTitle'), t('success.qrSaved'));
     } catch {
@@ -217,19 +250,45 @@ export default function ReportSuccess() {
         </Link>
       </View>
 
-      {/* Primary action: checking the case is what matters most here. */}
-      <Link href="/status" asChild>
-        <Pressable style={theme.btnPrimary} accessibilityRole="button">
-          <Text style={theme.btnPrimaryText}>{t('success.checkStatusButton')}</Text>
-        </Pressable>
-      </Link>
-      {/* Secondary, de-emphasised: a subtle arrow link back home. */}
-      <Link href="/" asChild>
-        <Pressable style={local.homeBtn} accessibilityRole="button">
-          <BackArrow color={colors.muted} />
-          <Text style={local.homeBtnText}>{t('success.backHome')}</Text>
-        </Pressable>
-      </Link>
+      {/* Save-gate: the code is unrecoverable, so the user must deliberately
+          confirm they have saved it before the leave actions below unlock.
+          Copying the code or saving the QR does NOT tick this. */}
+      <Pressable
+        onPress={() => setSavedConfirmed((v) => !v)}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: savedConfirmed }}
+        accessibilityLabel={t('success.saveGateLabel')}
+        style={local.gateRow}
+        hitSlop={8}
+      >
+        <View style={[local.gateBox, savedConfirmed && local.gateBoxChecked]}>
+          {savedConfirmed ? <Text style={local.gateCheck}>✓</Text> : null}
+        </View>
+        <Text style={local.gateLabel}>{t('success.saveGateLabel')}</Text>
+      </Pressable>
+
+      {/* Primary action: checking the case is what matters most here. Disabled
+          until the code is confirmed saved (see save-gate above). */}
+      <Pressable
+        onPress={() => router.push('/status')}
+        disabled={!savedConfirmed}
+        style={[theme.btnPrimary, !savedConfirmed && theme.btnDisabled]}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !savedConfirmed }}
+      >
+        <Text style={theme.btnPrimaryText}>{t('success.checkStatusButton')}</Text>
+      </Pressable>
+      {/* Secondary, de-emphasised: a subtle arrow back home. Also gated. */}
+      <Pressable
+        onPress={() => router.push('/')}
+        disabled={!savedConfirmed}
+        style={[local.homeBtn, !savedConfirmed && theme.btnDisabled]}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !savedConfirmed }}
+      >
+        <BackArrow color={colors.muted} />
+        <Text style={local.homeBtnText}>{t('success.backHome')}</Text>
+      </Pressable>
       </ScrollView>
     </View>
   );
@@ -288,8 +347,10 @@ const local = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.primary,
     borderRadius: 10,
-    paddingVertical: 9,
+    paddingVertical: 11,
     paddingHorizontal: 16,
+    minHeight: 44, // ≥44dp tap target
+    justifyContent: 'center',
   },
   supportBtnText: { fontSize: 14, fontWeight: '800', color: colors.primary },
 
@@ -301,7 +362,30 @@ const local = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     marginTop: 14,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    minHeight: 44, // ≥44dp tap target
   },
   homeBtnText: { fontSize: 15, fontWeight: '600', color: colors.muted },
+
+  // Save-gate checkbox row — ≥44dp target; deliberate, unticked by default.
+  gateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 44,
+    paddingVertical: 8,
+    marginTop: 8,
+  },
+  gateBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gateBoxChecked: { backgroundColor: colors.primary },
+  gateCheck: { color: colors.primaryText, fontSize: 15, fontWeight: '800', lineHeight: 18 },
+  gateLabel: { flexShrink: 1, fontSize: 15, fontWeight: '600', color: colors.text },
 });

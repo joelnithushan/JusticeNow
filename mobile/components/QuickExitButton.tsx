@@ -17,9 +17,11 @@
  * discreet cover and gives a mis-tap a quiet way back, matching the web.)
  *
  * WHERE IT APPEARS
- * Mounted once in the root layout, but it hides itself on the splash (nothing
- * typed yet), on staff screens (staff are authenticated — a different threat
- * model) and on the neutral screen itself.
+ * Mounted once in the root layout. It shows on every reporter screen (home,
+ * the report wizard, success, status, guidance, rights, directory, about,
+ * transparency, preferences) and hides itself on the brand splash, onboarding,
+ * all /staff screens (staff are authenticated — a different threat model) and
+ * the neutral /exit screen itself.
  *
  * APPEARANCE
  * A charcoal (#111827) circle with a white cross: deliberately NOT red (red
@@ -34,6 +36,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useReportForm } from '../src/context/ReportFormContext';
+import { useOnboarding } from '../src/context/OnboardingContext';
+import { usePreferences } from '../src/context/PreferencesContext';
 
 // The neutral screen the button escapes to (app/exit.tsx).
 export const EXIT_PATH = '/exit';
@@ -44,7 +48,6 @@ export const EXIT_PATH = '/exit';
  * is protected by default — the safe failure mode is "button shown".
  */
 export function isReporterScreen(pathname: string): boolean {
-  if (pathname === '/') return false; // splash — nothing to clear yet
   if (pathname === EXIT_PATH) return false; // already on the neutral screen
   if (pathname.startsWith('/staff')) return false; // staff: different threat model
   if (pathname.startsWith('/onboarding')) return false; // intro — no case data yet
@@ -56,8 +59,14 @@ export default function QuickExitButton() {
   const router = useRouter();
   const pathname = usePathname();
   const { reset } = useReportForm();
+  const { splashSeen } = useOnboarding();
+  const { hydrated, setupComplete } = usePreferences();
   const insets = useSafeAreaInsets();
 
+  // The home route "/" doubles as the brand splash (and, on first run, a redirect
+  // to onboarding) until setup is done — keep the control hidden there so it never
+  // floats over the splash. Every other reporter route (incl. /preferences) shows it.
+  if (pathname === '/' && (!splashSeen || !hydrated || !setupComplete)) return null;
   if (!isReporterScreen(pathname)) return null;
 
   const exitNow = () => {

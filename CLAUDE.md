@@ -31,9 +31,10 @@ NGO officers, admins) authenticate. Every rule below exists to protect that prop
 - **Never write CASE DATA to device storage** (`localStorage`/`sessionStorage`/
   AsyncStorage): no narratives, report drafts, reference codes, evidence, or
   internal notes. Report drafts stay in memory only (never written to disk) and
-  are discarded on submit or when the app closes. NOTE: the web client still has
-  a Quick Exit control that clears the draft on demand; the mobile Quick Exit was
-  removed by product decision, so the mobile draft relies on the in-memory rule.
+  are discarded on submit or when the app closes. NOTE: both the web client and
+  the mobile app have a Quick Exit control that clears the in-memory draft on
+  demand (mobile: `components/QuickExitButton.tsx`, mounted in `app/_layout.tsx`,
+  shown on every reporter screen and hidden on splash/onboarding/staff/exit).
   The ONLY things allowed on the device are non-case UI preferences — the
   "onboarding/setup seen" flag and the chosen **language + district** (persisted
   by explicit product decision so returning users aren't re-asked). NOTE the

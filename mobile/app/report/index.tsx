@@ -42,7 +42,7 @@ import { useTranslation } from 'react-i18next';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { usePreventScreenCapture } from 'expo-screen-capture';
+import { useSafeScreenCapture } from '../../src/hooks/useSafeScreenCapture';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useAudioRecorder, useAudioRecorderState, getRecordingPermissionsAsync, requestRecordingPermissionsAsync, setAudioModeAsync, IOSOutputFormat, AudioQuality } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -186,7 +186,7 @@ export default function ReportCase() {
   // SAFETY: block screenshots / screen recording while a report is on screen. On
   // Android this also hides the app's content in the recents switcher, so a
   // narrative can't be captured off a shared or seized phone.
-  usePreventScreenCapture();
+  useSafeScreenCapture();
 
   const [step, setStep] = useState(1);
   // Reset the scroll to the top whenever the step changes, so each new step opens
@@ -331,18 +331,48 @@ export default function ReportCase() {
       setStep((v) => Math.min(v + 1, TOTAL_STEPS));
     }
   };
-  const goBack = () => {
-    setErrors({});
-    // Earlier steps: go to the previous step. At step 1: leave the form — pop the
-    // stack if we can, otherwise fall back to Home so the arrow always works
-    // (e.g. when the screen was deep-linked and there is nothing to pop).
-    if (step > 1) {
-      setStep((v) => Math.max(v - 1, 1));
-    } else if (router.canGoBack()) {
+  // True when the reporter has entered anything at all — used to confirm before a
+  // stray back-tap discards the (memory-only, unrecoverable) draft.
+  const draftHasContent =
+    Boolean(
+      draft.reporterType || draft.caseType || draft.customCategory || draft.title.trim() ||
+        draft.description.trim() || draft.peopleInvolved.trim() || draft.victimInformation.trim() ||
+        draft.incidentDate || draft.incidentTime.trim() || draft.district || draft.locationName.trim() ||
+        draft.evidenceFile || draft.evidenceDescription.trim() || draft.otherWitnesses ||
+        draft.witnessDetails.trim() || draft.immediateRisk || draft.previouslyReported ||
+        draft.previousReportDetails.trim() || draft.additionalInformation.trim(),
+    ) || draft.assistanceRequested.length > 0;
+
+  const leaveForm = () => {
+    // Pop the stack if we can, otherwise fall back to Home so the arrow always
+    // works (e.g. when the screen was deep-linked and there is nothing to pop).
+    if (router.canGoBack()) {
       router.back();
     } else {
       router.replace('/');
     }
+  };
+  const goBack = () => {
+    setErrors({});
+    // Earlier steps just step back one page.
+    if (step > 1) {
+      setStep((v) => Math.max(v - 1, 1));
+      return;
+    }
+    // Step 1 → leaving the form. If anything has been entered, confirm first so a
+    // stray tap doesn't discard the draft (memory-only, nothing on disk to restore).
+    if (draftHasContent) {
+      Alert.alert(
+        t('report.discard.title'),
+        t('report.discard.body'),
+        [
+          { text: t('report.discard.keep'), style: 'cancel' },
+          { text: t('report.discard.leave'), style: 'destructive', onPress: () => { reset(); leaveForm(); } },
+        ],
+      );
+      return;
+    }
+    leaveForm();
   };
   const goToStep = (s: number) => {
     setErrors({});
@@ -883,7 +913,11 @@ export default function ReportCase() {
                   <Text style={local.fileName} numberOfLines={1}>
                     {draft.evidenceFile.name}
                   </Text>
-                  <Pressable onPress={() => setField('evidenceFile', null)}>
+                  <Pressable
+                    onPress={() => setField('evidenceFile', null)}
+                    accessibilityRole="button"
+                    hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+                  >
                     <Text style={theme.btnLinkText}>{t('report.wizard.removeFile')}</Text>
                   </Pressable>
                 </View>
@@ -1331,7 +1365,7 @@ function ReviewSection({
     <View style={local.reviewSection}>
       <View style={local.reviewHeader}>
         <Text style={local.reviewTitle}>{title}</Text>
-        <Pressable onPress={onEdit} accessibilityRole="button">
+        <Pressable onPress={onEdit} accessibilityRole="button" hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}>
           <Text style={theme.btnLinkText}>{t('report.editSection')}</Text>
         </Pressable>
       </View>
@@ -1512,6 +1546,8 @@ const local = StyleSheet.create({
     marginBottom: 8,
     borderWidth: 1,
     borderColor: colors.border,
+    minHeight: 44, // ≥44dp tap target
+    justifyContent: 'center',
   },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: 13, fontWeight: '600', color: colors.primary },
@@ -1536,7 +1572,7 @@ const local = StyleSheet.create({
   reviewLabel: { fontSize: 12, color: colors.muted, marginBottom: 2 },
   reviewValue: { fontSize: 15, color: colors.text, lineHeight: 20 },
 
-  confirmRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 6, marginBottom: 4 },
+  confirmRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 6, marginBottom: 4, minHeight: 44, paddingVertical: 8 },
   checkbox: {
     width: 24,
     height: 24,

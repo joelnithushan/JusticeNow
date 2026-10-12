@@ -16,7 +16,6 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -27,7 +26,7 @@ import {
 import { Link } from 'expo-router';
 import axios from 'axios';
 import * as Speech from 'expo-speech';
-import * as ScreenCapture from 'expo-screen-capture';
+import { useSafeScreenCapture } from '../src/hooks/useSafeScreenCapture';
 import { useTranslation } from 'react-i18next';
 
 import ReporterTopBar from '../components/ReporterTopBar';
@@ -66,17 +65,8 @@ export default function Guidance() {
   const { district: savedDistrict } = usePreferences();
 
   // SAFETY: the scenario a user types + the legal guidance can be sensitive;
-  // block screenshots / screen recording while this screen is open (native only).
-  useEffect(() => {
-    if (Platform.OS !== 'web') {
-      ScreenCapture.preventScreenCaptureAsync().catch(() => {});
-    }
-    return () => {
-      if (Platform.OS !== 'web') {
-        ScreenCapture.allowScreenCaptureAsync().catch(() => {});
-      }
-    };
-  }, []);
+  // block screenshots / screen recording while this screen is open.
+  useSafeScreenCapture();
 
   const [scenario, setScenario] = useState('');
   const [district, setDistrict] = useState<string | null>(savedDistrict ?? null);
@@ -513,6 +503,7 @@ function OrgCard({ org }: { org: Organisation }) {
           <Pressable
             onPress={() => Linking.openURL(`tel:${org.contact_phone}`)}
             accessibilityRole="button"
+            hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
           >
             <Text style={local.orgLink}>{org.contact_phone}</Text>
           </Pressable>
@@ -521,6 +512,7 @@ function OrgCard({ org }: { org: Organisation }) {
           <Pressable
             onPress={() => Linking.openURL(`mailto:${org.contact_email}`)}
             accessibilityRole="button"
+            hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
           >
             <Text style={local.orgLink}>{org.contact_email}</Text>
           </Pressable>
@@ -717,7 +709,7 @@ const local = StyleSheet.create({
   langRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   langChip: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 9,
@@ -884,10 +876,13 @@ const local = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.primary,
     backgroundColor: colors.background,
+    minHeight: 44, // ≥44dp tap target
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actionBtnText: { fontSize: 13, color: colors.primary, fontWeight: '700' },
 
-  sourceRow: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
+  sourceRow: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border, minHeight: 44, justifyContent: 'center' },
   sourceText: { fontSize: 12, color: colors.muted, fontWeight: '600' },
 
   // Legal-basis provision card.

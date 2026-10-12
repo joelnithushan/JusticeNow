@@ -190,15 +190,10 @@ const createReport = async (req, res) => {
     }
 
     // ---- Insert with reference-code collision retry ----
-    console.log('[reportsController] Payload before save:');
-    console.log('req.body:', req.body);
-    console.log('req.file:', req.file ? {
-      fieldname: req.file.fieldname,
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size,
-    } : null);
-
+    // NOTE: never log req.body / req.file here — the payload holds the narrative,
+    // victim details and (once generated) the reference code, none of which may
+    // ever be written to logs (CLAUDE.md: "Never log case narratives, evidence
+    // paths or reference codes").
     let lastError = null;
     for (let attempt = 1; attempt <= MAX_CODE_ATTEMPTS; attempt++) {
       const referenceCode = generateReferenceCode();
@@ -229,8 +224,11 @@ const createReport = async (req, res) => {
         additional_information: optStr(b.additional_information),
       };
 
-      // In case the DB schema hasn't applied all migration columns yet, gracefully strip missing columns
-      while (true) {
+      // In case the DB schema hasn't applied all migration columns yet, gracefully
+      // strip missing columns and retry. Bounded by the field count so a persistent
+      // error can never loop forever (each pass strips at most one column).
+      const maxStrips = Object.keys(reportData).length;
+      for (let strip = 0; strip <= maxStrips; strip++) {
         const { error } = await supabase.from('case_reports').insert(reportData);
 
         if (!error) {
