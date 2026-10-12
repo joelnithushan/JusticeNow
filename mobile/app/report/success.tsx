@@ -15,8 +15,9 @@ import { useTranslation } from 'react-i18next';
 import * as Clipboard from 'expo-clipboard';
 // expo-media-library is a native module — not available in standard Expo Go.
 // We load it lazily so a missing native module does not crash the whole screen.
-let MediaLibrary: typeof import('expo-media-library') | null = null;
-try { MediaLibrary = require('expo-media-library'); } catch { MediaLibrary = null; }
+// The classic API (requestPermissionsAsync / saveToLibraryAsync) lives under /legacy in v57.
+let MediaLibrary: typeof import('expo-media-library/legacy') | null = null;
+try { MediaLibrary = require('expo-media-library/legacy'); } catch { MediaLibrary = null; }
 // The classic file API (cacheDirectory / writeAsStringAsync) lives under /legacy
 // in expo-file-system v57.
 import * as FileSystem from 'expo-file-system/legacy';
