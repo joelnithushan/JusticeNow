@@ -71,6 +71,12 @@ const STAFF_DETAIL_COLUMNS =
   'date_of_birth, avatar_path, profile_completed, created_at, ' +
   'suspended_at, suspension_reason, deleted_at, deletion_reason';
 
+const STAFF_DETAIL_COLUMNS_FALLBACK =
+  'id, name, email, role, organisation_id, is_active, access_status, mfa_enabled, ' +
+  'mfa_method, nic, phone, designation, bar_number, department, gender, ' +
+  'date_of_birth, profile_completed, created_at, ' +
+  'suspended_at, suspension_reason, deleted_at, deletion_reason';
+
 /** A validation error the controller maps to a 400 (mirrors organisationService). */
 class ValidationError extends Error {
   constructor(message) {
@@ -753,11 +759,22 @@ async function registerStaff(input, { google = false } = {}) {
  */
 async function getStaffDetail(id) {
   const trimmedId = (id || '').trim();
-  const { data: row, error } = await supabase
+  let { data: row, error } = await supabase
     .from('staff_users')
     .select(STAFF_DETAIL_COLUMNS)
     .eq('id', trimmedId)
     .maybeSingle();
+
+  if (error && (error.code === '42703' || error.message?.includes('avatar_path'))) {
+    const fallbackRes = await supabase
+      .from('staff_users')
+      .select(STAFF_DETAIL_COLUMNS_FALLBACK)
+      .eq('id', trimmedId)
+      .maybeSingle();
+    row = fallbackRes.data ? { ...fallbackRes.data, avatar_path: null } : null;
+    error = fallbackRes.error;
+  }
+
   if (error) throw new Error(`Staff lookup failed: ${error.message}`);
   if (!row) throw new NotFoundError('That staff account could not be found.');
 
