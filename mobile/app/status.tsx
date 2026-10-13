@@ -47,7 +47,7 @@ import { colors, styles as theme } from '../src/theme';
 // A small QR glyph for the "Scan QR code" button.
 function QrGlyph({ color }: { color: string }) {
   return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" style={{ width: 20, height: 20 }}>
       <Rect x={3} y={3} width={7} height={7} rx={1.5} stroke={color} strokeWidth={1.8} />
       <Rect x={14} y={3} width={7} height={7} rx={1.5} stroke={color} strokeWidth={1.8} />
       <Rect x={3} y={14} width={7} height={7} rx={1.5} stroke={color} strokeWidth={1.8} />
@@ -207,8 +207,12 @@ export default function CheckStatus() {
           accessibilityRole="button"
           accessibilityLabel={t('status.scanQr')}
         >
-          <QrGlyph color={colors.primary} />
-          <Text style={local.scanBtnText}>{t('status.scanQr')}</Text>
+          <View style={local.scanBtnIcon}>
+            <QrGlyph color={colors.primary} />
+          </View>
+          <Text style={local.scanBtnText} numberOfLines={2}>
+            {t('status.scanQr')}
+          </Text>
         </Pressable>
 
         {/* Generic not-found (also shown for rate-limited — indistinguishable
@@ -511,14 +515,29 @@ const local = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
     paddingVertical: 14,
+    paddingHorizontal: 20,
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: colors.primary,
     backgroundColor: colors.background,
+    minHeight: 52,
   },
-  scanBtnText: { fontSize: 16, fontWeight: '700', color: colors.primary },
+  scanBtnIcon: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  scanBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.primary,
+    textAlign: 'center',
+    flexShrink: 1,
+    lineHeight: 22,
+  },
   notFoundBox: {
     marginTop: 16,
     padding: 12,
