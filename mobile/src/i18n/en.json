@@ -268,7 +268,8 @@
     "or": "or",
     "scanQr": "Scan QR code",
     "scanPrompt": "Point your camera at the case QR code",
-    "cameraDenied": "Camera access is off. Enable it in Settings to scan, or enter your code by hand."
+    "cameraDenied": "Camera access is off. Enable it in Settings to scan, or enter your code by hand.",
+    "openSettings": "Open Settings"
   },
   "directory": {
     "title": "Legal resource directory",

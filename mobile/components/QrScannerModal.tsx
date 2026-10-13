@@ -129,7 +129,7 @@ export default function QrScannerModal({
                 style={styles.settingsBtn}
                 accessibilityRole="button"
               >
-                <Text style={styles.settingsBtnText}>Open Settings</Text>
+                <Text style={styles.settingsBtnText}>{t('status.openSettings')}</Text>
               </Pressable>
             ) : null}
           </View>
