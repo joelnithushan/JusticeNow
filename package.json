@@ -35,12 +35,12 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.1",
-    "@playwright/test": "^1.63.0",
-    "concurrently": "^10.0.5",
+    "@playwright/test": "^1.64.0",
+    "concurrently": "^10.0.6",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.3",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "prettier": "^3.9.9"
+    "prettier": "^3.9.10"
   }
 }
