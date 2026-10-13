@@ -26,7 +26,7 @@
     "expo-localization": "~57.0.2",
     "expo-location": "~57.0.21",
     "expo-media-library": "~57.0.5",
-    "expo-router": "~57.0.26",
+    "expo-router": "~58.0.17",
     "expo-screen-capture": "~57.0.4",
     "expo-speech": "~57.0.3",
     "expo-splash-screen": "~57.0.10",
