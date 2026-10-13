@@ -115,7 +115,8 @@ export default function StaffTabsLayout() {
   // (href: null) so the staffer must finish the profile first (a Google sign-up
   // also picks their role + organisation here). A successful save flips
   // profile_completed → the tabs unlock on the next render.
-  const gated = profile !== null && profile.profile_completed === false;
+  // The system admin is exempt from being gated out of the staff tabs.
+  const gated = profile !== null && !isAdmin && profile.profile_completed === false;
 
   return (
     <Tabs

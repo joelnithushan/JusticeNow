@@ -46,6 +46,11 @@ const PROFILE_COLUMNS =
   'bar_number, department, gender, date_of_birth, avatar_path, profile_completed, ' +
   'mfa_enabled, access_status';
 
+const PROFILE_COLUMNS_FALLBACK =
+  'id, name, email, role, organisation_id, nic, phone, designation, ' +
+  'bar_number, department, gender, date_of_birth, profile_completed, ' +
+  'mfa_enabled, access_status';
+
 /** A validation error the controller maps to a 400 (mirrors staffService). */
 class ValidationError extends Error {
   constructor(message) {
@@ -136,11 +141,21 @@ async function loadOwnRow(staffId) {
     throw new NotFoundError('Your profile could not be found.');
   }
 
-  const { data: row, error } = await supabase
+  let { data: row, error } = await supabase
     .from('staff_users')
     .select(PROFILE_COLUMNS)
     .eq('id', trimmedId)
     .maybeSingle();
+
+  if (error && (error.code === '42703' || error.message?.includes('avatar_path'))) {
+    const fallbackRes = await supabase
+      .from('staff_users')
+      .select(PROFILE_COLUMNS_FALLBACK)
+      .eq('id', trimmedId)
+      .maybeSingle();
+    row = fallbackRes.data ? { ...fallbackRes.data, avatar_path: null } : null;
+    error = fallbackRes.error;
+  }
 
   if (error) {
     throw new Error(`Profile lookup failed: ${error.message}`);
@@ -301,11 +316,11 @@ async function updateOwnProfile({ staffId, role, authMethod, input }) {
       patch.department !== undefined ? patch.department : current.department,
   };
 
-  // profile_completed: role + org set, the core details, plus the role-specific
+  // profile_completed: role + org set (except admin), the core details, plus the role-specific
   // field (attorney → bar_number, officer → department). Recomputed on every PATCH.
   patch.profile_completed = Boolean(
     effectiveRole &&
-      (patch.organisation_id || current.organisation_id) &&
+      (effectiveRole === 'admin' || patch.organisation_id || current.organisation_id) &&
       merged.name &&
       merged.nic &&
       merged.phone &&
@@ -314,13 +329,24 @@ async function updateOwnProfile({ staffId, role, authMethod, input }) {
       (effectiveRole !== 'officer' || merged.department),
   );
 
-  const { data: updated, error } = await supabase
+  let { data: updated, error } = await supabase
     .from('staff_users')
     .update(patch)
     // Scope the write to the caller's OWN id — a staffer edits only their record.
     .eq('id', (staffId || '').trim())
     .select(PROFILE_COLUMNS)
     .maybeSingle();
+
+  if (error && (error.code === '42703' || error.message?.includes('avatar_path'))) {
+    const fallbackRes = await supabase
+      .from('staff_users')
+      .update(patch)
+      .eq('id', (staffId || '').trim())
+      .select(PROFILE_COLUMNS_FALLBACK)
+      .maybeSingle();
+    updated = fallbackRes.data ? { ...fallbackRes.data, avatar_path: null } : null;
+    error = fallbackRes.error;
+  }
 
   if (error) {
     throw new Error(`Profile update failed: ${error.message}`);
