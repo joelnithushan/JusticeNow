@@ -62,7 +62,13 @@ export default function ReporterTopBar({ title, showBack = true, onBack }: Props
 
       {/* Screen title as a big left-aligned headline on white. */}
       {title ? (
-        <Text style={styles.headline} accessibilityRole="header" numberOfLines={2}>
+        <Text
+          style={styles.headline}
+          accessibilityRole="header"
+          numberOfLines={3}
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
+        >
           {title}
         </Text>
       ) : null}
@@ -93,12 +99,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   headline: {
-    fontSize: 30,
+    fontSize: 26,
+    lineHeight: 34,
     fontWeight: '800',
     color: colors.text,
     letterSpacing: -0.4,
     paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 2,
+    paddingTop: 16,
+    paddingBottom: 4,
   },
 });
