@@ -6,10 +6,6 @@
  *  - provides the in-memory report draft to the whole tree, and
  *  - renders the navigation Stack.
  *
- * The floating Quick Exit button (components/QuickExitButton.tsx) is mounted
- * here so it renders on every reporter screen; it hides itself on the brand
- * splash, onboarding, all /staff routes and the neutral /exit screen.
- *
  * Screen files live in /app and become routes by their filename:
  *   app/index.tsx        -> "/"            (Home)
  *   app/report/index.tsx -> "/report"      (3-step report form)
@@ -33,7 +29,6 @@ import { PreferencesProvider } from '../src/context/PreferencesContext';
 import { AuthProvider } from '../src/context/AuthContext';
 import { ProfileProvider } from '../src/context/ProfileContext';
 import { colors } from '../src/theme';
-import QuickExitButton from '../components/QuickExitButton';
 
 export default function RootLayout() {
   return (
@@ -57,9 +52,6 @@ export default function RootLayout() {
                     contentStyle: { backgroundColor: colors.background },
                   }}
                 />
-                {/* Survivor-safety control: floats above every reporter screen,
-                    hidden on splash/onboarding/staff/exit (see QuickExitButton). */}
-                <QuickExitButton />
               </ReportFormProvider>
             </PreferencesProvider>
           </OnboardingProvider>
